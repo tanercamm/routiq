@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:17
+    container_name: routiq_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: SecurePass123!
+      POSTGRES_DB: routiq_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
