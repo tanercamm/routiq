@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import type { RouteOption } from '../types';
 import { Card } from './ui/Card';
-import { MapPin, DollarSign, Calendar, Sun, CheckCircle } from 'lucide-react';
+import { MapPin, Calendar, Sun, CheckCircle } from 'lucide-react';
 
 interface RouteCardProps {
     option: RouteOption;
@@ -51,14 +51,14 @@ export const RouteCard = ({ option, index }: RouteCardProps) => {
 
                 <div className="pt-4 border-t border-white/10 flex justify-between items-end">
                     <div>
-                        <span className="text-xs text-gray-400 block">Total Est. Cost</span>
-                        <span className="text-2xl font-bold text-white flex items-center">
-                            <DollarSign size={20} className="text-teal-400" />
+                        <span className="text-xs text-gray-400 block mb-1">Total Est. Cost</span>
+                        <span className="text-3xl font-bold text-white flex items-center md:text-2xl lg:text-3xl tracking-tight">
+                            <span className="text-teal-400 mr-0.5">$</span>
                             {option.totalEstimatedCost.toLocaleString()}
                         </span>
                     </div>
-                    <button className="text-sm text-teal-300 hover:text-white transition-colors underline decoration-teal-500/50 hover:decoration-white">
-                        View Details
+                    <button className="text-sm font-semibold text-teal-300 hover:text-white transition-all bg-teal-500/10 hover:bg-teal-500 rounded-lg px-4 py-2 border border-teal-500/20 hover:border-transparent">
+                        View Itinerary
                     </button>
                 </div>
             </Card>

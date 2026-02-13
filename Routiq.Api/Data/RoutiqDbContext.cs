@@ -12,6 +12,7 @@ public class RoutiqDbContext : DbContext
     public DbSet<Destination> Destinations { get; set; }
     public DbSet<VisaRule> VisaRules { get; set; }
     public DbSet<UserRequest> UserRequests { get; set; }
+    public DbSet<User> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,11 +22,11 @@ public class RoutiqDbContext : DbContext
         modelBuilder.Entity<Destination>()
             .Property(d => d.AvgDailyCostLow)
             .HasPrecision(18, 2);
-            
+
         modelBuilder.Entity<Destination>()
             .Property(d => d.AvgDailyCostMid)
             .HasPrecision(18, 2);
-            
+
         modelBuilder.Entity<Destination>()
             .Property(d => d.AvgDailyCostHigh)
             .HasPrecision(18, 2);
@@ -34,5 +35,10 @@ public class RoutiqDbContext : DbContext
         modelBuilder.Entity<UserRequest>()
             .Property(ur => ur.TotalBudget)
             .HasPrecision(18, 2);
+
+        // Configure User
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
     }
 }

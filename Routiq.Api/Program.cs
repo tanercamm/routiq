@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Routiq.Api.Data;
+using Routiq.Api.Data; // Validated namespace
 using Routiq.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +18,27 @@ builder.Services.AddDbContext<RoutiqDbContext>(options =>
 
 builder.Services.AddScoped<ICostService, CostService>();
 builder.Services.AddScoped<IRouteGenerator, RouteGenerator>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+// JWT Authentication
+var key = System.Text.Encoding.ASCII.GetBytes(builder.Configuration["Jwt:Key"] ?? "SuperSecretKeyForDevelopmentOnly123!");
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(key),
+        ValidateIssuer = false,
+        ValidateAudience = false
+    };
+});
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -52,6 +73,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 
