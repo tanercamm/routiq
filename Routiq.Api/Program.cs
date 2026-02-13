@@ -55,6 +55,7 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<RoutiqDbContext>();
         DbInitializer.Initialize(context);
+        FlightAttractionSeeder.Seed(context);
     }
     catch (Exception ex)
     {

@@ -1,0 +1,218 @@
+[
+    {
+        "cityName": "Belgrade",
+        "name": "Belgrade Fortress",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 2.0
+    },
+    {
+        "cityName": "Belgrade",
+        "name": "Skadarlija Bohemian Quarter",
+        "estimatedCost": 15,
+        "estimatedDurationInHours": 1.5
+    },
+    {
+        "cityName": "Kotor",
+        "name": "Old Town Walk",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 2.0
+    },
+    {
+        "cityName": "Kotor",
+        "name": "San Giovanni Fortress Hike",
+        "estimatedCost": 8,
+        "estimatedDurationInHours": 3.0
+    },
+    {
+        "cityName": "Tirana",
+        "name": "Skanderbeg Square",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 1.0
+    },
+    {
+        "cityName": "Tirana",
+        "name": "Bunk'Art Museum",
+        "estimatedCost": 5,
+        "estimatedDurationInHours": 1.5
+    },
+    {
+        "cityName": "Sarajevo",
+        "name": "Baščaršija Old Bazaar",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 2.0
+    },
+    {
+        "cityName": "Sarajevo",
+        "name": "Tunnel of Hope",
+        "estimatedCost": 10,
+        "estimatedDurationInHours": 1.5
+    },
+    {
+        "cityName": "Paris",
+        "name": "Eiffel Tower",
+        "estimatedCost": 26,
+        "estimatedDurationInHours": 2.5
+    },
+    {
+        "cityName": "Paris",
+        "name": "Louvre Museum",
+        "estimatedCost": 17,
+        "estimatedDurationInHours": 3.0
+    },
+    {
+        "cityName": "Paris",
+        "name": "Montmartre & Sacré-Cœur",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 2.0
+    },
+    {
+        "cityName": "Rome",
+        "name": "Colosseum",
+        "estimatedCost": 18,
+        "estimatedDurationInHours": 2.0
+    },
+    {
+        "cityName": "Rome",
+        "name": "Vatican Museums",
+        "estimatedCost": 20,
+        "estimatedDurationInHours": 3.5
+    },
+    {
+        "cityName": "Rome",
+        "name": "Trevi Fountain",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 0.5
+    },
+    {
+        "cityName": "Berlin",
+        "name": "Brandenburg Gate",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 1.0
+    },
+    {
+        "cityName": "Berlin",
+        "name": "Museum Island",
+        "estimatedCost": 19,
+        "estimatedDurationInHours": 3.0
+    },
+    {
+        "cityName": "Barcelona",
+        "name": "Sagrada Familia",
+        "estimatedCost": 26,
+        "estimatedDurationInHours": 2.0
+    },
+    {
+        "cityName": "Barcelona",
+        "name": "Park Güell",
+        "estimatedCost": 10,
+        "estimatedDurationInHours": 2.0
+    },
+    {
+        "cityName": "Bangkok",
+        "name": "Grand Palace",
+        "estimatedCost": 15,
+        "estimatedDurationInHours": 2.5
+    },
+    {
+        "cityName": "Bangkok",
+        "name": "Wat Pho",
+        "estimatedCost": 7,
+        "estimatedDurationInHours": 1.5
+    },
+    {
+        "cityName": "Bangkok",
+        "name": "Chatuchak Weekend Market",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 3.0
+    },
+    {
+        "cityName": "Tokyo",
+        "name": "Senso-ji Temple",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 1.5
+    },
+    {
+        "cityName": "Tokyo",
+        "name": "Shibuya Crossing & Meiji Shrine",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 2.0
+    },
+    {
+        "cityName": "Tokyo",
+        "name": "TeamLab Borderless",
+        "estimatedCost": 30,
+        "estimatedDurationInHours": 2.5
+    },
+    {
+        "cityName": "Hanoi",
+        "name": "Hoan Kiem Lake",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 1.0
+    },
+    {
+        "cityName": "Hanoi",
+        "name": "Ho Chi Minh Mausoleum",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 1.5
+    },
+    {
+        "cityName": "Bali",
+        "name": "Uluwatu Temple",
+        "estimatedCost": 3,
+        "estimatedDurationInHours": 2.0
+    },
+    {
+        "cityName": "Bali",
+        "name": "Tegallalang Rice Terraces",
+        "estimatedCost": 2,
+        "estimatedDurationInHours": 2.5
+    },
+    {
+        "cityName": "Istanbul",
+        "name": "Hagia Sophia",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 1.5
+    },
+    {
+        "cityName": "Istanbul",
+        "name": "Grand Bazaar",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 2.0
+    },
+    {
+        "cityName": "Istanbul",
+        "name": "Topkapi Palace",
+        "estimatedCost": 15,
+        "estimatedDurationInHours": 2.5
+    },
+    {
+        "cityName": "Istanbul",
+        "name": "Bosphorus Cruise",
+        "estimatedCost": 10,
+        "estimatedDurationInHours": 2.0
+    },
+    {
+        "cityName": "Antalya",
+        "name": "Kaleiçi Old Town",
+        "estimatedCost": 0,
+        "estimatedDurationInHours": 2.0
+    },
+    {
+        "cityName": "Antalya",
+        "name": "Düden Waterfalls",
+        "estimatedCost": 5,
+        "estimatedDurationInHours": 1.5
+    },
+    {
+        "cityName": "Cappadocia",
+        "name": "Hot Air Balloon Ride",
+        "estimatedCost": 180,
+        "estimatedDurationInHours": 1.5
+    },
+    {
+        "cityName": "Cappadocia",
+        "name": "Göreme Open-Air Museum",
+        "estimatedCost": 12,
+        "estimatedDurationInHours": 2.0
+    }
+]

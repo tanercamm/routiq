@@ -1,0 +1,262 @@
+[
+    {
+        "origin": "Istanbul",
+        "destination": "Belgrade",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "08:30:00",
+        "averagePrice": 120.00,
+        "minPrice": 90,
+        "maxPrice": 174,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Belgrade",
+        "airlineName": "Pegasus",
+        "departureTime": "14:15:00",
+        "averagePrice": 85.00,
+        "minPrice": 64,
+        "maxPrice": 123,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Kotor",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "07:00:00",
+        "averagePrice": 145.00,
+        "minPrice": 109,
+        "maxPrice": 210,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Tirana",
+        "airlineName": "Pegasus",
+        "departureTime": "10:45:00",
+        "averagePrice": 95.00,
+        "minPrice": 71,
+        "maxPrice": 138,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Sarajevo",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "09:00:00",
+        "averagePrice": 130.00,
+        "minPrice": 98,
+        "maxPrice": 189,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Paris",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "06:30:00",
+        "averagePrice": 280.00,
+        "minPrice": 210,
+        "maxPrice": 406,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Paris",
+        "airlineName": "Air France",
+        "departureTime": "11:00:00",
+        "averagePrice": 310.00,
+        "minPrice": 233,
+        "maxPrice": 450,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Rome",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "07:45:00",
+        "averagePrice": 250.00,
+        "minPrice": 188,
+        "maxPrice": 363,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Rome",
+        "airlineName": "Pegasus",
+        "departureTime": "16:30:00",
+        "averagePrice": 180.00,
+        "minPrice": 135,
+        "maxPrice": 261,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Berlin",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "08:00:00",
+        "averagePrice": 220.00,
+        "minPrice": 165,
+        "maxPrice": 319,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Barcelona",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "10:00:00",
+        "averagePrice": 260.00,
+        "minPrice": 195,
+        "maxPrice": 377,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Bangkok",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "01:30:00",
+        "averagePrice": 450.00,
+        "minPrice": 338,
+        "maxPrice": 653,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Bangkok",
+        "airlineName": "Thai Airways",
+        "departureTime": "23:00:00",
+        "averagePrice": 480.00,
+        "minPrice": 360,
+        "maxPrice": 696,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Tokyo",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "02:00:00",
+        "averagePrice": 620.00,
+        "minPrice": 465,
+        "maxPrice": 899,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Hanoi",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "03:15:00",
+        "averagePrice": 520.00,
+        "minPrice": 390,
+        "maxPrice": 754,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Bali",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "22:00:00",
+        "averagePrice": 550.00,
+        "minPrice": 413,
+        "maxPrice": 798,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Antalya",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "07:00:00",
+        "averagePrice": 60.00,
+        "minPrice": 45,
+        "maxPrice": 87,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Antalya",
+        "airlineName": "Pegasus",
+        "departureTime": "12:30:00",
+        "averagePrice": 45.00,
+        "minPrice": 34,
+        "maxPrice": 65,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Antalya",
+        "airlineName": "AnadoluJet",
+        "departureTime": "18:00:00",
+        "averagePrice": 50.00,
+        "minPrice": 38,
+        "maxPrice": 73,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Cappadocia",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "06:00:00",
+        "averagePrice": 75.00,
+        "minPrice": 56,
+        "maxPrice": 109,
+        "currency": "USD"
+    },
+    {
+        "origin": "Istanbul",
+        "destination": "Cappadocia",
+        "airlineName": "Pegasus",
+        "departureTime": "09:30:00",
+        "averagePrice": 55.00,
+        "minPrice": 41,
+        "maxPrice": 80,
+        "currency": "USD"
+    },
+    {
+        "origin": "Ankara",
+        "destination": "Istanbul",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "07:00:00",
+        "averagePrice": 65.00,
+        "minPrice": 49,
+        "maxPrice": 94,
+        "currency": "USD"
+    },
+    {
+        "origin": "Ankara",
+        "destination": "Antalya",
+        "airlineName": "AnadoluJet",
+        "departureTime": "08:30:00",
+        "averagePrice": 55.00,
+        "minPrice": 41,
+        "maxPrice": 80,
+        "currency": "USD"
+    },
+    {
+        "origin": "Ankara",
+        "destination": "Berlin",
+        "airlineName": "Turkish Airlines",
+        "departureTime": "10:00:00",
+        "averagePrice": 240.00,
+        "minPrice": 180,
+        "maxPrice": 348,
+        "currency": "USD"
+    },
+    {
+        "origin": "Izmir",
+        "destination": "Istanbul",
+        "airlineName": "Pegasus",
+        "departureTime": "06:30:00",
+        "averagePrice": 45.00,
+        "minPrice": 34,
+        "maxPrice": 65,
+        "currency": "USD"
+    },
+    {
+        "origin": "Izmir",
+        "destination": "Rome",
+        "airlineName": "SunExpress",
+        "departureTime": "11:00:00",
+        "averagePrice": 190.00,
+        "minPrice": 143,
+        "maxPrice": 276,
+        "currency": "USD"
+    }
+]
