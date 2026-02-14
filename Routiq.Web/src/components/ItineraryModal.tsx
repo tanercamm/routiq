@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { RouteOption, AttractionInfo } from '../types';
-import { X, Clock, DollarSign, ShieldCheck, Thermometer, Timer } from 'lucide-react';
+import { X, Clock, DollarSign, ShieldCheck, Thermometer, Timer, Bookmark, Check } from 'lucide-react';
 import {
     getFlightForCity,
     getReturnFlight,
@@ -31,7 +32,16 @@ const timeOfDayIcon: Record<string, string> = {
 };
 
 export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
+    const [saved, setSaved] = useState(false);
+    const [showToast, setShowToast] = useState(false);
+
     if (!route) return null;
+
+    const handleSave = () => {
+        setSaved(true);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+    };
 
     const dayRanges = route.stops.reduce<{ start: number; end: number }[]>((acc, stop, i) => {
         const start = i === 0 ? 1 : acc[i - 1].end + 1;
@@ -71,7 +81,7 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
 
                     {/* Modal */}
                     <motion.div
-                        className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl"
+                        className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl"
                         initial={{ opacity: 0, scale: 0.92, y: 30 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.92, y: 30 }}
@@ -86,12 +96,24 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                                     </h2>
                                     <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">{route.description}</p>
                                 </div>
-                                <button
-                                    onClick={onClose}
-                                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400 hover:text-gray-700 dark:hover:text-white shrink-0"
-                                >
-                                    <X size={20} />
-                                </button>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={saved}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${saved
+                                                ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/20 cursor-default'
+                                                : 'bg-teal-600 hover:bg-teal-500 text-white shadow-sm'
+                                            }`}
+                                    >
+                                        {saved ? <><Check size={16} /> Saved</> : <><Bookmark size={16} /> Save Trip</>}
+                                    </button>
+                                    <button
+                                        onClick={onClose}
+                                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400 hover:text-gray-700 dark:hover:text-white"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Summary tags */}
@@ -382,6 +404,20 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                             </div>
                         </div>
                     </motion.div>
+
+                    {/* Toast notification */}
+                    <AnimatePresence>
+                        {showToast && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 40 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 40 }}
+                                className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 text-sm font-medium"
+                            >
+                                <Check size={16} /> Trip saved successfully!
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </motion.div>
             )}
         </AnimatePresence>

@@ -1,13 +1,13 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import {
-    User, Trophy, MapPin, Plane, Star, TrendingUp,
-    ArrowLeft, Award, Target, CheckCircle2, Globe
+    User, Trophy, MapPin, Plane, Star,
+    ArrowLeft, Award, Target, CheckCircle2, Globe, Settings
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { countryCodeToFlag } from '../utils/communityData';
 
 const mockProfile = {
     username: 'TanerCam',
@@ -19,15 +19,6 @@ const mockProfile = {
     checkIns: 5,
     citiesVisited: 4,
 };
-
-const mockLeaderboard = [
-    { rank: 1, username: 'WanderSarah', countryCode: 'US', age: 28, points: 1200, trips: 14, badge: '🥇' },
-    { rank: 2, username: 'NomadKai', countryCode: 'DE', age: 31, points: 950, trips: 11, badge: '🥈' },
-    { rank: 3, username: 'ExplorerMax', countryCode: 'GB', age: 25, points: 800, trips: 9, badge: '🥉' },
-    { rank: 4, username: 'TanerCam', countryCode: 'TR', age: 22, points: 350, trips: 7, badge: '⭐' },
-    { rank: 5, username: 'GlobeAnya', countryCode: 'PL', age: 27, points: 300, trips: 6, badge: '' },
-    { rank: 6, username: 'TrailBlazerJay', countryCode: 'CA', age: 34, points: 250, trips: 5, badge: '' },
-];
 
 const mockRecentTrips = [
     { city: 'Belgrade', country: 'Serbia', days: 5, budget: 450, date: '2026-01-20', checkIns: 2 },
@@ -52,10 +43,22 @@ function getLevelInfo(points: number) {
     return { level: 'Novice', color: 'from-gray-400 to-gray-500', next: 200, progress: (points / 200) * 100 };
 }
 
+const COUNTRIES = ['Turkey', 'Germany', 'USA', 'UK', 'Canada', 'Poland', 'Japan', 'Thailand', 'Australia', 'France'];
+const CURRENCIES = ['USD', 'EUR', 'GBP', 'TRY', 'JPY', 'THB', 'CAD', 'AUD', 'PLN'];
+
 export const ProfilePage = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const levelInfo = getLevelInfo(mockProfile.totalPoints);
+
+    const [passportCountry, setPassportCountry] = useState(mockProfile.passportCountry);
+    const [preferredCurrency, setPreferredCurrency] = useState(mockProfile.preferredCurrency);
+    const [prefsSaved, setPrefsSaved] = useState(false);
+
+    const handleSavePrefs = () => {
+        setPrefsSaved(true);
+        setTimeout(() => setPrefsSaved(false), 2500);
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
@@ -75,15 +78,9 @@ export const ProfilePage = () => {
             <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
                 {/* Profile Header */}
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                    className="mb-8"
-                >
+                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-8">
                     <Card>
                         <div className="flex flex-col md:flex-row items-center gap-6">
-                            {/* Avatar */}
                             <div className="relative">
                                 <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${levelInfo.color} flex items-center justify-center`}>
                                     <User size={32} className="text-white" />
@@ -92,37 +89,28 @@ export const ProfilePage = () => {
                                     {levelInfo.level}
                                 </div>
                             </div>
-
-                            {/* User info */}
                             <div className="flex-1 text-center md:text-left">
                                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{user?.name || mockProfile.username}</h1>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{user?.email}</p>
                                 <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                                     <span className="flex items-center gap-1.5 border border-gray-200 dark:border-gray-700 rounded-full px-3 py-1 text-xs text-gray-600 dark:text-gray-300">
-                                        <Globe size={12} className="text-teal-500" /> {mockProfile.passportCountry}
+                                        <Globe size={12} className="text-teal-500" /> {passportCountry}
                                     </span>
                                     <span className="flex items-center gap-1.5 border border-gray-200 dark:border-gray-700 rounded-full px-3 py-1 text-xs text-gray-600 dark:text-gray-300">
-                                        💰 {mockProfile.preferredCurrency}
+                                        💰 {preferredCurrency}
                                     </span>
                                     <span className="flex items-center gap-1.5 bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20 rounded-full px-3 py-1 text-xs text-teal-700 dark:text-teal-300 font-medium">
                                         <Star size={12} /> {mockProfile.totalPoints} pts
                                     </span>
                                 </div>
                             </div>
-
-                            {/* Level progress */}
                             <div className="w-full md:w-56">
                                 <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1.5">
                                     <span>{levelInfo.level}</span>
                                     {levelInfo.next && <span>{levelInfo.next} pts</span>}
                                 </div>
                                 <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                    <motion.div
-                                        className={`h-full bg-gradient-to-r ${levelInfo.color} rounded-full`}
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${levelInfo.progress}%` }}
-                                        transition={{ duration: 1, delay: 0.3 }}
-                                    />
+                                    <motion.div className={`h-full bg-gradient-to-r ${levelInfo.color} rounded-full`} initial={{ width: 0 }} animate={{ width: `${levelInfo.progress}%` }} transition={{ duration: 1, delay: 0.3 }} />
                                 </div>
                                 <p className="text-[10px] text-gray-400 mt-1 text-right">
                                     {levelInfo.next ? `${levelInfo.next - mockProfile.totalPoints} pts to next` : 'Max level!'}
@@ -133,12 +121,7 @@ export const ProfilePage = () => {
                 </motion.div>
 
                 {/* Stats Row */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
-                >
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     {[
                         { icon: <Trophy size={18} className="text-amber-500" />, label: 'Total Points', value: mockProfile.totalPoints },
                         { icon: <Plane size={18} className="text-blue-500" />, label: 'Trips Created', value: mockProfile.tripsCreated },
@@ -155,48 +138,67 @@ export const ProfilePage = () => {
                     ))}
                 </motion.div>
 
-                {/* Two Column: Leaderboard + Recent Trips */}
+                {/* Two Column: Preferences + Recent Trips */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    <motion.div
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.2 }}
-                    >
+
+                    {/* Preferences */}
+                    <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
                         <Card className="h-full">
                             <div className="flex items-center gap-2 mb-5">
-                                <TrendingUp size={18} className="text-teal-600 dark:text-teal-400" />
-                                <h2 className="text-base font-semibold text-gray-900 dark:text-white">Leaderboard</h2>
+                                <Settings size={18} className="text-gray-500 dark:text-gray-400" />
+                                <h2 className="text-base font-semibold text-gray-900 dark:text-white">Preferences</h2>
                             </div>
-                            <div className="space-y-1.5">
-                                {mockLeaderboard.map((entry) => (
-                                    <div
-                                        key={entry.rank}
-                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${entry.username === 'TanerCam'
-                                                ? 'bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20'
-                                                : 'hover:bg-gray-50 dark:hover:bg-gray-700/40'
-                                            }`}
-                                    >
-                                        <span className="w-7 text-center font-bold text-gray-400 text-sm">
-                                            {entry.badge || `#${entry.rank}`}
-                                        </span>
-                                        <div className="flex-1 min-w-0">
-                                            <span className={`text-sm font-medium ${entry.username === 'TanerCam' ? 'text-teal-700 dark:text-teal-300' : 'text-gray-900 dark:text-gray-100'}`}>
-                                                {countryCodeToFlag(entry.countryCode)} {entry.username}{entry.age ? ` (${entry.age})` : ''}
-                                            </span>
-                                            <span className="text-xs text-gray-400 ml-2">{entry.trips} trips</span>
-                                        </div>
-                                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">{entry.points.toLocaleString()}</span>
+
+                            {/* Read-only fields */}
+                            <div className="space-y-4 mb-6">
+                                <div>
+                                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Name</label>
+                                    <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-not-allowed">
+                                        {user?.name || mockProfile.username}
                                     </div>
-                                ))}
+                                </div>
+                                <div>
+                                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Email</label>
+                                    <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-not-allowed">
+                                        {user?.email || 'user@routiq.com'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Editable fields */}
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Passport Country</label>
+                                    <select
+                                        value={passportCountry}
+                                        onChange={(e) => setPassportCountry(e.target.value)}
+                                        className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500 transition-colors"
+                                    >
+                                        {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Preferred Currency</label>
+                                    <select
+                                        value={preferredCurrency}
+                                        onChange={(e) => setPreferredCurrency(e.target.value)}
+                                        className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500 transition-colors"
+                                    >
+                                        {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="mt-6">
+                                <Button onClick={handleSavePrefs} className="w-full flex items-center justify-center gap-2">
+                                    {prefsSaved ? <><CheckCircle2 size={16} /> Saved!</> : 'Save Preferences'}
+                                </Button>
                             </div>
                         </Card>
                     </motion.div>
 
-                    <motion.div
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.25 }}
-                    >
+                    {/* Recent Trips */}
+                    <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}>
                         <Card className="h-full">
                             <div className="flex items-center gap-2 mb-5">
                                 <Plane size={18} className="text-blue-500" />
@@ -215,15 +217,9 @@ export const ProfilePage = () => {
                                             </span>
                                         </div>
                                         <div className="flex gap-4 text-xs">
-                                            <span className="text-gray-500 dark:text-gray-400">
-                                                💰 <span className="font-medium text-gray-700 dark:text-gray-200">${trip.budget}</span>
-                                            </span>
-                                            <span className="text-gray-500 dark:text-gray-400">
-                                                📍 <span className="font-medium text-green-600 dark:text-green-400">{trip.checkIns} check-ins</span>
-                                            </span>
-                                            <span className="text-gray-500 dark:text-gray-400">
-                                                ⭐ <span className="font-medium text-teal-600 dark:text-teal-400">+{trip.checkIns * 50} pts</span>
-                                            </span>
+                                            <span className="text-gray-500 dark:text-gray-400">💰 <span className="font-medium text-gray-700 dark:text-gray-200">${trip.budget}</span></span>
+                                            <span className="text-gray-500 dark:text-gray-400">📍 <span className="font-medium text-green-600 dark:text-green-400">{trip.checkIns} check-ins</span></span>
+                                            <span className="text-gray-500 dark:text-gray-400">⭐ <span className="font-medium text-teal-600 dark:text-teal-400">+{trip.checkIns * 50} pts</span></span>
                                         </div>
                                     </div>
                                 ))}
@@ -233,11 +229,7 @@ export const ProfilePage = () => {
                 </div>
 
                 {/* Achievements */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                >
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
                     <Card>
                         <div className="flex items-center gap-2 mb-5">
                             <Award size={18} className="text-amber-500" />
@@ -261,9 +253,7 @@ export const ProfilePage = () => {
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className="text-lg">{achievement.icon}</span>
                                         <span className="text-sm font-medium text-gray-900 dark:text-white">{achievement.title}</span>
-                                        {achievement.earned && (
-                                            <Target size={12} className="text-green-500 ml-auto" />
-                                        )}
+                                        {achievement.earned && <Target size={12} className="text-green-500 ml-auto" />}
                                     </div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">{achievement.desc}</p>
                                 </motion.div>

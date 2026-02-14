@@ -12,9 +12,8 @@ import { ItineraryModal } from './components/ItineraryModal';
 import { generateRoutes } from './api/routiqApi';
 import type { RouteRequest, RouteOption } from './types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Map, Loader2, LogOut, User, TrendingUp, ThumbsUp, GitFork } from 'lucide-react';
+import { Map, Loader2, User, TrendingUp, ThumbsUp, GitFork } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from './components/ui/Button';
 import { Card } from './components/ui/Card';
 import { CostVsDurationChart } from './components/CostVsDurationChart';
 import { countryCodeToFlag } from './utils/communityData';
@@ -22,10 +21,10 @@ import { countryCodeToFlag } from './utils/communityData';
 // ── Mock data ──
 
 const leaderboardData = [
-  { rank: 1, username: 'WanderSarah', countryCode: 'US', age: 28, points: 1200, trips: 14, badge: '🥇' },
+  { rank: 1, username: 'WanderSarah', countryCode: 'US', age: 28, points: 1200, trips: 14, badge: '⭐🥇' },
   { rank: 2, username: 'NomadKai', countryCode: 'DE', age: 31, points: 950, trips: 11, badge: '🥈' },
   { rank: 3, username: 'ExplorerMax', countryCode: 'GB', age: 25, points: 800, trips: 9, badge: '🥉' },
-  { rank: 4, username: 'TanerCam', countryCode: 'TR', age: 22, points: 350, trips: 7, badge: '⭐' },
+  { rank: 4, username: 'TanerCam', countryCode: 'TR', age: 22, points: 350, trips: 7, badge: '' },
   { rank: 5, username: 'GlobeAnya', countryCode: 'PL', age: 27, points: 300, trips: 6, badge: '' },
   { rank: 6, username: 'TrailBlazerJay', countryCode: 'CA', age: 34, points: 250, trips: 5, badge: '' },
 ];
@@ -42,7 +41,7 @@ function Dashboard() {
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<RouteOption | null>(null);
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -66,31 +65,38 @@ function Dashboard() {
       {/* ── Navbar ── */}
       <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          {/* Brand */}
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 bg-teal-50 dark:bg-teal-500/10 rounded-lg">
               <Map size={22} className="text-teal-600 dark:text-teal-400" />
             </div>
-            <span className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
+            <span className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
               Routiq
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:inline">
-              {user?.name}
-            </span>
+
+          {/* Right Actions */}
+          <div className="flex items-center gap-2">
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm"
+              className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-lg"
               title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             >
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
-            <Button variant="outline" onClick={() => navigate('/profile')} className="flex items-center gap-2">
-              <User size={14} /> Profile
-            </Button>
-            <Button variant="outline" onClick={logout} className="flex items-center gap-2">
-              <LogOut size={14} /> Sign Out
-            </Button>
+            <button
+              onClick={() => navigate('/profile')}
+              className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              title="Profile"
+            >
+              <User size={18} className="text-gray-600 dark:text-gray-300" />
+            </button>
+            <button
+              onClick={logout}
+              className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       </header>
@@ -185,8 +191,8 @@ function Dashboard() {
                       <div
                         key={entry.rank}
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${entry.username === 'TanerCam'
-                            ? 'bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20'
-                            : 'hover:bg-gray-50 dark:hover:bg-gray-700/40'
+                          ? 'bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-700/40'
                           }`}
                       >
                         <span className="w-7 text-center font-bold text-gray-400 dark:text-gray-500 text-sm">

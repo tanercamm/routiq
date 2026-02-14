@@ -12,6 +12,9 @@ export function countryCodeToFlag(code: string): string {
     );
 }
 
+/** Alias – matches the user-facing spec name */
+export const getFlagEmoji = countryCodeToFlag;
+
 // Mock community tips — mirrors what DestinationTip entities would return.
 // Will be replaced by API calls when community endpoints are built.
 
