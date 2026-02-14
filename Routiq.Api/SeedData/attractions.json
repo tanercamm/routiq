@@ -3,216 +3,324 @@
         "cityName": "Belgrade",
         "name": "Belgrade Fortress",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "A sprawling fortress at the confluence of the Sava and Danube rivers with panoramic city views.",
+        "category": "Historical",
+        "bestTimeOfDay": "Afternoon"
     },
     {
         "cityName": "Belgrade",
         "name": "Skadarlija Bohemian Quarter",
         "estimatedCost": 15,
-        "estimatedDurationInHours": 1.5
+        "estimatedDurationInHours": 1.5,
+        "description": "Belgrade's charming cobblestone street lined with traditional Serbian restaurants and live music.",
+        "category": "Entertainment",
+        "bestTimeOfDay": "Evening"
     },
     {
         "cityName": "Kotor",
         "name": "Old Town Walk",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "Wander through the UNESCO-listed medieval old town with Venetian architecture and hidden squares.",
+        "category": "Historical",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Kotor",
         "name": "San Giovanni Fortress Hike",
         "estimatedCost": 8,
-        "estimatedDurationInHours": 3.0
+        "estimatedDurationInHours": 3.0,
+        "description": "A steep 1,350-step climb to a medieval fortress with breathtaking views over the Bay of Kotor.",
+        "category": "Nature",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Tirana",
         "name": "Skanderbeg Square",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 1.0
+        "estimatedDurationInHours": 1.0,
+        "description": "Tirana's vast central plaza surrounded by government buildings, museums, and the Et'hem Bey Mosque.",
+        "category": "Historical",
+        "bestTimeOfDay": "Anytime"
     },
     {
         "cityName": "Tirana",
         "name": "Bunk'Art Museum",
         "estimatedCost": 5,
-        "estimatedDurationInHours": 1.5
+        "estimatedDurationInHours": 1.5,
+        "description": "A Cold War nuclear bunker converted into a fascinating museum of Albania's communist history.",
+        "category": "Museum",
+        "bestTimeOfDay": "Afternoon"
     },
     {
         "cityName": "Sarajevo",
         "name": "Baščaršija Old Bazaar",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "The Ottoman-era heart of Sarajevo with copper workshops, cafes, and the iconic Sebilj fountain.",
+        "category": "Historical",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Sarajevo",
         "name": "Tunnel of Hope",
         "estimatedCost": 10,
-        "estimatedDurationInHours": 1.5
+        "estimatedDurationInHours": 1.5,
+        "description": "The wartime tunnel that kept Sarajevo alive during the 1990s siege, now a powerful museum.",
+        "category": "Museum",
+        "bestTimeOfDay": "Afternoon"
     },
     {
         "cityName": "Paris",
         "name": "Eiffel Tower",
         "estimatedCost": 26,
-        "estimatedDurationInHours": 2.5
+        "estimatedDurationInHours": 2.5,
+        "description": "The iconic iron lattice tower offering stunning views of Paris from its observation decks.",
+        "category": "Historical",
+        "bestTimeOfDay": "Evening"
     },
     {
         "cityName": "Paris",
         "name": "Louvre Museum",
         "estimatedCost": 17,
-        "estimatedDurationInHours": 3.0
+        "estimatedDurationInHours": 3.0,
+        "description": "The world's largest art museum housing the Mona Lisa and over 35,000 works of art.",
+        "category": "Museum",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Paris",
         "name": "Montmartre & Sacré-Cœur",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "Bohemian hilltop village crowned by the white-domed basilica with sweeping city panoramas.",
+        "category": "Historical",
+        "bestTimeOfDay": "Afternoon"
     },
     {
         "cityName": "Rome",
         "name": "Colosseum",
         "estimatedCost": 18,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "The legendary 2,000-year-old amphitheater where gladiators once battled before 50,000 spectators.",
+        "category": "Historical",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Rome",
         "name": "Vatican Museums",
         "estimatedCost": 20,
-        "estimatedDurationInHours": 3.5
+        "estimatedDurationInHours": 3.5,
+        "description": "A vast collection of art and antiquities culminating in Michelangelo's breathtaking Sistine Chapel.",
+        "category": "Museum",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Rome",
         "name": "Trevi Fountain",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 0.5
+        "estimatedDurationInHours": 0.5,
+        "description": "Rome's most famous Baroque fountain where tossing a coin guarantees your return to the Eternal City.",
+        "category": "Historical",
+        "bestTimeOfDay": "Evening"
     },
     {
         "cityName": "Berlin",
         "name": "Brandenburg Gate",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 1.0
+        "estimatedDurationInHours": 1.0,
+        "description": "The neoclassical triumphal arch that symbolizes German unity and stands at the heart of the city.",
+        "category": "Historical",
+        "bestTimeOfDay": "Anytime"
     },
     {
         "cityName": "Berlin",
         "name": "Museum Island",
         "estimatedCost": 19,
-        "estimatedDurationInHours": 3.0
+        "estimatedDurationInHours": 3.0,
+        "description": "A UNESCO World Heritage complex of five world-class museums on an island in the Spree River.",
+        "category": "Museum",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Barcelona",
         "name": "Sagrada Familia",
         "estimatedCost": 26,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "Gaudí's unfinished masterpiece basilica with extraordinary organic facades and light-filled interiors.",
+        "category": "Historical",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Barcelona",
         "name": "Park Güell",
         "estimatedCost": 10,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "A whimsical hilltop park filled with Gaudí's colorful mosaic sculptures and Mediterranean views.",
+        "category": "Nature",
+        "bestTimeOfDay": "Afternoon"
     },
     {
         "cityName": "Bangkok",
         "name": "Grand Palace",
         "estimatedCost": 15,
-        "estimatedDurationInHours": 2.5
+        "estimatedDurationInHours": 2.5,
+        "description": "The dazzling former royal residence with ornate temples, including the Emerald Buddha.",
+        "category": "Historical",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Bangkok",
         "name": "Wat Pho",
         "estimatedCost": 7,
-        "estimatedDurationInHours": 1.5
+        "estimatedDurationInHours": 1.5,
+        "description": "Home to the massive 46-meter reclining Buddha and Thailand's oldest traditional massage school.",
+        "category": "Historical",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Bangkok",
         "name": "Chatuchak Weekend Market",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 3.0
+        "estimatedDurationInHours": 3.0,
+        "description": "One of the world's largest outdoor markets with over 15,000 stalls selling everything imaginable.",
+        "category": "Entertainment",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Tokyo",
         "name": "Senso-ji Temple",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 1.5
+        "estimatedDurationInHours": 1.5,
+        "description": "Tokyo's oldest and most significant Buddhist temple with a vibrant shopping street leading to its gates.",
+        "category": "Historical",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Tokyo",
         "name": "Shibuya Crossing & Meiji Shrine",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "Experience the world's busiest intersection then escape into the serene forest surrounding Meiji Shrine.",
+        "category": "Entertainment",
+        "bestTimeOfDay": "Afternoon"
     },
     {
         "cityName": "Tokyo",
         "name": "TeamLab Borderless",
         "estimatedCost": 30,
-        "estimatedDurationInHours": 2.5
+        "estimatedDurationInHours": 2.5,
+        "description": "An immersive digital art museum where interactive projections flow endlessly across rooms.",
+        "category": "Museum",
+        "bestTimeOfDay": "Evening"
     },
     {
         "cityName": "Hanoi",
         "name": "Hoan Kiem Lake",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 1.0
+        "estimatedDurationInHours": 1.0,
+        "description": "A tranquil lake in the heart of Hanoi with the iconic red Huc Bridge leading to Ngoc Son Temple.",
+        "category": "Nature",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Hanoi",
         "name": "Ho Chi Minh Mausoleum",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 1.5
+        "estimatedDurationInHours": 1.5,
+        "description": "The solemn granite mausoleum honoring Vietnam's revolutionary leader, set in Ba Dinh Square.",
+        "category": "Historical",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Bali",
         "name": "Uluwatu Temple",
         "estimatedCost": 3,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "A dramatic clifftop sea temple perched 70 meters above the Indian Ocean, famous for sunset Kecak dance.",
+        "category": "Historical",
+        "bestTimeOfDay": "Evening"
     },
     {
         "cityName": "Bali",
         "name": "Tegallalang Rice Terraces",
         "estimatedCost": 2,
-        "estimatedDurationInHours": 2.5
+        "estimatedDurationInHours": 2.5,
+        "description": "Stunning cascading rice paddies carved into the hillside using an ancient Balinese irrigation system.",
+        "category": "Nature",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Istanbul",
         "name": "Hagia Sophia",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 1.5
+        "estimatedDurationInHours": 1.5,
+        "description": "A 1,500-year-old architectural marvel that has served as cathedral, mosque, and museum.",
+        "category": "Historical",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Istanbul",
         "name": "Grand Bazaar",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "One of the world's oldest covered markets with over 4,000 shops across 61 covered streets.",
+        "category": "Entertainment",
+        "bestTimeOfDay": "Afternoon"
     },
     {
         "cityName": "Istanbul",
         "name": "Topkapi Palace",
         "estimatedCost": 15,
-        "estimatedDurationInHours": 2.5
+        "estimatedDurationInHours": 2.5,
+        "description": "The opulent seat of Ottoman sultans for 400 years, housing imperial treasures and the famous Harem.",
+        "category": "Museum",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Istanbul",
         "name": "Bosphorus Cruise",
         "estimatedCost": 10,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "A scenic ferry ride between two continents passing Ottoman palaces, fortresses, and waterfront mansions.",
+        "category": "Entertainment",
+        "bestTimeOfDay": "Afternoon"
     },
     {
         "cityName": "Antalya",
         "name": "Kaleiçi Old Town",
         "estimatedCost": 0,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "A walled old town of narrow Ottoman lanes, Roman ruins, and a picturesque ancient harbor.",
+        "category": "Historical",
+        "bestTimeOfDay": "Afternoon"
     },
     {
         "cityName": "Antalya",
         "name": "Düden Waterfalls",
         "estimatedCost": 5,
-        "estimatedDurationInHours": 1.5
+        "estimatedDurationInHours": 1.5,
+        "description": "Spectacular waterfalls cascading directly off sea cliffs into the Mediterranean.",
+        "category": "Nature",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Cappadocia",
         "name": "Hot Air Balloon Ride",
         "estimatedCost": 180,
-        "estimatedDurationInHours": 1.5
+        "estimatedDurationInHours": 1.5,
+        "description": "Float over fairy chimneys and volcanic valleys at sunrise in one of the world's top balloon experiences.",
+        "category": "Entertainment",
+        "bestTimeOfDay": "Morning"
     },
     {
         "cityName": "Cappadocia",
         "name": "Göreme Open-Air Museum",
         "estimatedCost": 12,
-        "estimatedDurationInHours": 2.0
+        "estimatedDurationInHours": 2.0,
+        "description": "A UNESCO World Heritage site of rock-carved churches with stunning Byzantine frescoes from the 10th century.",
+        "category": "Museum",
+        "bestTimeOfDay": "Morning"
     }
 ]

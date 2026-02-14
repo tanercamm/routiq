@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Routiq.Api.Entities;
 
-public class Attraction
+public class AccommodationZone
 {
     public int Id { get; set; }
 
@@ -16,15 +16,14 @@ public class Attraction
     public Destination? City { get; set; }
 
     [Required]
-    public string Name { get; set; } = string.Empty;
-
-    public decimal EstimatedCost { get; set; }
-
-    public double EstimatedDurationInHours { get; set; }
+    public string ZoneName { get; set; } = string.Empty;
 
     public string Description { get; set; } = string.Empty;
 
-    public string Category { get; set; } = string.Empty; // "Historical", "Nature", "Museum", "Entertainment"
+    [Required]
+    public string Category { get; set; } = string.Empty; // "Budget", "Mid-Range", "Luxury"
 
-    public string BestTimeOfDay { get; set; } = string.Empty; // "Morning", "Afternoon", "Evening", "Anytime"
+    public decimal AverageNightlyCost { get; set; }
+
+    public string Currency { get; set; } = "USD";
 }

@@ -1,0 +1,266 @@
+[
+    {
+        "cityName": "Belgrade",
+        "zoneName": "Stari Grad (Old Town)",
+        "description": "The historic heart of Belgrade with cafes, nightlife on Strahinjića Bana street, and walkable access to Kalemegdan Fortress.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 45,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Belgrade",
+        "zoneName": "Savamala District",
+        "description": "Trendy riverside area with hostels and budget hotels. Close to the waterfront and Belgrade's creative scene.",
+        "category": "Budget",
+        "averageNightlyCost": 25,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Kotor",
+        "zoneName": "Old Town Walls",
+        "description": "Stay inside or just outside the UNESCO-listed medieval walls. Charming stone buildings and bay views.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 55,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Kotor",
+        "zoneName": "Dobrota Seafront",
+        "description": "Quieter seaside village just north of the Old Town with affordable apartments and stunning Boka Bay panoramas.",
+        "category": "Budget",
+        "averageNightlyCost": 35,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Paris",
+        "zoneName": "Le Marais (3rd & 4th Arr.)",
+        "description": "Vibrant historic district with boutique hotels, trendy restaurants, and walkable to major landmarks.",
+        "category": "Luxury",
+        "averageNightlyCost": 220,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Paris",
+        "zoneName": "Montmartre (18th Arr.)",
+        "description": "Bohemian hilltop neighborhood near Sacré-Cœur. More affordable than central Paris with artistic charm.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 110,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Paris",
+        "zoneName": "Gare du Nord Area (10th Arr.)",
+        "description": "Budget-friendly area near major train stations. Convenient transit hub but less scenic.",
+        "category": "Budget",
+        "averageNightlyCost": 65,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Rome",
+        "zoneName": "Trastevere",
+        "description": "Charming cobblestone streets south of the Tiber. Known for authentic trattorias and lively nightlife.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 95,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Rome",
+        "zoneName": "Termini Station Area",
+        "description": "Central transport hub with the widest range of budget accommodation. Walking distance to Colosseum.",
+        "category": "Budget",
+        "averageNightlyCost": 55,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Rome",
+        "zoneName": "Piazza Navona / Centro Storico",
+        "description": "The historic core with luxury boutique hotels steps from the Pantheon and Piazza Navona.",
+        "category": "Luxury",
+        "averageNightlyCost": 195,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Berlin",
+        "zoneName": "Mitte",
+        "description": "Central Berlin with museums, Brandenburg Gate, and upscale dining. The tourist epicenter.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 90,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Berlin",
+        "zoneName": "Kreuzberg",
+        "description": "Multicultural, alternative neighborhood with street art, affordable hostels, and vibrant food scene.",
+        "category": "Budget",
+        "averageNightlyCost": 50,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Barcelona",
+        "zoneName": "Gothic Quarter (Barri Gòtic)",
+        "description": "Medieval lanes in the heart of Barcelona. Walking distance to La Rambla and the cathedral.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 100,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Barcelona",
+        "zoneName": "Barceloneta Beach",
+        "description": "Beachfront neighborhood with hostels and apartments. Great for sun-seekers on a budget.",
+        "category": "Budget",
+        "averageNightlyCost": 60,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Bangkok",
+        "zoneName": "Khao San Road Area",
+        "description": "The legendary backpacker hub. Ultra-cheap guesthouses, street food, and nonstop energy.",
+        "category": "Budget",
+        "averageNightlyCost": 15,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Bangkok",
+        "zoneName": "Sukhumvit (Asok–Nana)",
+        "description": "Modern district along the BTS Skytrain with mid-range hotels, rooftop bars, and malls.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 45,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Tokyo",
+        "zoneName": "Shinjuku",
+        "description": "Massive transit hub with every hotel tier. Ideal base for exploring Tokyo by rail.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 110,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Tokyo",
+        "zoneName": "Asakusa",
+        "description": "Traditional neighborhood near Senso-ji Temple. Budget ryokans and capsule hotels available.",
+        "category": "Budget",
+        "averageNightlyCost": 55,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Istanbul",
+        "zoneName": "Sultanahmet (Old City)",
+        "description": "The historic peninsula with Hagia Sophia, Blue Mosque, and Grand Bazaar steps away.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 60,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Istanbul",
+        "zoneName": "Beyoğlu / Taksim",
+        "description": "Bustling modern district on İstiklal Avenue. Mix of boutique hotels, hostels, and nightlife.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 55,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Istanbul",
+        "zoneName": "Kadıköy (Asian Side)",
+        "description": "Local favorite across the Bosphorus. Cheaper stays, authentic food markets, and ferry commute.",
+        "category": "Budget",
+        "averageNightlyCost": 30,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Antalya",
+        "zoneName": "Kaleiçi (Old Town)",
+        "description": "Charming Ottoman-era streets with boutique pensions inside the ancient harbor walls.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 45,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Antalya",
+        "zoneName": "Lara Beach",
+        "description": "All-inclusive resort strip east of center. Luxury beachfront hotels with pools.",
+        "category": "Luxury",
+        "averageNightlyCost": 120,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Cappadocia",
+        "zoneName": "Göreme Center",
+        "description": "The heart of Cappadocia. Cave hotels carved into fairy chimneys with sunrise balloon views.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 70,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Cappadocia",
+        "zoneName": "Uçhisar",
+        "description": "Hilltop village with premium cave suites and panoramic valley views. Quieter and more upscale.",
+        "category": "Luxury",
+        "averageNightlyCost": 150,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Bali",
+        "zoneName": "Kuta / Legian",
+        "description": "Busy beach area popular with budget travelers. Cheap rooms, surfing, and lively bars.",
+        "category": "Budget",
+        "averageNightlyCost": 20,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Bali",
+        "zoneName": "Ubud Center",
+        "description": "Cultural heart of Bali surrounded by rice terraces. Mid-range villas and yoga retreats.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 50,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Hanoi",
+        "zoneName": "Old Quarter",
+        "description": "The bustling 36 streets with budget hostels, street food vendors, and Hoan Kiem Lake nearby.",
+        "category": "Budget",
+        "averageNightlyCost": 15,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Hanoi",
+        "zoneName": "French Quarter (Hoàn Kiếm)",
+        "description": "Colonial-era elegance with mid-range and luxury hotels around the Opera House.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 40,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Tirana",
+        "zoneName": "Blloku District",
+        "description": "Tirana's trendiest neighborhood. Once restricted to communist elites, now packed with cafes and nightlife.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 35,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Tirana",
+        "zoneName": "Near Skanderbeg Square",
+        "description": "Central and walkable. Budget hotels and guesthouses around the main plaza.",
+        "category": "Budget",
+        "averageNightlyCost": 20,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Sarajevo",
+        "zoneName": "Baščaršija (Old Bazaar)",
+        "description": "Ottoman-era market district with atmospheric pensions and copper workshops.",
+        "category": "Mid-Range",
+        "averageNightlyCost": 40,
+        "currency": "USD"
+    },
+    {
+        "cityName": "Sarajevo",
+        "zoneName": "Marijin Dvor",
+        "description": "Modern downtown area with business hotels and easy tram access to the old town.",
+        "category": "Budget",
+        "averageNightlyCost": 25,
+        "currency": "USD"
+    }
+]

@@ -15,6 +15,7 @@ public class RoutiqDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Flight> Flights { get; set; }
     public DbSet<Attraction> Attractions { get; set; }
+    public DbSet<AccommodationZone> AccommodationZones { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,6 +60,11 @@ public class RoutiqDbContext : DbContext
         // Configure Attraction
         modelBuilder.Entity<Attraction>()
             .Property(a => a.EstimatedCost)
+            .HasPrecision(18, 2);
+
+        // Configure AccommodationZone
+        modelBuilder.Entity<AccommodationZone>()
+            .Property(az => az.AverageNightlyCost)
             .HasPrecision(18, 2);
     }
 }

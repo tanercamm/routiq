@@ -5,8 +5,8 @@ using Routiq.Api.Entities;
 namespace Routiq.Api.Data;
 
 /// <summary>
-/// Reads flights.json and attractions.json from SeedData/ and inserts
-/// them into the database if the respective tables are empty.
+/// Reads JSON files from SeedData/ and inserts them into the database
+/// if the respective tables are empty.
 /// This class does NOT modify or interfere with DbInitializer.
 /// </summary>
 public static class FlightAttractionSeeder
@@ -20,6 +20,7 @@ public static class FlightAttractionSeeder
     {
         SeedFlights(context);
         SeedAttractions(context);
+        SeedAccommodationZones(context);
     }
 
     private static void SeedFlights(RoutiqDbContext context)
@@ -41,6 +42,9 @@ public static class FlightAttractionSeeder
                 Destination = f.Destination,
                 AirlineName = f.AirlineName,
                 DepartureTime = TimeSpan.Parse(f.DepartureTime),
+                ArrivalTime = TimeSpan.Parse(f.ArrivalTime),
+                FlightNumber = f.FlightNumber,
+                IsDirect = f.IsDirect,
                 AveragePrice = f.AveragePrice,
                 MinPrice = f.MinPrice,
                 MaxPrice = f.MaxPrice,
@@ -73,7 +77,10 @@ public static class FlightAttractionSeeder
                 CityId = destination.Id,
                 Name = a.Name,
                 EstimatedCost = a.EstimatedCost,
-                EstimatedDurationInHours = a.EstimatedDurationInHours
+                EstimatedDurationInHours = a.EstimatedDurationInHours,
+                Description = a.Description,
+                Category = a.Category,
+                BestTimeOfDay = a.BestTimeOfDay
             });
         }
 
@@ -88,6 +95,9 @@ public static class FlightAttractionSeeder
         public string Destination { get; set; } = string.Empty;
         public string AirlineName { get; set; } = string.Empty;
         public string DepartureTime { get; set; } = "00:00:00";
+        public string ArrivalTime { get; set; } = "00:00:00";
+        public string FlightNumber { get; set; } = string.Empty;
+        public bool IsDirect { get; set; } = true;
         public decimal AveragePrice { get; set; }
         public decimal MinPrice { get; set; }
         public decimal MaxPrice { get; set; }
@@ -100,5 +110,50 @@ public static class FlightAttractionSeeder
         public string Name { get; set; } = string.Empty;
         public decimal EstimatedCost { get; set; }
         public double EstimatedDurationInHours { get; set; }
+        public string Description { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public string BestTimeOfDay { get; set; } = string.Empty;
+    }
+
+    // ── Accommodation Zones ──
+
+    private static void SeedAccommodationZones(RoutiqDbContext context)
+    {
+        if (context.AccommodationZones.Any()) return;
+
+        var jsonPath = Path.Combine(AppContext.BaseDirectory, "SeedData", "accommodation_zones.json");
+        if (!File.Exists(jsonPath)) return;
+
+        var json = File.ReadAllText(jsonPath);
+        var zones = JsonSerializer.Deserialize<List<AccommodationZoneSeedDto>>(json, JsonOptions);
+        if (zones == null) return;
+
+        foreach (var z in zones)
+        {
+            var destination = context.Destinations.FirstOrDefault(d => d.City == z.CityName);
+            if (destination == null) continue;
+
+            context.AccommodationZones.Add(new AccommodationZone
+            {
+                CityId = destination.Id,
+                ZoneName = z.ZoneName,
+                Description = z.Description,
+                Category = z.Category,
+                AverageNightlyCost = z.AverageNightlyCost,
+                Currency = z.Currency
+            });
+        }
+
+        context.SaveChanges();
+    }
+
+    private class AccommodationZoneSeedDto
+    {
+        public string CityName { get; set; } = string.Empty;
+        public string ZoneName { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public decimal AverageNightlyCost { get; set; }
+        public string Currency { get; set; } = "USD";
     }
 }

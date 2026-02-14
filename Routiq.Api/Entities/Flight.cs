@@ -24,4 +24,10 @@ public class Flight
     public decimal MaxPrice { get; set; }
 
     public string Currency { get; set; } = "USD";
+
+    public TimeSpan ArrivalTime { get; set; }
+
+    public string FlightNumber { get; set; } = string.Empty;
+
+    public bool IsDirect { get; set; } = true;
 }

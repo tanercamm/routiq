@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Routiq.Api.Data;
@@ -11,9 +12,11 @@ using Routiq.Api.Data;
 namespace Routiq.Api.Migrations
 {
     [DbContext(typeof(RoutiqDbContext))]
-    partial class RoutiqDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260214130203_AddAccommodationZonesAndFlightPriceRange")]
+    partial class AddAccommodationZonesAndFlightPriceRange
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -68,20 +71,8 @@ namespace Routiq.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("BestTimeOfDay")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<int>("CityId")
                         .HasColumnType("integer");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<decimal>("EstimatedCost")
                         .HasPrecision(18, 2)
@@ -160,9 +151,6 @@ namespace Routiq.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<TimeSpan>("ArrivalTime")
-                        .HasColumnType("interval");
-
                     b.Property<decimal>("AveragePrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -177,13 +165,6 @@ namespace Routiq.Api.Migrations
                     b.Property<string>("Destination")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<string>("FlightNumber")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsDirect")
-                        .HasColumnType("boolean");
 
                     b.Property<decimal>("MaxPrice")
                         .HasPrecision(18, 2)
