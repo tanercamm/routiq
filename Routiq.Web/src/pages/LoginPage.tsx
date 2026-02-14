@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, AlertCircle, ArrowRight } from 'lucide-react';
+import { LogIn, AlertCircle } from 'lucide-react';
 
 export const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -36,68 +36,56 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="min-h-screen grid lg:grid-cols-2 bg-[#0f172a]">
-            {/* Left Column - Image & Branding */}
-            <div className="relative hidden lg:block overflow-hidden">
-                <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[20s] hover:scale-105"
-                    style={{ backgroundImage: "url('https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80')" }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
-
-                <div className="absolute bottom-0 left-0 p-16 text-white z-10">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                    >
-                        <h2 className="text-5xl font-bold mb-6 leading-tight">
-                            Discover the World,<br />
-                            <span className="text-teal-400">One Route at a Time.</span>
-                        </h2>
-                        <p className="text-xl text-slate-300 max-w-md">
-                            Join thousands of travelers who are planning their perfect and precise adventures by leveraging AI predictions.
-                        </p>
-                    </motion.div>
-                </div>
+        <div className="min-h-screen grid lg:grid-cols-2 bg-gray-50 dark:bg-gray-900">
+            {/* Left Column — Branding */}
+            <div className="relative hidden lg:flex flex-col justify-end p-16 bg-gray-900 dark:bg-gray-950">
+                <div className="absolute inset-0 bg-gradient-to-br from-teal-600/20 to-blue-600/10" />
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="relative z-10"
+                >
+                    <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
+                        Discover the World,<br />
+                        <span className="text-teal-400">One Route at a Time.</span>
+                    </h2>
+                    <p className="text-lg text-gray-400 max-w-md">
+                        Join thousands of travelers planning precise adventures with real data — no AI hallucinations.
+                    </p>
+                </motion.div>
             </div>
 
-            {/* Right Column - Form */}
-            <div className="flex items-center justify-center p-8 lg:p-16 relative">
-                <div className="absolute top-0 right-0 p-8">
-                    <Link to="/" className="text-slate-400 hover:text-white transition-colors flex items-center gap-2 group">
-                        Back to Home <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                </div>
-
+            {/* Right Column — Form */}
+            <div className="flex items-center justify-center p-8 lg:p-16">
                 <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="w-full max-w-md"
+                    className="w-full max-w-sm"
                 >
-                    <div className="mb-10">
-                        <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center mb-6 text-blue-400">
-                            <LogIn size={24} />
+                    <div className="mb-8">
+                        <div className="w-10 h-10 bg-teal-50 dark:bg-teal-500/10 rounded-lg flex items-center justify-center mb-5">
+                            <LogIn size={20} className="text-teal-600 dark:text-teal-400" />
                         </div>
-                        <h1 className="text-3xl font-bold text-white mb-2">Welcome back</h1>
-                        <p className="text-slate-400">Please enter your details to sign in.</p>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Welcome back</h1>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Enter your details to sign in.</p>
                     </div>
 
                     {error && (
-                        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6 flex items-center gap-3 text-red-400 text-sm">
-                            <AlertCircle size={18} />
+                        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg p-3 mb-5 flex items-center gap-2.5 text-red-600 dark:text-red-400 text-sm">
+                            <AlertCircle size={16} />
                             {error}
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                    <form onSubmit={handleSubmit} className="space-y-4">
                         <Input
                             label="Email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
-                            placeholder="Enter your email"
-                            className="bg-slate-800/50 border-slate-700 focus:border-blue-500 focus:ring-blue-500/20 h-11"
+                            placeholder="you@example.com"
                         />
                         <div>
                             <Input
@@ -107,28 +95,27 @@ export const LoginPage = () => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 placeholder="Enter your password"
-                                className="bg-slate-800/50 border-slate-700 focus:border-blue-500 focus:ring-blue-500/20 h-11"
                             />
-                            <div className="flex justify-end mt-2">
-                                <a href="#" className="text-sm text-blue-400 hover:text-blue-300">Forgot password?</a>
+                            <div className="flex justify-end mt-1.5">
+                                <a href="#" className="text-xs text-teal-600 dark:text-teal-400 hover:underline">Forgot password?</a>
                             </div>
                         </div>
 
                         <Button
                             variant="primary"
-                            className="w-full h-11 bg-blue-600 hover:bg-blue-500 transition-colors"
+                            className="w-full"
                             disabled={loading}
                         >
                             {loading ? 'Signing in...' : 'Sign in'}
                         </Button>
                     </form>
 
-                    <div className="mt-8 text-center text-sm text-slate-400">
+                    <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
                         Don't have an account?{' '}
-                        <Link to="/register" className="text-blue-400 hover:text-blue-300 font-medium">
-                            Sign up for free
+                        <Link to="/register" className="text-teal-600 dark:text-teal-400 font-medium hover:underline">
+                            Sign up
                         </Link>
-                    </div>
+                    </p>
                 </motion.div>
             </div>
         </div>

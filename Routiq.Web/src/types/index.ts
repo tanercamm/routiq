@@ -58,3 +58,13 @@ export interface AccommodationInfo {
     averageNightlyCost: number;
     currency: string;
 }
+
+// ── Community & Gamification Types ──
+
+export interface DestinationTip {
+    username: string;
+    countryCode: string;     // "TR", "US", "JP" — rendered as emoji flag
+    content: string;
+    upvotes: number;
+    createdAt: string;
+}

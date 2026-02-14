@@ -19,6 +19,7 @@ builder.Services.AddDbContext<RoutiqDbContext>(options =>
 builder.Services.AddScoped<ICostService, CostService>();
 builder.Services.AddScoped<IRouteGenerator, RouteGenerator>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGamificationService, GamificationService>();
 
 // JWT Authentication
 var key = System.Text.Encoding.ASCII.GetBytes(builder.Configuration["Jwt:Key"] ?? "SuperSecretKeyForDevelopmentOnly123!");

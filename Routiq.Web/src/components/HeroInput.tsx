@@ -25,20 +25,20 @@ export const HeroInput = ({ onSearch, loading }: HeroInputProps) => {
     };
 
     return (
-        <Card className="w-full max-w-4xl mx-auto bg-white/10 backdrop-blur-xl border-white/20">
+        <Card className="w-full max-w-4xl mx-auto">
             <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4 items-end">
                 <div className="flex-1 w-full">
-                    <label className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                        <Globe size={16} /> Passport
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-2">
+                        <Globe size={14} /> Passport
                     </label>
                     <select
                         value={passport}
                         onChange={(e) => setPassport(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-teal-400"
+                        className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500 transition-colors"
                     >
-                        <option value="Turkey" className="text-black">Turkey</option>
-                        <option value="Germany" className="text-black">Germany</option>
-                        <option value="USA" className="text-black">USA</option>
+                        <option value="Turkey">Turkey</option>
+                        <option value="Germany">Germany</option>
+                        <option value="USA">USA</option>
                     </select>
                 </div>
 
@@ -64,7 +64,7 @@ export const HeroInput = ({ onSearch, loading }: HeroInputProps) => {
                 </div>
 
                 <Button type="submit" disabled={loading} className="w-full md:w-auto h-[42px] flex items-center justify-center gap-2">
-                    {loading ? 'Searching...' : <><Search size={18} /> Find Routes</>}
+                    {loading ? 'Searching...' : <><Search size={16} /> Find Routes</>}
                 </Button>
             </form>
         </Card>

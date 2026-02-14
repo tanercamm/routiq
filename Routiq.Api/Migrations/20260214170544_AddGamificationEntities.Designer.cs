@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Routiq.Api.Data;
@@ -11,9 +12,11 @@ using Routiq.Api.Data;
 namespace Routiq.Api.Migrations
 {
     [DbContext(typeof(RoutiqDbContext))]
-    partial class RoutiqDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260214170544_AddGamificationEntities")]
+    partial class AddGamificationEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -148,38 +151,6 @@ namespace Routiq.Api.Migrations
                     b.ToTable("Destinations");
                 });
 
-            modelBuilder.Entity("Routiq.Api.Entities.DestinationTip", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("CityId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Upvotes")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("UserProfileId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CityId");
-
-                    b.HasIndex("UserProfileId");
-
-                    b.ToTable("DestinationTips");
-                });
-
             modelBuilder.Entity("Routiq.Api.Entities.Flight", b =>
                 {
                     b.Property<int>("Id")
@@ -249,9 +220,6 @@ namespace Routiq.Api.Migrations
                     b.Property<int>("EarnedPoints")
                         .HasColumnType("integer");
 
-                    b.Property<string>("UserPostText")
-                        .HasColumnType("text");
-
                     b.Property<Guid>("UserTripId")
                         .HasColumnType("uuid");
 
@@ -308,13 +276,6 @@ namespace Routiq.Api.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
-
-                    b.Property<int?>("Age")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("CountryCode")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -456,25 +417,6 @@ namespace Routiq.Api.Migrations
                     b.Navigation("City");
                 });
 
-            modelBuilder.Entity("Routiq.Api.Entities.DestinationTip", b =>
-                {
-                    b.HasOne("Routiq.Api.Entities.Destination", "City")
-                        .WithMany()
-                        .HasForeignKey("CityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Routiq.Api.Entities.UserProfile", "UserProfile")
-                        .WithMany("Tips")
-                        .HasForeignKey("UserProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("City");
-
-                    b.Navigation("UserProfile");
-                });
-
             modelBuilder.Entity("Routiq.Api.Entities.TripCheckIn", b =>
                 {
                     b.HasOne("Routiq.Api.Entities.Attraction", "Attraction")
@@ -526,8 +468,6 @@ namespace Routiq.Api.Migrations
 
             modelBuilder.Entity("Routiq.Api.Entities.UserProfile", b =>
                 {
-                    b.Navigation("Tips");
-
                     b.Navigation("Trips");
                 });
 

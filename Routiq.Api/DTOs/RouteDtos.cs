@@ -31,3 +31,30 @@ public class RouteStopDto
     public string Climate { get; set; } = string.Empty;
     public string VisaStatus { get; set; } = string.Empty;
 }
+
+public class LeaderboardDto
+{
+    public string Username { get; set; } = string.Empty;
+    public string CountryCode { get; set; } = string.Empty;
+    public int? Age { get; set; }
+    public int TotalPoints { get; set; }
+    public int TripCount { get; set; }
+    public int CheckInCount { get; set; }
+}
+
+public class DestinationTipDto
+{
+    public string Username { get; set; } = string.Empty;
+    public string CountryCode { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public int Upvotes { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class LeaderboardWinnerDto
+{
+    public string Username { get; set; } = string.Empty;
+    public string CountryCode { get; set; } = string.Empty;
+    public int TotalPoints { get; set; }
+    public string CouponCode { get; set; } = string.Empty;
+}

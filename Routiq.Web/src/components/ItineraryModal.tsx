@@ -1,19 +1,21 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import type { RouteOption, AttractionInfo } from '../types';
-import { X, Clock, DollarSign, ShieldCheck, Thermometer } from 'lucide-react';
+import { X, Clock, DollarSign, ShieldCheck, Thermometer, Timer } from 'lucide-react';
 import {
     getFlightForCity,
     getReturnFlight,
     getAttractionsForCity,
     getAccommodationForCity,
 } from '../utils/itineraryData';
+import { getCommunityTipsForCity, countryCodeToFlag } from '../utils/communityData';
+import { MessageCircle, ThumbsUp } from 'lucide-react';
+import { formatTimeAMPM, calculateFlightDuration, isNextDay } from '../utils/timeFormat';
 
 interface ItineraryModalProps {
     route: RouteOption | null;
     onClose: () => void;
 }
 
-// Category emoji mapping
 const categoryIcon: Record<string, string> = {
     Historical: '🏛️',
     Nature: '🌿',
@@ -31,7 +33,6 @@ const timeOfDayIcon: Record<string, string> = {
 export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
     if (!route) return null;
 
-    // Build day ranges
     const dayRanges = route.stops.reduce<{ start: number; end: number }[]>((acc, stop, i) => {
         const start = i === 0 ? 1 : acc[i - 1].end + 1;
         const end = start + stop.days - 1;
@@ -41,10 +42,8 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
 
     const totalDays = route.stops.reduce((sum, s) => sum + s.days, 0);
 
-    // Distribute attractions across days for a stop
     const distributeAttractions = (cityAttractions: AttractionInfo[], days: number): AttractionInfo[][] => {
         const dailyPlan: AttractionInfo[][] = Array.from({ length: days }, () => []);
-        // Sort by bestTimeOfDay for logical day planning
         const sorted = [...cityAttractions].sort((a, b) => {
             const order = ['Morning', 'Afternoon', 'Evening', 'Anytime'];
             return order.indexOf(a.bestTimeOfDay) - order.indexOf(b.bestTimeOfDay);
@@ -66,30 +65,30 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                 >
                     {/* Backdrop */}
                     <motion.div
-                        className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+                        className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm"
                         onClick={onClose}
                     />
 
                     {/* Modal */}
                     <motion.div
-                        className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 rounded-2xl shadow-2xl"
+                        className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl"
                         initial={{ opacity: 0, scale: 0.92, y: 30 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.92, y: 30 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                     >
                         {/* ── Header ── */}
-                        <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-md border-b border-white/10 px-6 py-5">
+                        <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 px-6 py-5">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <h2 className="text-2xl font-bold bg-gradient-to-r from-teal-400 to-blue-400 bg-clip-text text-transparent">
+                                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                                         {route.routeType}
                                     </h2>
-                                    <p className="text-gray-400 text-sm mt-1">{route.description}</p>
+                                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">{route.description}</p>
                                 </div>
                                 <button
                                     onClick={onClose}
-                                    className="p-2 rounded-lg hover:bg-white/10 transition-colors text-gray-400 hover:text-white shrink-0"
+                                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400 hover:text-gray-700 dark:hover:text-white shrink-0"
                                 >
                                     <X size={20} />
                                 </button>
@@ -97,19 +96,19 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
 
                             {/* Summary tags */}
                             <div className="flex flex-wrap gap-2 mt-4">
-                                <span className="flex items-center gap-1.5 bg-teal-500/15 border border-teal-500/25 rounded-full px-3 py-1 text-xs font-medium text-teal-300">
+                                <span className="flex items-center gap-1.5 bg-teal-50 dark:bg-teal-500/15 border border-teal-200 dark:border-teal-500/25 rounded-full px-3 py-1 text-xs font-medium text-teal-700 dark:text-teal-300">
                                     📅 {totalDays} Days
                                 </span>
-                                <span className="flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-500/25 rounded-full px-3 py-1 text-xs font-medium text-emerald-300">
+                                <span className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/25 rounded-full px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
                                     💰 ${route.totalEstimatedCost.toLocaleString()} Total
                                 </span>
                                 {route.stops.map((s, i) => (
-                                    <span key={i} className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1 text-xs text-gray-300">
+                                    <span key={i} className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-3 py-1 text-xs text-gray-600 dark:text-gray-300">
                                         <Thermometer size={10} /> {s.climate}
                                     </span>
                                 ))}
                                 {route.stops.map((s, i) => (
-                                    <span key={`visa-${i}`} className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 rounded-full px-3 py-1 text-xs text-green-300">
+                                    <span key={`visa-${i}`} className="flex items-center gap-1.5 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-full px-3 py-1 text-xs text-green-700 dark:text-green-300">
                                         <ShieldCheck size={10} /> {s.visaStatus}
                                     </span>
                                 ))}
@@ -118,7 +117,7 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
 
                         {/* ── Timeline Body ── */}
                         <div className="px-6 py-6">
-                            <div className="relative border-l-2 border-teal-500/30 ml-4">
+                            <div className="relative border-l-2 border-teal-300 dark:border-teal-500/30 ml-4">
 
                                 {route.stops.map((stop, stopIdx) => {
                                     const flight = getFlightForCity(stop.city);
@@ -126,6 +125,7 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                                     const accommodation = getAccommodationForCity(stop.city);
                                     const cityAttractions = getAttractionsForCity(stop.city);
                                     const dailyPlan = distributeAttractions(cityAttractions, stop.days);
+                                    const communityTips = getCommunityTipsForCity(stop.city);
                                     const isLastStop = stopIdx === route.stops.length - 1;
 
                                     return (
@@ -137,11 +137,11 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                                         >
                                             {/* ── City Header Node ── */}
                                             <div className="relative pl-8 pb-2">
-                                                <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 border-2 border-slate-900 shadow-lg shadow-teal-500/40" />
+                                                <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 border-2 border-white dark:border-gray-900 shadow-lg shadow-teal-500/30" />
                                                 <div className="flex items-baseline gap-3">
-                                                    <h3 className="text-xl font-bold text-white">{stop.city}</h3>
-                                                    <span className="text-gray-400 text-sm">{stop.country}</span>
-                                                    <span className="ml-auto bg-teal-500/20 text-teal-300 text-xs font-semibold px-3 py-1 rounded-full border border-teal-500/30">
+                                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">{stop.city}</h3>
+                                                    <span className="text-gray-500 dark:text-gray-400 text-sm">{stop.country}</span>
+                                                    <span className="ml-auto bg-teal-50 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 text-xs font-semibold px-3 py-1 rounded-full border border-teal-200 dark:border-teal-500/30">
                                                         {dayRanges[stopIdx].start === dayRanges[stopIdx].end
                                                             ? `Day ${dayRanges[stopIdx].start}`
                                                             : `Day ${dayRanges[stopIdx].start}–${dayRanges[stopIdx].end}`
@@ -150,43 +150,55 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                                                 </div>
                                             </div>
 
-                                            {/* ── Arrival Flight (first stop only or inter-city) ── */}
+                                            {/* ── Arrival Flight ── */}
                                             {flight && (
                                                 <div className="relative pl-8 py-2">
                                                     <div className="absolute -left-1 top-4 w-2 h-2 rounded-full bg-blue-400/60" />
-                                                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                                                    <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-xl p-4">
                                                         <div className="flex items-center gap-2 mb-2">
                                                             <span className="text-lg">✈️</span>
-                                                            <span className="text-sm font-semibold text-blue-300">
+                                                            <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
                                                                 {stopIdx === 0 ? 'Outbound Flight' : `Flight to ${stop.city}`}
                                                             </span>
                                                             {!flight.isDirect && (
-                                                                <span className="bg-amber-500/20 text-amber-300 text-[10px] px-2 py-0.5 rounded-full border border-amber-500/20">
+                                                                <span className="bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-500/20">
                                                                     1 Stop
                                                                 </span>
                                                             )}
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-3 text-sm">
                                                             <div>
-                                                                <span className="text-gray-500 text-xs block">Airline</span>
-                                                                <span className="text-white font-medium">{flight.airlineName}</span>
+                                                                <span className="text-gray-500 dark:text-gray-500 text-xs block">Airline</span>
+                                                                <span className="text-gray-900 dark:text-white font-medium">{flight.airlineName}</span>
                                                             </div>
                                                             <div>
-                                                                <span className="text-gray-500 text-xs block">Flight</span>
-                                                                <span className="text-white font-medium">{flight.flightNumber}</span>
+                                                                <span className="text-gray-500 dark:text-gray-500 text-xs block">Flight</span>
+                                                                <span className="text-gray-900 dark:text-white font-medium">{flight.flightNumber}</span>
                                                             </div>
                                                             <div>
-                                                                <span className="text-gray-500 text-xs block">Departure</span>
-                                                                <span className="text-white">{flight.origin} · <span className="text-blue-300 font-medium">{flight.departureTime}</span></span>
+                                                                <span className="text-gray-500 dark:text-gray-500 text-xs block">Departure</span>
+                                                                <span className="text-gray-900 dark:text-white">{flight.origin} · <span className="text-blue-600 dark:text-blue-300 font-medium">{formatTimeAMPM(flight.departureTime)}</span></span>
                                                             </div>
                                                             <div>
-                                                                <span className="text-gray-500 text-xs block">Arrival</span>
-                                                                <span className="text-white">{flight.destination} · <span className="text-blue-300 font-medium">{flight.arrivalTime}</span></span>
+                                                                <span className="text-gray-500 dark:text-gray-500 text-xs block">Arrival</span>
+                                                                <span className="text-gray-900 dark:text-white">
+                                                                    {flight.destination} · <span className="text-blue-600 dark:text-blue-300 font-medium">{formatTimeAMPM(flight.arrivalTime)}</span>
+                                                                    {isNextDay(flight.departureTime, flight.arrivalTime) && (
+                                                                        <span className="ml-1.5 bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 text-[9px] px-1.5 py-0.5 rounded-full border border-orange-200 dark:border-orange-500/20 font-semibold">
+                                                                            +1 Day
+                                                                        </span>
+                                                                    )}
+                                                                </span>
                                                             </div>
                                                         </div>
-                                                        <div className="mt-3 pt-2 border-t border-blue-500/10 text-xs text-gray-400">
-                                                            Est. Price Range: <span className="text-white font-medium">${flight.minPrice} – ${flight.maxPrice} {flight.currency}</span>
-                                                            <span className="text-gray-500 ml-1">(Typical avg: ~${flight.averagePrice})</span>
+                                                        <div className="flex items-center gap-4 mt-3 pt-2 border-t border-blue-200 dark:border-blue-500/10">
+                                                            <span className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-300 font-medium">
+                                                                <Timer size={12} /> {calculateFlightDuration(flight.departureTime, flight.arrivalTime)}
+                                                            </span>
+                                                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                                Est. Price: <span className="text-gray-900 dark:text-white font-medium">${flight.minPrice} – ${flight.maxPrice} {flight.currency}</span>
+                                                                <span className="text-gray-400 dark:text-gray-500 ml-1">(avg ~${flight.averagePrice})</span>
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -196,18 +208,18 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                                             {accommodation && (
                                                 <div className="relative pl-8 py-2">
                                                     <div className="absolute -left-1 top-4 w-2 h-2 rounded-full bg-purple-400/60" />
-                                                    <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4">
+                                                    <div className="bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 rounded-xl p-4">
                                                         <div className="flex items-center gap-2 mb-2">
                                                             <span className="text-lg">🏨</span>
-                                                            <span className="text-sm font-semibold text-purple-300">Accommodation</span>
-                                                            <span className="ml-auto bg-purple-500/20 text-purple-200 text-[10px] px-2 py-0.5 rounded-full border border-purple-500/20">
+                                                            <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">Accommodation</span>
+                                                            <span className="ml-auto bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-200 text-[10px] px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-500/20">
                                                                 {accommodation.category}
                                                             </span>
                                                         </div>
-                                                        <p className="text-white font-medium text-sm">{accommodation.zoneName}</p>
-                                                        <p className="text-gray-400 text-xs mt-1">{accommodation.description}</p>
-                                                        <p className="text-purple-300 text-xs mt-2 font-medium">
-                                                            ${accommodation.averageNightlyCost}/night · {stop.days} nights = <span className="text-white">${accommodation.averageNightlyCost * stop.days}</span>
+                                                        <p className="text-gray-900 dark:text-white font-medium text-sm">{accommodation.zoneName}</p>
+                                                        <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">{accommodation.description}</p>
+                                                        <p className="text-purple-700 dark:text-purple-300 text-xs mt-2 font-medium">
+                                                            ${accommodation.averageNightlyCost}/night · {stop.days} nights = <span className="text-gray-900 dark:text-white">${accommodation.averageNightlyCost * stop.days}</span>
                                                         </p>
                                                     </div>
                                                 </div>
@@ -219,7 +231,7 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                                                     <div className="absolute -left-1 top-4 w-2 h-2 rounded-full bg-teal-400/60" />
 
                                                     <div className="mb-2">
-                                                        <span className="text-xs font-semibold text-teal-400 uppercase tracking-wider">
+                                                        <span className="text-xs font-semibold text-teal-600 dark:text-teal-400 uppercase tracking-wider">
                                                             📍 Day {dayRanges[stopIdx].start + dayIdx} — {stop.city}
                                                         </span>
                                                     </div>
@@ -228,19 +240,19 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                                                         {dayAttractions.map((attraction, aIdx) => (
                                                             <div
                                                                 key={aIdx}
-                                                                className="bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/[0.07] transition-colors"
+                                                                className="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/60 rounded-lg p-3 hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors"
                                                             >
                                                                 <div className="flex items-start gap-2">
                                                                     <span className="text-base mt-0.5">{categoryIcon[attraction.category] ?? '📍'}</span>
                                                                     <div className="flex-1 min-w-0">
                                                                         <div className="flex items-center gap-2 flex-wrap">
-                                                                            <h4 className="text-sm font-semibold text-white">{attraction.name}</h4>
-                                                                            <span className="text-[10px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">
+                                                                            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{attraction.name}</h4>
+                                                                            <span className="text-[10px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
                                                                                 {attraction.category}
                                                                             </span>
                                                                         </div>
-                                                                        <p className="text-xs text-gray-400 mt-1 leading-relaxed">{attraction.description}</p>
-                                                                        <div className="flex items-center gap-3 mt-2 text-[11px] text-gray-500">
+                                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{attraction.description}</p>
+                                                                        <div className="flex items-center gap-3 mt-2 text-[11px] text-gray-500 dark:text-gray-500">
                                                                             <span className="flex items-center gap-1">
                                                                                 <Clock size={10} /> {attraction.estimatedDurationInHours}h
                                                                             </span>
@@ -257,7 +269,7 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                                                         ))}
 
                                                         {dayAttractions.length === 0 && (
-                                                            <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-xs text-gray-500 italic">
+                                                            <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/60 rounded-lg p-3 text-xs text-gray-500 dark:text-gray-500 italic">
                                                                 🧘 Free day — explore on your own, relax, or discover hidden gems.
                                                             </div>
                                                         )}
@@ -265,32 +277,72 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                                                 </div>
                                             ))}
 
+                                            {/* ── Community Advice ── */}
+                                            {communityTips.length > 0 && (
+                                                <div className="relative pl-8 py-2">
+                                                    <div className="absolute -left-1 top-4 w-2 h-2 rounded-full bg-amber-400/60" />
+                                                    <div className="bg-amber-50 dark:bg-amber-500/8 border border-amber-200 dark:border-amber-500/15 rounded-xl p-4">
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <MessageCircle size={16} className="text-amber-600 dark:text-amber-400" />
+                                                            <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">Community Advice</span>
+                                                            <span className="text-[10px] text-gray-500 ml-auto">{communityTips.length} tips</span>
+                                                        </div>
+                                                        <div className="space-y-2.5">
+                                                            {communityTips.map((tip, tIdx) => (
+                                                                <div key={tIdx} className="bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/60 rounded-lg p-3">
+                                                                    <div className="flex items-center gap-2 mb-1.5">
+                                                                        <span className="text-sm">{countryCodeToFlag(tip.countryCode)}</span>
+                                                                        <span className="text-xs font-semibold text-gray-900 dark:text-white">{tip.username}</span>
+                                                                        <span className="flex items-center gap-1 ml-auto text-[10px] text-amber-600 dark:text-amber-300">
+                                                                            <ThumbsUp size={10} /> {tip.upvotes}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{tip.content}</p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             {/* ── Return Flight (last stop only) ── */}
                                             {isLastStop && returnFlight && (
                                                 <div className="relative pl-8 py-2">
                                                     <div className="absolute -left-1 top-4 w-2 h-2 rounded-full bg-orange-400/60" />
-                                                    <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
+                                                    <div className="bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 rounded-xl p-4">
                                                         <div className="flex items-center gap-2 mb-2">
                                                             <span className="text-lg">🛫</span>
-                                                            <span className="text-sm font-semibold text-orange-300">Return Flight</span>
+                                                            <span className="text-sm font-semibold text-orange-700 dark:text-orange-300">Return Flight</span>
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-3 text-sm">
                                                             <div>
                                                                 <span className="text-gray-500 text-xs block">Airline</span>
-                                                                <span className="text-white font-medium">{returnFlight.airlineName}</span>
+                                                                <span className="text-gray-900 dark:text-white font-medium">{returnFlight.airlineName}</span>
                                                             </div>
                                                             <div>
                                                                 <span className="text-gray-500 text-xs block">Flight</span>
-                                                                <span className="text-white font-medium">{returnFlight.flightNumber}</span>
+                                                                <span className="text-gray-900 dark:text-white font-medium">{returnFlight.flightNumber}</span>
                                                             </div>
                                                             <div>
                                                                 <span className="text-gray-500 text-xs block">Departure</span>
-                                                                <span className="text-white">{returnFlight.origin} · <span className="text-orange-300 font-medium">{returnFlight.departureTime}</span></span>
+                                                                <span className="text-gray-900 dark:text-white">{returnFlight.origin} · <span className="text-orange-600 dark:text-orange-300 font-medium">{formatTimeAMPM(returnFlight.departureTime)}</span></span>
                                                             </div>
                                                             <div>
                                                                 <span className="text-gray-500 text-xs block">Arrival</span>
-                                                                <span className="text-white">{returnFlight.destination} · <span className="text-orange-300 font-medium">{returnFlight.arrivalTime}</span></span>
+                                                                <span className="text-gray-900 dark:text-white">
+                                                                    {returnFlight.destination} · <span className="text-orange-600 dark:text-orange-300 font-medium">{formatTimeAMPM(returnFlight.arrivalTime)}</span>
+                                                                    {isNextDay(returnFlight.departureTime, returnFlight.arrivalTime) && (
+                                                                        <span className="ml-1.5 bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 text-[9px] px-1.5 py-0.5 rounded-full border border-orange-200 dark:border-orange-500/20 font-semibold">
+                                                                            +1 Day
+                                                                        </span>
+                                                                    )}
+                                                                </span>
                                                             </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-4 mt-3 pt-2 border-t border-orange-200 dark:border-orange-500/10">
+                                                            <span className="flex items-center gap-1.5 text-xs text-orange-600 dark:text-orange-300 font-medium">
+                                                                <Timer size={12} /> {calculateFlightDuration(returnFlight.departureTime, returnFlight.arrivalTime)}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -304,28 +356,28 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
 
                                 {/* End marker */}
                                 <div className="relative pl-8 pt-4">
-                                    <div className="absolute -left-3 top-4 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 border-2 border-slate-900 flex items-center justify-center shadow-lg shadow-emerald-500/40">
+                                    <div className="absolute -left-3 top-4 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 border-2 border-white dark:border-gray-900 flex items-center justify-center shadow-lg shadow-emerald-500/30">
                                         <span className="text-[10px]">✓</span>
                                     </div>
-                                    <p className="text-sm text-gray-400 font-medium pt-0.5">Trip Complete 🎉</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium pt-0.5">Trip Complete 🎉</p>
                                 </div>
                             </div>
                         </div>
 
                         {/* ── Footer ── */}
-                        <div className="sticky bottom-0 bg-slate-900/95 backdrop-blur-md border-t border-white/10 px-6 py-4 flex justify-between items-center">
+                        <div className="sticky bottom-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center">
                             <div className="flex gap-6 text-sm">
-                                <span className="text-gray-400">
-                                    <span className="font-semibold text-white">{route.stops.length}</span> {route.stops.length === 1 ? 'city' : 'cities'}
+                                <span className="text-gray-500 dark:text-gray-400">
+                                    <span className="font-semibold text-gray-900 dark:text-white">{route.stops.length}</span> {route.stops.length === 1 ? 'city' : 'cities'}
                                 </span>
-                                <span className="text-gray-400">
-                                    <span className="font-semibold text-white">{totalDays}</span> days
+                                <span className="text-gray-500 dark:text-gray-400">
+                                    <span className="font-semibold text-gray-900 dark:text-white">{totalDays}</span> days
                                 </span>
                             </div>
                             <div className="text-right">
-                                <span className="text-xs text-gray-400 block">Total Estimated Cost</span>
-                                <span className="text-2xl font-bold text-white">
-                                    <span className="text-teal-400">$</span>{route.totalEstimatedCost.toLocaleString()}
+                                <span className="text-xs text-gray-500 dark:text-gray-400 block">Total Estimated Cost</span>
+                                <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                                    <span className="text-teal-500">$</span>{route.totalEstimatedCost.toLocaleString()}
                                 </span>
                             </div>
                         </div>

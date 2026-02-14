@@ -11,10 +11,10 @@ interface CardProps {
 export const Card = ({ children, className, hoverEffect = false }: CardProps) => {
     return (
         <motion.div
-            whileHover={hoverEffect ? { scale: 1.02, y: -5 } : {}}
+            whileHover={hoverEffect ? { y: -2 } : {}}
             className={clsx(
-                "bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 shadow-xl",
-                "text-white",
+                "bg-white dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-xl p-6 shadow-sm",
+                "transition-colors duration-200",
                 className
             )}
         >
