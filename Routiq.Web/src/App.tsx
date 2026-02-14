@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { HeroInput } from './components/HeroInput';
 import { RouteCard } from './components/RouteCard';
+import { ItineraryModal } from './components/ItineraryModal';
 import { generateRoutes } from './api/routiqApi';
 import type { RouteRequest, RouteOption } from './types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,6 +19,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [selectedRoute, setSelectedRoute] = useState<RouteOption | null>(null);
   const { logout, user } = useAuth();
 
   const handleSearch = async (request: RouteRequest) => {
@@ -112,7 +114,7 @@ function Dashboard() {
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
                 >
                   {routes.map((option, index) => (
-                    <RouteCard key={index} option={option} index={index} />
+                    <RouteCard key={index} option={option} index={index} onViewItinerary={setSelectedRoute} />
                   ))}
                 </motion.div>
               </div>
@@ -120,6 +122,8 @@ function Dashboard() {
           </AnimatePresence>
         </div>
       </div>
+
+      <ItineraryModal route={selectedRoute} onClose={() => setSelectedRoute(null)} />
     </div>
   );
 }

@@ -6,9 +6,10 @@ import { MapPin, Calendar, Sun, CheckCircle } from 'lucide-react';
 interface RouteCardProps {
     option: RouteOption;
     index: number;
+    onViewItinerary: (option: RouteOption) => void;
 }
 
-export const RouteCard = ({ option, index }: RouteCardProps) => {
+export const RouteCard = ({ option, index, onViewItinerary }: RouteCardProps) => {
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -57,7 +58,10 @@ export const RouteCard = ({ option, index }: RouteCardProps) => {
                             {option.totalEstimatedCost.toLocaleString()}
                         </span>
                     </div>
-                    <button className="text-sm font-semibold text-teal-300 hover:text-white transition-all bg-teal-500/10 hover:bg-teal-500 rounded-lg px-4 py-2 border border-teal-500/20 hover:border-transparent">
+                    <button
+                        onClick={() => onViewItinerary(option)}
+                        className="text-sm font-semibold text-teal-300 hover:text-white transition-all bg-teal-500/10 hover:bg-teal-500 rounded-lg px-4 py-2 border border-teal-500/20 hover:border-transparent"
+                    >
                         View Itinerary
                     </button>
                 </div>
@@ -65,3 +69,4 @@ export const RouteCard = ({ option, index }: RouteCardProps) => {
         </motion.div>
     );
 };
+

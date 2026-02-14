@@ -1,0 +1,337 @@
+import { motion, AnimatePresence } from 'framer-motion';
+import type { RouteOption, AttractionInfo } from '../types';
+import { X, Clock, DollarSign, ShieldCheck, Thermometer } from 'lucide-react';
+import {
+    getFlightForCity,
+    getReturnFlight,
+    getAttractionsForCity,
+    getAccommodationForCity,
+} from '../utils/itineraryData';
+
+interface ItineraryModalProps {
+    route: RouteOption | null;
+    onClose: () => void;
+}
+
+// Category emoji mapping
+const categoryIcon: Record<string, string> = {
+    Historical: '🏛️',
+    Nature: '🌿',
+    Museum: '🖼️',
+    Entertainment: '🎭',
+};
+
+const timeOfDayIcon: Record<string, string> = {
+    Morning: '🌅',
+    Afternoon: '☀️',
+    Evening: '🌇',
+    Anytime: '🕐',
+};
+
+export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
+    if (!route) return null;
+
+    // Build day ranges
+    const dayRanges = route.stops.reduce<{ start: number; end: number }[]>((acc, stop, i) => {
+        const start = i === 0 ? 1 : acc[i - 1].end + 1;
+        const end = start + stop.days - 1;
+        acc.push({ start, end });
+        return acc;
+    }, []);
+
+    const totalDays = route.stops.reduce((sum, s) => sum + s.days, 0);
+
+    // Distribute attractions across days for a stop
+    const distributeAttractions = (cityAttractions: AttractionInfo[], days: number): AttractionInfo[][] => {
+        const dailyPlan: AttractionInfo[][] = Array.from({ length: days }, () => []);
+        // Sort by bestTimeOfDay for logical day planning
+        const sorted = [...cityAttractions].sort((a, b) => {
+            const order = ['Morning', 'Afternoon', 'Evening', 'Anytime'];
+            return order.indexOf(a.bestTimeOfDay) - order.indexOf(b.bestTimeOfDay);
+        });
+        sorted.forEach((attraction, idx) => {
+            dailyPlan[idx % days].push(attraction);
+        });
+        return dailyPlan;
+    };
+
+    return (
+        <AnimatePresence>
+            {route && (
+                <motion.div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                >
+                    {/* Backdrop */}
+                    <motion.div
+                        className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+                        onClick={onClose}
+                    />
+
+                    {/* Modal */}
+                    <motion.div
+                        className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 rounded-2xl shadow-2xl"
+                        initial={{ opacity: 0, scale: 0.92, y: 30 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.92, y: 30 }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                    >
+                        {/* ── Header ── */}
+                        <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-md border-b border-white/10 px-6 py-5">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h2 className="text-2xl font-bold bg-gradient-to-r from-teal-400 to-blue-400 bg-clip-text text-transparent">
+                                        {route.routeType}
+                                    </h2>
+                                    <p className="text-gray-400 text-sm mt-1">{route.description}</p>
+                                </div>
+                                <button
+                                    onClick={onClose}
+                                    className="p-2 rounded-lg hover:bg-white/10 transition-colors text-gray-400 hover:text-white shrink-0"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Summary tags */}
+                            <div className="flex flex-wrap gap-2 mt-4">
+                                <span className="flex items-center gap-1.5 bg-teal-500/15 border border-teal-500/25 rounded-full px-3 py-1 text-xs font-medium text-teal-300">
+                                    📅 {totalDays} Days
+                                </span>
+                                <span className="flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-500/25 rounded-full px-3 py-1 text-xs font-medium text-emerald-300">
+                                    💰 ${route.totalEstimatedCost.toLocaleString()} Total
+                                </span>
+                                {route.stops.map((s, i) => (
+                                    <span key={i} className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1 text-xs text-gray-300">
+                                        <Thermometer size={10} /> {s.climate}
+                                    </span>
+                                ))}
+                                {route.stops.map((s, i) => (
+                                    <span key={`visa-${i}`} className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 rounded-full px-3 py-1 text-xs text-green-300">
+                                        <ShieldCheck size={10} /> {s.visaStatus}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* ── Timeline Body ── */}
+                        <div className="px-6 py-6">
+                            <div className="relative border-l-2 border-teal-500/30 ml-4">
+
+                                {route.stops.map((stop, stopIdx) => {
+                                    const flight = getFlightForCity(stop.city);
+                                    const returnFlight = getReturnFlight(stop.city);
+                                    const accommodation = getAccommodationForCity(stop.city);
+                                    const cityAttractions = getAttractionsForCity(stop.city);
+                                    const dailyPlan = distributeAttractions(cityAttractions, stop.days);
+                                    const isLastStop = stopIdx === route.stops.length - 1;
+
+                                    return (
+                                        <motion.div
+                                            key={stopIdx}
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: stopIdx * 0.2, duration: 0.4 }}
+                                        >
+                                            {/* ── City Header Node ── */}
+                                            <div className="relative pl-8 pb-2">
+                                                <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 border-2 border-slate-900 shadow-lg shadow-teal-500/40" />
+                                                <div className="flex items-baseline gap-3">
+                                                    <h3 className="text-xl font-bold text-white">{stop.city}</h3>
+                                                    <span className="text-gray-400 text-sm">{stop.country}</span>
+                                                    <span className="ml-auto bg-teal-500/20 text-teal-300 text-xs font-semibold px-3 py-1 rounded-full border border-teal-500/30">
+                                                        {dayRanges[stopIdx].start === dayRanges[stopIdx].end
+                                                            ? `Day ${dayRanges[stopIdx].start}`
+                                                            : `Day ${dayRanges[stopIdx].start}–${dayRanges[stopIdx].end}`
+                                                        }
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* ── Arrival Flight (first stop only or inter-city) ── */}
+                                            {flight && (
+                                                <div className="relative pl-8 py-2">
+                                                    <div className="absolute -left-1 top-4 w-2 h-2 rounded-full bg-blue-400/60" />
+                                                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <span className="text-lg">✈️</span>
+                                                            <span className="text-sm font-semibold text-blue-300">
+                                                                {stopIdx === 0 ? 'Outbound Flight' : `Flight to ${stop.city}`}
+                                                            </span>
+                                                            {!flight.isDirect && (
+                                                                <span className="bg-amber-500/20 text-amber-300 text-[10px] px-2 py-0.5 rounded-full border border-amber-500/20">
+                                                                    1 Stop
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-3 text-sm">
+                                                            <div>
+                                                                <span className="text-gray-500 text-xs block">Airline</span>
+                                                                <span className="text-white font-medium">{flight.airlineName}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500 text-xs block">Flight</span>
+                                                                <span className="text-white font-medium">{flight.flightNumber}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500 text-xs block">Departure</span>
+                                                                <span className="text-white">{flight.origin} · <span className="text-blue-300 font-medium">{flight.departureTime}</span></span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500 text-xs block">Arrival</span>
+                                                                <span className="text-white">{flight.destination} · <span className="text-blue-300 font-medium">{flight.arrivalTime}</span></span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="mt-3 pt-2 border-t border-blue-500/10 text-xs text-gray-400">
+                                                            Est. Price Range: <span className="text-white font-medium">${flight.minPrice} – ${flight.maxPrice} {flight.currency}</span>
+                                                            <span className="text-gray-500 ml-1">(Typical avg: ~${flight.averagePrice})</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* ── Accommodation ── */}
+                                            {accommodation && (
+                                                <div className="relative pl-8 py-2">
+                                                    <div className="absolute -left-1 top-4 w-2 h-2 rounded-full bg-purple-400/60" />
+                                                    <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <span className="text-lg">🏨</span>
+                                                            <span className="text-sm font-semibold text-purple-300">Accommodation</span>
+                                                            <span className="ml-auto bg-purple-500/20 text-purple-200 text-[10px] px-2 py-0.5 rounded-full border border-purple-500/20">
+                                                                {accommodation.category}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-white font-medium text-sm">{accommodation.zoneName}</p>
+                                                        <p className="text-gray-400 text-xs mt-1">{accommodation.description}</p>
+                                                        <p className="text-purple-300 text-xs mt-2 font-medium">
+                                                            ${accommodation.averageNightlyCost}/night · {stop.days} nights = <span className="text-white">${accommodation.averageNightlyCost * stop.days}</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* ── Daily Attraction Plan ── */}
+                                            {dailyPlan.map((dayAttractions, dayIdx) => (
+                                                <div key={dayIdx} className="relative pl-8 py-2">
+                                                    <div className="absolute -left-1 top-4 w-2 h-2 rounded-full bg-teal-400/60" />
+
+                                                    <div className="mb-2">
+                                                        <span className="text-xs font-semibold text-teal-400 uppercase tracking-wider">
+                                                            📍 Day {dayRanges[stopIdx].start + dayIdx} — {stop.city}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        {dayAttractions.map((attraction, aIdx) => (
+                                                            <div
+                                                                key={aIdx}
+                                                                className="bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/[0.07] transition-colors"
+                                                            >
+                                                                <div className="flex items-start gap-2">
+                                                                    <span className="text-base mt-0.5">{categoryIcon[attraction.category] ?? '📍'}</span>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                                            <h4 className="text-sm font-semibold text-white">{attraction.name}</h4>
+                                                                            <span className="text-[10px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">
+                                                                                {attraction.category}
+                                                                            </span>
+                                                                        </div>
+                                                                        <p className="text-xs text-gray-400 mt-1 leading-relaxed">{attraction.description}</p>
+                                                                        <div className="flex items-center gap-3 mt-2 text-[11px] text-gray-500">
+                                                                            <span className="flex items-center gap-1">
+                                                                                <Clock size={10} /> {attraction.estimatedDurationInHours}h
+                                                                            </span>
+                                                                            <span className="flex items-center gap-1">
+                                                                                <DollarSign size={10} /> {attraction.estimatedCost === 0 ? 'Free' : `$${attraction.estimatedCost}`}
+                                                                            </span>
+                                                                            <span>
+                                                                                {timeOfDayIcon[attraction.bestTimeOfDay] ?? ''} {attraction.bestTimeOfDay}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+
+                                                        {dayAttractions.length === 0 && (
+                                                            <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-xs text-gray-500 italic">
+                                                                🧘 Free day — explore on your own, relax, or discover hidden gems.
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            {/* ── Return Flight (last stop only) ── */}
+                                            {isLastStop && returnFlight && (
+                                                <div className="relative pl-8 py-2">
+                                                    <div className="absolute -left-1 top-4 w-2 h-2 rounded-full bg-orange-400/60" />
+                                                    <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <span className="text-lg">🛫</span>
+                                                            <span className="text-sm font-semibold text-orange-300">Return Flight</span>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-3 text-sm">
+                                                            <div>
+                                                                <span className="text-gray-500 text-xs block">Airline</span>
+                                                                <span className="text-white font-medium">{returnFlight.airlineName}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500 text-xs block">Flight</span>
+                                                                <span className="text-white font-medium">{returnFlight.flightNumber}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500 text-xs block">Departure</span>
+                                                                <span className="text-white">{returnFlight.origin} · <span className="text-orange-300 font-medium">{returnFlight.departureTime}</span></span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500 text-xs block">Arrival</span>
+                                                                <span className="text-white">{returnFlight.destination} · <span className="text-orange-300 font-medium">{returnFlight.arrivalTime}</span></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Spacer between stops */}
+                                            {!isLastStop && <div className="h-4" />}
+                                        </motion.div>
+                                    );
+                                })}
+
+                                {/* End marker */}
+                                <div className="relative pl-8 pt-4">
+                                    <div className="absolute -left-3 top-4 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 border-2 border-slate-900 flex items-center justify-center shadow-lg shadow-emerald-500/40">
+                                        <span className="text-[10px]">✓</span>
+                                    </div>
+                                    <p className="text-sm text-gray-400 font-medium pt-0.5">Trip Complete 🎉</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── Footer ── */}
+                        <div className="sticky bottom-0 bg-slate-900/95 backdrop-blur-md border-t border-white/10 px-6 py-4 flex justify-between items-center">
+                            <div className="flex gap-6 text-sm">
+                                <span className="text-gray-400">
+                                    <span className="font-semibold text-white">{route.stops.length}</span> {route.stops.length === 1 ? 'city' : 'cities'}
+                                </span>
+                                <span className="text-gray-400">
+                                    <span className="font-semibold text-white">{totalDays}</span> days
+                                </span>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-xs text-gray-400 block">Total Estimated Cost</span>
+                                <span className="text-2xl font-bold text-white">
+                                    <span className="text-teal-400">$</span>{route.totalEstimatedCost.toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+};
