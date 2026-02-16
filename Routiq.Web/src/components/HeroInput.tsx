@@ -8,12 +8,14 @@ import type { RouteRequest } from '../types';
 interface HeroInputProps {
     onSearch: (request: RouteRequest) => void;
     loading: boolean;
+    initialBudget?: number;
+    initialDays?: number;
 }
 
-export const HeroInput = ({ onSearch, loading }: HeroInputProps) => {
+export const HeroInput = ({ onSearch, loading, initialBudget, initialDays }: HeroInputProps) => {
     const [passport, setPassport] = useState('Turkey');
-    const [budget, setBudget] = useState(1000);
-    const [days, setDays] = useState(7);
+    const [budget, setBudget] = useState(initialBudget ?? 1000);
+    const [days, setDays] = useState(initialDays ?? 7);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();

@@ -13,7 +13,7 @@ export const Card = ({ children, className, hoverEffect = false }: CardProps) =>
         <motion.div
             whileHover={hoverEffect ? { y: -2 } : {}}
             className={clsx(
-                "bg-white dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-xl p-6 shadow-sm",
+                "bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/50 rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
                 "transition-colors duration-200",
                 className
             )}

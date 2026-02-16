@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { login as apiLogin } from '../api/routiqApi';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, AlertCircle } from 'lucide-react';
+import { LogIn, AlertCircle, Sun, Moon } from 'lucide-react';
 
 export const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -13,6 +14,7 @@ export const LoginPage = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
+    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -37,6 +39,14 @@ export const LoginPage = () => {
 
     return (
         <div className="min-h-screen grid lg:grid-cols-2 bg-gray-50 dark:bg-gray-900">
+            {/* Theme Toggle */}
+            <button
+                onClick={toggleTheme}
+                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+            >
+                {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+
             {/* Left Column — Branding */}
             <div className="relative hidden lg:flex flex-col justify-end p-16 bg-gray-900 dark:bg-gray-950">
                 <div className="absolute inset-0 bg-gradient-to-br from-teal-600/20 to-blue-600/10" />

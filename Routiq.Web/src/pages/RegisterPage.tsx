@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { register as apiRegister } from '../api/routiqApi';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserPlus, AlertCircle } from 'lucide-react';
+import { UserPlus, AlertCircle, Sun, Moon } from 'lucide-react';
 
 export const RegisterPage = () => {
     const [firstName, setFirstName] = useState('');
@@ -15,6 +16,7 @@ export const RegisterPage = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
+    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -39,6 +41,14 @@ export const RegisterPage = () => {
 
     return (
         <div className="min-h-screen grid lg:grid-cols-2 bg-gray-50 dark:bg-gray-900">
+            {/* Theme Toggle */}
+            <button
+                onClick={toggleTheme}
+                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400"
+            >
+                {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+
             {/* Left Column — Form */}
             <div className="flex items-center justify-center p-8 lg:p-16 order-2 lg:order-1">
                 <motion.div

@@ -24,6 +24,7 @@ public static class DbInitializer
             new() { Country = "France", City = "Paris", Region = "Western Europe", AvgDailyCostLow = 80, AvgDailyCostMid = 150, AvgDailyCostHigh = 300, PopularityScore = 10, ClimateTags = ["Temperate"], Notes = "The city of lights." },
             new() { Country = "Italy", City = "Rome", Region = "Western Europe", AvgDailyCostLow = 75, AvgDailyCostMid = 140, AvgDailyCostHigh = 280, PopularityScore = 10, ClimateTags = ["Mediterranean"], Notes = "Eternal city." },
             new() { Country = "Germany", City = "Berlin", Region = "Western Europe", AvgDailyCostLow = 70, AvgDailyCostMid = 130, AvgDailyCostHigh = 250, PopularityScore = 9, ClimateTags = ["Continental"], Notes = "Cool vibes." },
+            new() { Country = "Germany", City = "Stuttgart", Region = "Western Europe", AvgDailyCostLow = 65, AvgDailyCostMid = 120, AvgDailyCostHigh = 240, PopularityScore = 8, ClimateTags = ["Continental"], Notes = "Automotive hub & vineyards." }, // Added Stuttgart
             new() { Country = "Spain", City = "Barcelona", Region = "Western Europe", AvgDailyCostLow = 70, AvgDailyCostMid = 130, AvgDailyCostHigh = 260, PopularityScore = 10, ClimateTags = ["Mediterranean"], Notes = "Gaudí architecture." },
 
             // Asia
@@ -65,18 +66,136 @@ public static class DbInitializer
             context.SaveChanges();
         }
 
-        // Seed Admin User (always runs, independent of destinations)
-        if (!context.Users.Any(u => u.Email == "admin@routiq.com"))
+        SeedUsersAndProfiles(context);
+        SeedCommunityData(context);
+    }
+
+    private static void SeedUsersAndProfiles(RoutiqDbContext context)
+    {
+        var usersData = new[]
         {
-            context.Users.Add(new User
+            new { Email = "admin@routiq.com", Username = "TanerCam", Role = "Admin", Country = "Turkey", Currency = "USD", Code = "TR", Points = 850 },
+            new { Email = "klaus@routiq.com", Username = "Klaus_M", Role = "User", Country = "Germany", Currency = "EUR", Code = "DE", Points = 450 },
+            new { Email = "yuki@routiq.com", Username = "YukiTravels", Role = "User", Country = "Japan", Currency = "JPY", Code = "JP", Points = 1200 }
+        };
+
+        foreach (var u in usersData)
+        {
+            // Ensure User
+            var user = context.Users.FirstOrDefault(x => x.Email == u.Email);
+            if (user == null)
             {
-                Email = "admin@routiq.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
-                FirstName = "Admin",
-                LastName = "User",
-                Role = "Admin",
-                CreatedAt = DateTime.UtcNow
-            });
+                user = new User
+                {
+                    Email = u.Email,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"), // Default password for all seed users
+                    FirstName = u.Username,
+                    LastName = "User",
+                    Role = u.Role,
+                    CreatedAt = DateTime.UtcNow
+                };
+                context.Users.Add(user);
+                context.SaveChanges();
+            }
+
+            // Ensure Profile
+            var profile = context.UserProfiles.FirstOrDefault(p => p.UserId == user.Id);
+            if (profile == null)
+            {
+                profile = new UserProfile
+                {
+                    UserId = user!.Id,
+                    Username = u.Username,
+                    Email = u.Email,
+                    PassportCountry = u.Country,
+                    PreferredCurrency = u.Currency,
+                    CountryCode = u.Code,
+                    TotalPoints = u.Points
+                };
+                context.UserProfiles.Add(profile);
+            }
+            else
+            {
+                // Update existing profile
+                profile.Username = u.Username;
+                profile.CountryCode = u.Code;
+                profile.PassportCountry = u.Country;
+                profile.PreferredCurrency = u.Currency;
+                profile.TotalPoints = u.Points;
+                context.UserProfiles.Update(profile);
+            }
+        }
+        context.SaveChanges();
+    }
+
+    private static void SeedCommunityData(RoutiqDbContext context)
+    {
+        var taner = context.UserProfiles.Single(p => p.Username == "TanerCam");
+        var klaus = context.UserProfiles.Single(p => p.Username == "Klaus_M");
+        var yuki = context.UserProfiles.Single(p => p.Username == "YukiTravels");
+
+        // Ensure Destinations Exist for Trips
+        var stuttgart = context.Destinations.FirstOrDefault(d => d.City == "Stuttgart");
+        var belgrade = context.Destinations.FirstOrDefault(d => d.City == "Belgrade");
+        var tokyo = context.Destinations.FirstOrDefault(d => d.City == "Tokyo");
+
+        // If Stuttgart missing (e.g. strict seed didn't run because Destinations existed), add it now
+        if (stuttgart == null)
+        {
+            stuttgart = new Destination { Country = "Germany", City = "Stuttgart", Region = "Western Europe", AvgDailyCostLow = 65, AvgDailyCostMid = 120, AvgDailyCostHigh = 240, PopularityScore = 8, ClimateTags = ["Continental"], Notes = "Automotive hub." };
+            context.Destinations.Add(stuttgart);
+            context.SaveChanges();
+        }
+
+        // Ensure Attractions
+        var mercedes = context.Attractions.FirstOrDefault(a => a.Name == "Mercedes-Benz Museum");
+        if (mercedes == null && stuttgart != null)
+        {
+            mercedes = new Attraction { Name = "Mercedes-Benz Museum", CityId = stuttgart.Id, Description = "Automobile history.", Category = "Museum", EstimatedCost = 12, EstimatedDurationInHours = 3, BestTimeOfDay = "Morning" };
+            context.Attractions.Add(mercedes);
+        }
+
+        var fortress = context.Attractions.FirstOrDefault(a => a.Name == "Kalemegdan Fortress");
+        if (fortress == null && belgrade != null)
+        {
+            fortress = new Attraction { Name = "Kalemegdan Fortress", CityId = belgrade.Id, Description = "Historic fortress.", Category = "Landmark", EstimatedCost = 0, EstimatedDurationInHours = 2, BestTimeOfDay = "Sunset" };
+            context.Attractions.Add(fortress);
+        }
+        context.SaveChanges();
+
+        // Seed Trips
+        if (!context.UserTrips.Any())
+        {
+            if (stuttgart != null) context.UserTrips.Add(new UserTrip { UserProfileId = taner.Id, DestinationCityId = stuttgart.Id, TotalBudget = 1500, Days = 5, CreatedAt = DateTime.UtcNow.AddDays(-10) });
+            if (belgrade != null) context.UserTrips.Add(new UserTrip { UserProfileId = yuki.Id, DestinationCityId = belgrade.Id, TotalBudget = 600, Days = 4, CreatedAt = DateTime.UtcNow.AddDays(-20) });
+            if (tokyo != null) context.UserTrips.Add(new UserTrip { UserProfileId = klaus.Id, DestinationCityId = tokyo.Id, TotalBudget = 2500, Days = 10, CreatedAt = DateTime.UtcNow.AddDays(-40) });
+            context.SaveChanges();
+        }
+
+        // Seed Tips
+        if (!context.DestinationTips.Any())
+        {
+            if (stuttgart != null) context.DestinationTips.Add(new DestinationTip { CityId = stuttgart.Id, UserProfileId = klaus.Id, Content = "The classic Mercedes-Benz Museum is an absolute must-visit. Dedicate at least half a day to see all the historical models!", Upvotes = 89 });
+            if (tokyo != null) context.DestinationTips.Add(new DestinationTip { CityId = tokyo.Id, UserProfileId = taner.Id, Content = "Found some amazing healthy eating spots near the university dorms. Great macro-friendly meals for cheap.", Upvotes = 124 });
+            context.SaveChanges();
+        }
+
+        // Seed CheckIns
+        if (!context.TripCheckIns.Any())
+        {
+            // Find Taner's Stuttgart trip
+            var tanerTrip = context.UserTrips.FirstOrDefault(t => t.UserProfileId == taner.Id && t.DestinationCityId == stuttgart!.Id);
+            if (tanerTrip != null && mercedes != null)
+            {
+                context.TripCheckIns.Add(new TripCheckIn { UserTripId = tanerTrip.Id, AttractionId = mercedes.Id, EarnedPoints = 100, UserPostText = "Visiting the legends!", CheckInDate = DateTime.UtcNow.AddDays(-8) });
+            }
+
+            // Find Yuki's Belgrade trip
+            var yukiTrip = context.UserTrips.FirstOrDefault(t => t.UserProfileId == yuki.Id && t.DestinationCityId == belgrade!.Id);
+            if (yukiTrip != null && fortress != null)
+            {
+                context.TripCheckIns.Add(new TripCheckIn { UserTripId = yukiTrip.Id, AttractionId = fortress.Id, EarnedPoints = 50, UserPostText = "Sunset at Kalemegdan.", CheckInDate = DateTime.UtcNow.AddDays(-18) });
+            }
             context.SaveChanges();
         }
     }
