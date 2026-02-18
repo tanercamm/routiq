@@ -30,11 +30,11 @@ import {
 
 
 
-const communityPicks = [
-  { city: 'Bangkok', country: 'Thailand', user: 'NomadKai', countryCode: 'DE', tip: 'Skip the tourist boats — use Chao Phraya Express for 15 baht! Same river, 1/10th the price.', upvotes: 56, days: 7, budget: 800 },
-  { city: 'Istanbul', country: 'Turkey', user: 'WanderSarah', countryCode: 'US', tip: 'Get the Museum Pass Istanbul — covers Topkapi, Hagia Sophia and more. Saves hours of queuing!', upvotes: 58, days: 5, budget: 600 },
-  { city: 'Tokyo', country: 'Japan', user: 'TrailBlazerJay', countryCode: 'CA', tip: 'Get a Suica card immediately at the airport. Works on all trains, buses, and even vending machines.', upvotes: 63, days: 10, budget: 1500 },
-  { city: 'Belgrade', country: 'Serbia', user: 'ExplorerMax', countryCode: 'GB', tip: 'The Nikola Tesla Museum is small but absolutely fascinating. Book tickets online to skip the line!', upvotes: 21, days: 4, budget: 350 },
+const communityPicksInitial = [
+  { id: '11111111-1111-1111-1111-111111111111', city: 'Bangkok', country: 'Thailand', user: 'NomadKai', countryCode: 'DE', tip: 'Skip the tourist boats — use Chao Phraya Express for 15 baht! Same river, 1/10th the price.', upvotes: 56, days: 7, budget: 800 },
+  { id: '22222222-2222-2222-2222-222222222222', city: 'Istanbul', country: 'Turkey', user: 'WanderSarah', countryCode: 'US', tip: 'Get the Museum Pass Istanbul — covers Topkapi, Hagia Sophia and more. Saves hours of queuing!', upvotes: 58, days: 5, budget: 600 },
+  { id: '33333333-3333-3333-3333-333333333333', city: 'Tokyo', country: 'Japan', user: 'TrailBlazerJay', countryCode: 'CA', tip: 'Get a Suica card immediately at the airport. Works on all trains, buses, and even vending machines.', upvotes: 63, days: 10, budget: 1500 },
+  { id: '44444444-4444-4444-4444-444444444444', city: 'Belgrade', country: 'Serbia', user: 'ExplorerMax', countryCode: 'GB', tip: 'The Nikola Tesla Museum is small but absolutely fascinating. Book tickets online to skip the line!', upvotes: 21, days: 4, budget: 350 },
 ];
 
 // ── Analytics data ──
@@ -56,12 +56,13 @@ const topDestinationsData = [
   { city: 'Tokyo', value: 187 },
 ];
 
-const topDestinationsQuarter = [
-  { city: 'Istanbul', value: 435 },
-  { city: 'Paris', value: 372 },
-  { city: 'London', value: 301 },
-  { city: 'Tokyo', value: 238 },
+const expensesBreakdown = [
+  { name: 'Flights', value: 40 },
+  { name: 'Accommodation', value: 35 },
+  { name: 'Food', value: 15 },
+  { name: 'Activities', value: 10 },
 ];
+const EXPENSES_COLORS = ['#3B82F6', '#14B8A6', '#F59E0B', '#EF4444'];
 
 const AVATAR_COLORS = [
   'bg-blue-500', 'bg-orange-500', 'bg-purple-500',
@@ -93,6 +94,36 @@ function Dashboard() {
     };
     fetchLeaderboard();
   }, []);
+
+  // Community Picks State
+  const [picks, setPicks] = useState(communityPicksInitial);
+  const [likedTips, setLikedTips] = useState<Set<string>>(new Set());
+
+  const handleLike = async (id: string) => {
+    if (likedTips.has(id)) return;
+
+    // Optimistic Update
+    setPicks(prev => prev.map(pick =>
+      pick.id === id ? { ...pick, upvotes: pick.upvotes + 1 } : pick
+    ));
+    setLikedTips(prev => new Set(prev).add(id));
+
+    try {
+      // API Call
+      await fetch(`/api/community/tips/${id}/like`, { method: 'POST' });
+    } catch (error) {
+      console.error("Failed to like tip", error);
+      // Revert if failed
+      setPicks(prev => prev.map(pick =>
+        pick.id === id ? { ...pick, upvotes: pick.upvotes - 1 } : pick
+      ));
+      setLikedTips(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
 
   const location = useLocation();
   const forkedState = location.state as { forkedBudget?: number; forkedDays?: number } | null;
@@ -241,16 +272,26 @@ function Dashboard() {
                   </ResponsiveContainer>
                 </Card>
 
-                {/* Top Destinations (Quarter) */}
+                {/* Expenses Breakdown (Replaces Duplicate Chart) */}
                 <Card>
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">
-                    Top Destinations (This Quarter)
+                    Expenses Breakdown
                   </h3>
                   <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={topDestinationsQuarter} layout="vertical" margin={{ left: 10, right: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#334155' : '#e5e7eb'} />
-                      <XAxis type="number" tick={{ fontSize: 11 }} stroke={isDark ? '#64748b' : '#9ca3af'} />
-                      <YAxis type="category" dataKey="city" tick={{ fontSize: 11 }} stroke={isDark ? '#64748b' : '#9ca3af'} width={60} />
+                    <PieChart>
+                      <Pie
+                        data={expensesBreakdown}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {expensesBreakdown.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={EXPENSES_COLORS[index % EXPENSES_COLORS.length]} />
+                        ))}
+                      </Pie>
                       <Tooltip
                         contentStyle={{
                           backgroundColor: isDark ? '#1e293b' : '#fff',
@@ -259,12 +300,14 @@ function Dashboard() {
                           fontSize: '12px',
                         }}
                       />
-                      <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                        {topDestinationsQuarter.map((_, index) => (
-                          <Cell key={index} fill={index % 2 === 0 ? '#10B981' : '#3B82F6'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
+                      <Legend
+                        layout="vertical"
+                        verticalAlign="middle"
+                        align="right"
+                        iconSize={8}
+                        wrapperStyle={{ fontSize: '11px' }}
+                      />
+                    </PieChart>
                   </ResponsiveContainer>
                 </Card>
 
@@ -369,9 +412,9 @@ function Dashboard() {
                     <h2 className="text-base font-semibold text-gray-900 dark:text-white">Community Picks</h2>
                   </div>
                   <div className="space-y-4">
-                    {communityPicks.map((pick, i) => (
+                    {picks.map((pick, i) => (
                       <motion.div
-                        key={i}
+                        key={pick.id}
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 + i * 0.04 }}
@@ -394,8 +437,16 @@ function Dashboard() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 mt-3 pl-[52px]">
-                          <button className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 hover:border-red-200 dark:hover:border-red-500/40">
-                            <Heart size={10} /> Like {pick.upvotes}
+                          <button
+                            onClick={() => handleLike(pick.id)}
+                            disabled={likedTips.has(pick.id)}
+                            className={`flex items-center gap-1.5 text-[11px] transition-colors border rounded-lg px-3 py-1.5 
+                              ${likedTips.has(pick.id)
+                                ? 'text-red-500 border-red-200 bg-red-50 dark:bg-red-900/20'
+                                : 'text-gray-500 border-gray-200 dark:border-gray-600 hover:text-red-500 hover:border-red-200 dark:hover:border-red-500/40'
+                              }`}
+                          >
+                            <Heart size={10} className={likedTips.has(pick.id) ? "fill-current" : ""} /> Like {pick.upvotes}
                           </button>
                           <button className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 hover:border-blue-200 dark:hover:border-blue-500/40">
                             <GitFork size={10} /> Fork

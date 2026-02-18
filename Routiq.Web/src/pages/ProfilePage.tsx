@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/ui/Card';
@@ -53,11 +53,30 @@ export const ProfilePage = () => {
     const [preferredCurrency, setPreferredCurrency] = useState(mockProfile.preferredCurrency);
     const [prefsSaved, setPrefsSaved] = useState(false);
     const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+    const [savedTrips, setSavedTrips] = useState<any[]>([]);
 
     const handleSavePrefs = () => {
         setPrefsSaved(true);
         setTimeout(() => setPrefsSaved(false), 2500);
     };
+
+    useEffect(() => {
+        const fetchSavedTrips = async () => {
+            try {
+                // TODO: use actual user ID
+                const userId = 1;
+                const response = await fetch(`http://localhost:5001/api/routes/user/${userId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setSavedTrips(data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch saved trips", err);
+            }
+        };
+
+        fetchSavedTrips();
+    }, []);
 
     return (
         <div className="min-h-screen">
@@ -187,16 +206,43 @@ export const ProfilePage = () => {
                             </Card>
                         </motion.div>
 
-                        {/* Recent Trips */}
+                        {/* Saved & Recent Trips */}
                         <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}>
                             <Card className="h-full">
                                 <div className="flex items-center gap-2 mb-5">
                                     <Plane size={18} className="text-blue-500" />
-                                    <h2 className="text-base font-semibold text-gray-900 dark:text-white">Recent Trips</h2>
+                                    <h2 className="text-base font-semibold text-gray-900 dark:text-white">Saved & Recent Trips</h2>
                                 </div>
                                 <div className="space-y-3">
+                                    {savedTrips.length === 0 && mockRecentTrips.length === 0 && (
+                                        <p className="text-sm text-gray-500 text-center py-4">No trips found. Start planning!</p>
+                                    )}
+
+                                    {/* Saved Trips from API */}
+                                    {savedTrips.map((trip) => (
+                                        <div key={trip.id} className="border border-teal-200 dark:border-teal-700/60 bg-teal-50/50 dark:bg-teal-900/10 rounded-lg p-4 hover:bg-teal-100/50 dark:hover:bg-teal-800/20 transition-colors">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{trip.destinationCity}, {trip.country}</h3>
+                                                        <span className="bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 text-[10px] px-1.5 py-0.5 rounded border border-teal-200 dark:border-teal-500/20">Saved</span>
+                                                    </div>
+                                                    <p className="text-xs text-gray-400 mt-0.5">Created {new Date(trip.createdAt).toLocaleDateString()}</p>
+                                                </div>
+                                                <span className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-300 text-[10px] px-2 py-0.5 rounded-full font-medium">
+                                                    {trip.days} days
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-4 text-xs">
+                                                <span className="text-gray-500 dark:text-gray-400">💰 <span className="font-medium text-gray-700 dark:text-gray-200">${trip.totalBudget.toLocaleString()}</span></span>
+                                                <span className="text-gray-500 dark:text-gray-400">📝 <span className="font-medium text-gray-700 dark:text-gray-200">{trip.routeDetails?.stops.length || 1} stops</span></span>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {/* Mock Recent Trips (Legacy/Placeholder) */}
                                     {mockRecentTrips.map((trip, i) => (
-                                        <div key={i} className="border border-gray-200 dark:border-gray-700/60 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                        <div key={`mock-${i}`} className="border border-gray-200 dark:border-gray-700/60 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors opacity-75">
                                             <div className="flex justify-between items-start mb-2">
                                                 <div>
                                                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{trip.city}, {trip.country}</h3>

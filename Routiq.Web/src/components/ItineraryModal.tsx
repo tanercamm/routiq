@@ -37,10 +37,42 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
 
     if (!route) return null;
 
-    const handleSave = () => {
-        setSaved(true);
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
+    const handleSave = async () => {
+        try {
+            // TODO: Get actual logged-in user ID from context/auth
+            const userId = 1; 
+
+            // Find the destination city ID (simplified logic: take the first stop's city for now)
+            // In a real app, you'd look up the city ID from the backend or store it in the route stop
+            // For this sprint, we'll hardcode or fetch dynamically if available. 
+            // Assuming 1 for now if not found to proceed with the pipeline test.
+            const destinationCityId = 1; 
+
+            const response = await fetch('http://localhost:5001/api/routes/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: userId,
+                    destinationCityId: destinationCityId, 
+                    totalBudget: route.totalEstimatedCost,
+                    days: totalDays,
+                    routeDetails: route
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save trip');
+            }
+
+            setSaved(true);
+            setShowToast(true);
+            setTimeout(() => setShowToast(false), 3000);
+        } catch (error) {
+            console.error('Error saving trip:', error);
+            // Optionally show error toast here
+        }
     };
 
     const dayRanges = route.stops.reduce<{ start: number; end: number }[]>((acc, stop, i) => {

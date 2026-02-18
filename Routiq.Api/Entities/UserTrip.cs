@@ -19,6 +19,9 @@ public class UserTrip
     public decimal TotalBudget { get; set; }
     public int Days { get; set; }
 
+    /// <summary>JSON blob of the saved route details (stops, costs, etc).</summary>
+    public string RouteJson { get; set; } = string.Empty;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation

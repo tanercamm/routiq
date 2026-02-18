@@ -26,7 +26,7 @@ export const Navbar = () => {
                             Routiq
                         </span>
                         <span className="text-sm text-gray-400 dark:text-gray-500 font-medium hidden sm:inline">
-                            Enterprise Dashboard
+                            Travel Management Platform
                         </span>
                     </button>
                 </div>
@@ -40,8 +40,8 @@ export const Navbar = () => {
                                 key={path}
                                 onClick={() => navigate(path)}
                                 className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors ${isActive
-                                        ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
-                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
+                                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
                                     }`}
                             >
                                 {label}
@@ -62,8 +62,8 @@ export const Navbar = () => {
                     <button
                         onClick={() => navigate('/profile')}
                         className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${location.pathname === '/profile'
-                                ? 'bg-blue-600 dark:bg-blue-500 ring-2 ring-blue-300 dark:ring-blue-500/40'
-                                : 'bg-blue-100 dark:bg-blue-500/20 hover:ring-2 ring-blue-300 dark:ring-blue-500/40'
+                            ? 'bg-blue-600 dark:bg-blue-500 ring-2 ring-blue-300 dark:ring-blue-500/40'
+                            : 'bg-blue-100 dark:bg-blue-500/20 hover:ring-2 ring-blue-300 dark:ring-blue-500/40'
                             }`}
                         title="Profile"
                     >
