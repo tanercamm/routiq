@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { RouteOption, AttractionInfo } from '../types';
+import type { AttractionInfo } from '../utils/itineraryData';
 import { X, Clock, DollarSign, ShieldCheck, Thermometer, Timer, Bookmark, Check } from 'lucide-react';
 import {
     getFlightForCity,
@@ -12,8 +12,25 @@ import { getCommunityTipsForCity, countryCodeToFlag } from '../utils/communityDa
 import { MessageCircle, ThumbsUp } from 'lucide-react';
 import { formatTimeAMPM, calculateFlightDuration, isNextDay } from '../utils/timeFormat';
 
+// V1-compatible shape the modal was built against
+interface V1RouteStop {
+    city: string;
+    country: string;
+    days: number;
+    estimatedCost: number;
+    climate: string;
+    visaStatus: string;
+}
+
+interface V1RouteOption {
+    routeType: string;
+    description: string;
+    totalEstimatedCost: number;
+    stops: V1RouteStop[];
+}
+
 interface ItineraryModalProps {
-    route: RouteOption | null;
+    route: V1RouteOption | null;
     onClose: () => void;
 }
 
@@ -40,13 +57,9 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
     const handleSave = async () => {
         try {
             // TODO: Get actual logged-in user ID from context/auth
-            const userId = 1; 
+            const userId = 1;
 
-            // Find the destination city ID (simplified logic: take the first stop's city for now)
-            // In a real app, you'd look up the city ID from the backend or store it in the route stop
-            // For this sprint, we'll hardcode or fetch dynamically if available. 
-            // Assuming 1 for now if not found to proceed with the pipeline test.
-            const destinationCityId = 1; 
+            const firstCity = route.stops.length > 0 ? route.stops[0].city : 'Unknown';
 
             const response = await fetch('http://localhost:5001/api/routes/save', {
                 method: 'POST',
@@ -55,10 +68,10 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                 },
                 body: JSON.stringify({
                     userId: userId,
-                    destinationCityId: destinationCityId, 
+                    destinationCity: firstCity,
                     totalBudget: route.totalEstimatedCost,
-                    days: totalDays,
-                    routeDetails: route
+                    durationDays: totalDays,
+                    itinerarySnapshotJson: JSON.stringify(route),
                 }),
             });
 
@@ -71,9 +84,9 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
             setTimeout(() => setShowToast(false), 3000);
         } catch (error) {
             console.error('Error saving trip:', error);
-            // Optionally show error toast here
         }
     };
+
 
     const dayRanges = route.stops.reduce<{ start: number; end: number }[]>((acc, stop, i) => {
         const start = i === 0 ? 1 : acc[i - 1].end + 1;
@@ -133,8 +146,8 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                                         onClick={handleSave}
                                         disabled={saved}
                                         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${saved
-                                                ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/20 cursor-default'
-                                                : 'bg-teal-600 hover:bg-teal-500 text-white shadow-sm'
+                                            ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/20 cursor-default'
+                                            : 'bg-teal-600 hover:bg-teal-500 text-white shadow-sm'
                                             }`}
                                     >
                                         {saved ? <><Check size={16} /> Saved</> : <><Bookmark size={16} /> Save Trip</>}

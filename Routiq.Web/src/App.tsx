@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -11,463 +11,546 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { TravelGroupsPage } from './pages/TravelGroupsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AppLayout } from './components/AppLayout';
-import { HeroInput } from './components/HeroInput';
-import { RouteCard } from './components/RouteCard';
-import { ItineraryModal } from './components/ItineraryModal';
-import { generateRoutes, getLeaderboard, type LeaderboardDto } from './api/routiqApi';
-import type { RouteRequest, RouteOption } from './types';
+import { generateRoutes } from './api/routiqApi';
+import type { RouteRequest, RouteResponse, RouteOption, RouteStop, EliminationSummary, BudgetBracket, RegionPreference } from './types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, TrendingUp, Heart, GitFork } from 'lucide-react';
-import { Card } from './components/ui/Card';
-import { CostVsDurationChart } from './components/CostVsDurationChart';
-import { countryCodeToFlag } from './utils/communityData';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell
-} from 'recharts';
+  Loader2, Globe, Wallet, Calendar, MapPin, CheckSquare,
+  ChevronDown, ChevronRight, XCircle, CheckCircle2, Zap, AlertTriangle, Clock, Map
+} from 'lucide-react';
 
-// ── Mock data ──
+// ── Constants ──
 
-
-
-const communityPicksInitial = [
-  { id: '11111111-1111-1111-1111-111111111111', city: 'Bangkok', country: 'Thailand', user: 'NomadKai', countryCode: 'DE', tip: 'Skip the tourist boats — use Chao Phraya Express for 15 baht! Same river, 1/10th the price.', upvotes: 56, days: 7, budget: 800 },
-  { id: '22222222-2222-2222-2222-222222222222', city: 'Istanbul', country: 'Turkey', user: 'WanderSarah', countryCode: 'US', tip: 'Get the Museum Pass Istanbul — covers Topkapi, Hagia Sophia and more. Saves hours of queuing!', upvotes: 58, days: 5, budget: 600 },
-  { id: '33333333-3333-3333-3333-333333333333', city: 'Tokyo', country: 'Japan', user: 'TrailBlazerJay', countryCode: 'CA', tip: 'Get a Suica card immediately at the airport. Works on all trains, buses, and even vending machines.', upvotes: 63, days: 10, budget: 1500 },
-  { id: '44444444-4444-4444-4444-444444444444', city: 'Belgrade', country: 'Serbia', user: 'ExplorerMax', countryCode: 'GB', tip: 'The Nikola Tesla Museum is small but absolutely fascinating. Book tickets online to skip the line!', upvotes: 21, days: 4, budget: 350 },
+const PASSPORT_OPTIONS: { code: string; label: string }[] = [
+  { code: 'TR', label: '🇹🇷 Turkey' },
+  { code: 'US', label: '🇺🇸 United States' },
+  { code: 'GB', label: '🇬🇧 United Kingdom' },
+  { code: 'DE', label: '🇩🇪 Germany' },
+  { code: 'FR', label: '🇫🇷 France' },
+  { code: 'IN', label: '🇮🇳 India' },
+  { code: 'CN', label: '🇨🇳 China' },
+  { code: 'RU', label: '🇷🇺 Russia' },
+  { code: 'BR', label: '🇧🇷 Brazil' },
+  { code: 'AU', label: '🇦🇺 Australia' },
+  { code: 'CA', label: '🇨🇦 Canada' },
+  { code: 'JP', label: '🇯🇵 Japan' },
+  { code: 'KR', label: '🇰🇷 South Korea' },
+  { code: 'MX', label: '🇲🇽 Mexico' },
+  { code: 'ZA', label: '🇿🇦 South Africa' },
+  { code: 'EG', label: '🇪🇬 Egypt' },
+  { code: 'PK', label: '🇵🇰 Pakistan' },
+  { code: 'NG', label: '🇳🇬 Nigeria' },
+  { code: 'PH', label: '🇵🇭 Philippines' },
+  { code: 'ID', label: '🇮🇩 Indonesia' },
 ];
 
-// ── Analytics data ──
-
-const trendData = [
-  { month: 'Jan', tripVolume: 35, budgetTrends: 40 },
-  { month: 'Feb', tripVolume: 42, budgetTrends: 55 },
-  { month: 'Mar', tripVolume: 58, budgetTrends: 62 },
-  { month: 'Apr', tripVolume: 48, budgetTrends: 50 },
-  { month: 'May', tripVolume: 65, budgetTrends: 70 },
-  { month: 'Jun', tripVolume: 72, budgetTrends: 55 },
-  { month: 'Jul', tripVolume: 120, budgetTrends: 62 },
+const BUDGET_BRACKETS: { value: BudgetBracket; label: string; sub: string }[] = [
+  { value: 'Shoestring', label: 'Shoestring', sub: '~$0–30/day' },
+  { value: 'Budget', label: 'Budget', sub: '~$30–60/day' },
+  { value: 'Mid', label: 'Mid-Range', sub: '~$60–120/day' },
+  { value: 'Comfort', label: 'Comfort', sub: '~$120–250/day' },
+  { value: 'Luxury', label: 'Luxury', sub: '$250+/day' },
 ];
 
-const topDestinationsData = [
-  { city: 'Istanbul', value: 334 },
-  { city: 'Paris', value: 236 },
-  { city: 'London', value: 184 },
-  { city: 'Tokyo', value: 187 },
+const REGION_OPTIONS: { value: RegionPreference; label: string }[] = [
+  { value: 'Any', label: '🌍 Any Region' },
+  { value: 'SoutheastAsia', label: '🌏 Southeast Asia' },
+  { value: 'EasternEurope', label: '🏰 Eastern Europe' },
+  { value: 'Balkans', label: '⛰️ Balkans' },
+  { value: 'LatinAmerica', label: '🌿 Latin America' },
+  { value: 'NorthAfrica', label: '🏜️ North Africa' },
+  { value: 'CentralAsia', label: '🗺️ Central Asia' },
+  { value: 'CentralAmerica', label: '🌺 Central America' },
+  { value: 'MiddleEast', label: '🕌 Middle East' },
+  { value: 'Caribbean', label: '🏝️ Caribbean' },
 ];
 
-const expensesBreakdown = [
-  { name: 'Flights', value: 40 },
-  { name: 'Accommodation', value: 35 },
-  { name: 'Food', value: 15 },
-  { name: 'Activities', value: 10 },
-];
-const EXPENSES_COLORS = ['#3B82F6', '#14B8A6', '#F59E0B', '#EF4444'];
+const REASON_META: Record<string, { label: string; color: string; icon: React.FC<{ size?: number; className?: string }> }> = {
+  VisaRequired: { label: 'Visa Required', color: 'red', icon: XCircle },
+  BudgetInsufficient: { label: 'Budget Too Low', color: 'orange', icon: Wallet },
+  DaysInsufficient: { label: 'Not Enough Days', color: 'yellow', icon: Clock },
+  BannedDestination: { label: 'Entry Banned', color: 'red', icon: AlertTriangle },
+  RegionMismatch: { label: 'Region Mismatch', color: 'slate', icon: Map },
+};
 
-const AVATAR_COLORS = [
-  'bg-blue-500', 'bg-orange-500', 'bg-purple-500',
-  'bg-emerald-500', 'bg-pink-500', 'bg-cyan-500',
-];
+const COST_LEVEL_BADGE: Record<string, string> = {
+  Low: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+  Medium: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  High: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300',
+};
 
-function Dashboard() {
-  const [loading, setLoading] = useState(false);
-  const [routes, setRoutes] = useState<RouteOption[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedRoute, setSelectedRoute] = useState<RouteOption | null>(null);
-  const { theme } = useTheme();
+// ── Sub-components ──
 
-  // Gamification Data
-  const [leaderboardData, setLeaderboardData] = useState<LeaderboardDto[]>([]);
-  const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
+function FormLabel({ icon: Icon, children }: { icon: React.FC<{ size?: number; className?: string }>; children: React.ReactNode }) {
+  return (
+    <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+      <Icon size={12} className="opacity-70" />
+      {children}
+    </label>
+  );
+}
 
-  // Load Leaderboard
-  useEffect(() => {
-    const fetchLeaderboard = async () => {
-      try {
-        const data = await getLeaderboard(5); // Top 5
-        setLeaderboardData(data);
-      } catch (err) {
-        console.error("Failed to load leaderboard", err);
-      } finally {
-        setLoadingLeaderboard(false);
-      }
-    };
-    fetchLeaderboard();
-  }, []);
+function SelectField({ value, onChange, children, id }: {
+  value: string; onChange: (v: string) => void; children: React.ReactNode; id: string;
+}) {
+  return (
+    <div className="relative">
+      <select
+        id={id}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 pr-10 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer transition-colors"
+      >
+        {children}
+      </select>
+      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+    </div>
+  );
+}
 
-  // Community Picks State
-  const [picks, setPicks] = useState(communityPicksInitial);
-  const [likedTips, setLikedTips] = useState<Set<string>>(new Set());
+function RouteOptionCard({ option, index }: { option: RouteOption; index: number }) {
+  const colors = ['from-blue-600 to-indigo-600', 'from-teal-600 to-emerald-600', 'from-violet-600 to-purple-600'];
+  const gradient = colors[index % colors.length];
 
-  const handleLike = async (id: string) => {
-    if (likedTips.has(id)) return;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.08 }}
+      className="bg-white dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 rounded-2xl overflow-hidden shadow-sm"
+    >
+      {/* Header */}
+      <div className={`bg-gradient-to-r ${gradient} px-5 py-4`}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-white font-bold text-base">{option.routeName}</h3>
+            <p className="text-white/80 text-xs mt-0.5 leading-relaxed">{option.selectionReason}</p>
+          </div>
+          <span className="shrink-0 bg-white/20 text-white text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
+            {option.estimatedBudgetRange}
+          </span>
+        </div>
+      </div>
 
-    // Optimistic Update
-    setPicks(prev => prev.map(pick =>
-      pick.id === id ? { ...pick, upvotes: pick.upvotes + 1 } : pick
-    ));
-    setLikedTips(prev => new Set(prev).add(id));
+      {/* Stops */}
+      <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
+        {option.stops.map((stop, si) => (
+          <StopRow key={si} stop={stop} index={si} />
+        ))}
+      </div>
+    </motion.div>
+  );
+}
 
-    try {
-      // API Call
-      await fetch(`/api/community/tips/${id}/like`, { method: 'POST' });
-    } catch (error) {
-      console.error("Failed to like tip", error);
-      // Revert if failed
-      setPicks(prev => prev.map(pick =>
-        pick.id === id ? { ...pick, upvotes: pick.upvotes - 1 } : pick
-      ));
-      setLikedTips(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }
+function StopRow({ stop, index }: { stop: RouteStop; index: number }) {
+  return (
+    <div className="flex items-start gap-3 px-5 py-3.5">
+      {/* Order badge */}
+      <span className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-300 shrink-0 mt-0.5">
+        {index + 1}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-semibold text-gray-900 dark:text-white">{stop.city}</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">{stop.country}</span>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${COST_LEVEL_BADGE[stop.costLevel] ?? 'bg-gray-100 text-gray-600'}`}>
+            {stop.costLevel}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 mt-1 flex-wrap">
+          <span className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+            <Calendar size={10} /> {stop.recommendedDays} days
+          </span>
+          <span className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+            <Wallet size={10} /> {stop.dailyBudgetRange}
+          </span>
+          <span className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">
+            {stop.visaStatus}
+          </span>
+        </div>
+        {stop.stopReason && (
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 italic leading-relaxed">
+            {stop.stopReason}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EliminationCard({ elim, index }: { elim: EliminationSummary; index: number }) {
+  const [open, setOpen] = useState(false);
+  const meta = REASON_META[elim.reason] ?? { label: elim.reason, color: 'gray', icon: XCircle };
+  const Icon = meta.icon;
+
+  const colorMap: Record<string, string> = {
+    red: 'bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20',
+    orange: 'bg-orange-50 dark:bg-orange-500/10 border-orange-100 dark:border-orange-500/20',
+    yellow: 'bg-yellow-50 dark:bg-yellow-500/10 border-yellow-100 dark:border-yellow-500/20',
+    slate: 'bg-slate-50 dark:bg-slate-500/10 border-slate-200 dark:border-slate-500/20',
+    gray: 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700',
   };
 
-  const location = useLocation();
-  const forkedState = location.state as { forkedBudget?: number; forkedDays?: number } | null;
+  const iconColorMap: Record<string, string> = {
+    red: 'text-red-500', orange: 'text-orange-500', yellow: 'text-yellow-500',
+    slate: 'text-slate-500', gray: 'text-gray-400',
+  };
 
-  const isDark = theme === 'dark';
+  const badgeColorMap: Record<string, string> = {
+    red: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+    orange: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
+    yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-300',
+    slate: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300',
+    gray: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+  };
 
-  const handleSearch = async (request: RouteRequest) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -6 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.04 }}
+      className={`border rounded-xl overflow-hidden ${colorMap[meta.color]}`}
+    >
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+        aria-expanded={open}
+      >
+        <Icon size={14} className={`shrink-0 ${iconColorMap[meta.color]}`} />
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+            {elim.city}, {elim.country}
+          </span>
+        </div>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${badgeColorMap[meta.color]}`}>
+          {meta.label}
+        </span>
+        <ChevronRight size={12} className={`shrink-0 text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <p className="px-4 pb-3 pl-11 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+              {elim.explanation}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ── Dashboard ──
+
+function Dashboard() {
+  useTheme(); // keep ThemeProvider hook active for dark mode CSS classes
+
+  const [form, setForm] = useState<RouteRequest>({
+    passportCountryCode: 'TR',
+    budgetBracket: 'Budget',
+    totalBudgetUsd: 1500,
+    durationDays: 10,
+    regionPreference: 'Any',
+    hasSchengenVisa: false,
+    hasUsVisa: false,
+    hasUkVisa: false,
+  });
+
+  const [result, setResult] = useState<RouteResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const setField = <K extends keyof RouteRequest>(key: K, value: RouteRequest[K]) =>
+    setForm(prev => ({ ...prev, [key]: value }));
+
+  const handleGenerate = async () => {
+    if (form.totalBudgetUsd <= 0 || form.durationDays <= 0) return;
     setLoading(true);
     setError(null);
+    setResult(null);
     try {
-      const response = await generateRoutes(request);
-      setRoutes(response.options);
+      const data = await generateRoutes(form);
+      setResult(data);
     } catch (err) {
       console.error(err);
-      setError('Failed to fetch routes. Please try again.');
+      setError('Could not reach the route engine. Make sure the backend is running.');
     } finally {
       setLoading(false);
     }
   };
 
+  const hasResult = result !== null;
+  const hasOptions = hasResult && result.options.length > 0;
+  const hasEliminations = hasResult && result.eliminations.length > 0;
+
   return (
-    <>
-      {/* ── Main Content: 2-Column Grid ── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
-          {/* ═══ Left Column (Main) ═══ */}
-          <div className="lg:col-span-8">
+      {/* Page header */}
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+            <Zap size={16} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+            Decision Engine
+          </h1>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400 ml-11">
+          Deterministic, explainable route generation — no guesswork, no fake flights.
+        </p>
+      </motion.div>
 
-            {/* Hero */}
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="mb-8"
-            >
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1 tracking-tight">
-                Plan Your Next Trip
-              </h1>
-            </motion.div>
+      {/* 2-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-            {/* Search */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.4 }}
-              className="mb-8"
-            >
-              <HeroInput onSearch={handleSearch} loading={loading} initialBudget={forkedState?.forkedBudget} initialDays={forkedState?.forkedDays} />
-            </motion.div>
+        {/* ═══ LEFT: Input Engine ═══ */}
+        <motion.div
+          initial={{ opacity: 0, x: -12 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4 }}
+          className="lg:col-span-4 lg:sticky lg:top-24"
+        >
+          <div className="bg-white dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 rounded-2xl p-6 shadow-sm space-y-5">
 
-            {/* Route Results */}
-            <AnimatePresence mode="wait">
-              {loading ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex flex-col items-center justify-center py-20"
-                >
-                  <Loader2 size={36} className="text-blue-500 animate-spin mb-3" />
-                  <p className="text-gray-500 dark:text-gray-400">Calculating optimal routes...</p>
-                </motion.div>
-              ) : error ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center text-red-600 dark:text-red-400 py-10 bg-red-50 dark:bg-red-500/10 rounded-2xl border border-red-100 dark:border-red-500/20"
-                >
-                  {error}
-                </motion.div>
-              ) : routes.length > 0 ? (
-                <div className="space-y-8">
-                  <CostVsDurationChart data={routes} />
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.4 }}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-5"
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">
+                Input Engine
+              </h2>
+            </div>
+
+            {/* Passport */}
+            <div>
+              <FormLabel icon={Globe}>Passport Country</FormLabel>
+              <SelectField id="passport" value={form.passportCountryCode} onChange={v => setField('passportCountryCode', v)}>
+                {PASSPORT_OPTIONS.map(o => (
+                  <option key={o.code} value={o.code}>{o.label}</option>
+                ))}
+              </SelectField>
+            </div>
+
+            {/* Budget Bracket */}
+            <div>
+              <FormLabel icon={Wallet}>Budget Bracket</FormLabel>
+              <SelectField id="budgetBracket" value={form.budgetBracket} onChange={v => setField('budgetBracket', v as BudgetBracket)}>
+                {BUDGET_BRACKETS.map(b => (
+                  <option key={b.value} value={b.value}>{b.label} — {b.sub}</option>
+                ))}
+              </SelectField>
+            </div>
+
+            {/* Total Budget */}
+            <div>
+              <FormLabel icon={Wallet}>Total Budget Cap (USD)</FormLabel>
+              <input
+                id="totalBudget"
+                type="number"
+                min={0}
+                step={100}
+                value={form.totalBudgetUsd}
+                onChange={e => setField('totalBudgetUsd', Number(e.target.value))}
+                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
+                placeholder="e.g. 1500"
+              />
+            </div>
+
+            {/* Duration */}
+            <div>
+              <FormLabel icon={Calendar}>Duration (Days)</FormLabel>
+              <input
+                id="duration"
+                type="number"
+                min={1}
+                max={90}
+                value={form.durationDays}
+                onChange={e => setField('durationDays', Number(e.target.value))}
+                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
+                placeholder="e.g. 10"
+              />
+            </div>
+
+            {/* Region */}
+            <div>
+              <FormLabel icon={MapPin}>Region Preference</FormLabel>
+              <SelectField id="region" value={form.regionPreference} onChange={v => setField('regionPreference', v as RegionPreference)}>
+                {REGION_OPTIONS.map(r => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </SelectField>
+            </div>
+
+            {/* Visa flags */}
+            <div>
+              <FormLabel icon={CheckSquare}>Visas You Hold</FormLabel>
+              <div className="space-y-2.5">
+                {([
+                  { key: 'hasUsVisa', label: '🇺🇸 US Visa' },
+                  { key: 'hasUkVisa', label: '🇬🇧 UK Visa' },
+                  { key: 'hasSchengenVisa', label: '🇪🇺 Schengen Visa' },
+                ] as const).map(({ key, label }) => (
+                  <label
+                    key={key}
+                    htmlFor={key}
+                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
                   >
-                    {routes.map((option, index) => (
-                      <RouteCard key={index} option={option} index={index} onViewItinerary={setSelectedRoute} />
-                    ))}
-                  </motion.div>
-                </div>
-              ) : null}
-            </AnimatePresence>
+                    <input
+                      id={key}
+                      type="checkbox"
+                      checked={form[key]}
+                      onChange={e => setField(key, e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
 
-            {/* ── Analytics Dashboard (default view) ── */}
-            {routes.length === 0 && !loading && !error && (
+            {/* Generate button */}
+            <button
+              id="generate-route-btn"
+              onClick={handleGenerate}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl px-6 py-3.5 text-sm shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-200 mt-1"
+            >
+              {loading ? (
+                <><Loader2 size={16} className="animate-spin" /> Generating Route...</>
+              ) : (
+                <><Zap size={15} /> Generate Logical Route</>
+              )}
+            </button>
+
+          </div>
+        </motion.div>
+
+        {/* ═══ RIGHT: Output & Explanation ═══ */}
+        <div className="lg:col-span-8 space-y-6">
+
+          <AnimatePresence mode="wait">
+            {/* Loading state */}
+            {loading && (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, duration: 0.5 }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center justify-center py-24 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-2xl"
               >
-                {/* Trip Volume / Budget Trends */}
-                <Card>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">
-                    Trip Volume/Budget Trends
-                  </h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#334155' : '#e5e7eb'} />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke={isDark ? '#64748b' : '#9ca3af'} />
-                      <YAxis tick={{ fontSize: 11 }} stroke={isDark ? '#64748b' : '#9ca3af'} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: isDark ? '#1e293b' : '#fff',
-                          border: `1px solid ${isDark ? '#334155' : '#e5e7eb'}`,
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                        }}
-                      />
-                      <Legend iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
-                      <Line type="monotone" dataKey="tripVolume" name="Trip Volume" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="budgetTrends" name="Budget Trends" stroke="#14B8A6" strokeWidth={2} dot={{ r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </Card>
-
-                {/* Top Destinations */}
-                <Card>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">
-                    Top Destinations (This Quarter)
-                  </h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={topDestinationsData} layout="vertical" margin={{ left: 10, right: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#334155' : '#e5e7eb'} />
-                      <XAxis type="number" tick={{ fontSize: 11 }} stroke={isDark ? '#64748b' : '#9ca3af'} />
-                      <YAxis type="category" dataKey="city" tick={{ fontSize: 11 }} stroke={isDark ? '#64748b' : '#9ca3af'} width={60} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: isDark ? '#1e293b' : '#fff',
-                          border: `1px solid ${isDark ? '#334155' : '#e5e7eb'}`,
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                        }}
-                      />
-                      <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                        {topDestinationsData.map((_, index) => (
-                          <Cell key={index} fill={index % 2 === 0 ? '#3B82F6' : '#14B8A6'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Card>
-
-                {/* Expenses Breakdown (Replaces Duplicate Chart) */}
-                <Card>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">
-                    Expenses Breakdown
-                  </h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={expensesBreakdown}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {expensesBreakdown.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={EXPENSES_COLORS[index % EXPENSES_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: isDark ? '#1e293b' : '#fff',
-                          border: `1px solid ${isDark ? '#334155' : '#e5e7eb'}`,
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                        }}
-                      />
-                      <Legend
-                        layout="vertical"
-                        verticalAlign="middle"
-                        align="right"
-                        iconSize={8}
-                        wrapperStyle={{ fontSize: '11px' }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </Card>
-
-                {/* Budget Utilization */}
-                <Card>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">
-                    Budget Utilization
-                  </h3>
-                  <div className="flex items-center justify-center h-[200px] relative">
-                    <ResponsiveContainer width="100%" height={180}>
-                      <PieChart>
-                        <Pie
-                          data={[{ value: 74 }, { value: 26 }]}
-                          innerRadius={55}
-                          outerRadius={75}
-                          startAngle={90}
-                          endAngle={-270}
-                          dataKey="value"
-                          stroke="none"
-                        >
-                          <Cell fill="#14B8A6" />
-                          <Cell fill={isDark ? '#1e293b' : '#e5e7eb'} />
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-3xl font-bold text-gray-900 dark:text-white">74%</span>
-                    </div>
-                  </div>
-                </Card>
+                <Loader2 size={36} className="text-blue-500 animate-spin mb-4" />
+                <p className="text-gray-600 dark:text-gray-300 font-medium">Running deterministic filters...</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Visa rules → Budget → Days</p>
               </motion.div>
             )}
-          </div>
 
-          {/* ═══ Right Column (Sidebar) ═══ */}
-          <div className="lg:col-span-4">
-            <div className="lg:sticky lg:top-24 space-y-6">
-
-              {/* 🏆 Leaderboard */}
+            {/* Error state */}
+            {!loading && error && (
               <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+                key="error"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-start gap-3 p-5 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-2xl"
               >
-                <Card className="h-full">
-                  <div className="flex items-center gap-2 mb-5">
-                    <TrendingUp size={18} className="text-blue-600 dark:text-blue-400" />
-                    <h2 className="text-base font-semibold text-gray-900 dark:text-white">Top Travelers</h2>
-                  </div>
-                  <div className="space-y-2">
-                    {loadingLeaderboard ? (
-                      <div className="text-center py-4 text-xs text-gray-400">Loading top travelers...</div>
-                    ) : leaderboardData.map((entry, i) => {
-                      const rank = i + 1;
-                      const isTop3 = rank <= 3;
-                      return (
-                        <div
-                          key={entry.username}
-                          className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-colors ${isTop3
-                            ? 'bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20' // Gold/highlight for Top 3
-                            : 'hover:bg-gray-50 dark:hover:bg-gray-800/60' // Standard hover for others
-                            }`}
-                        >
-                          {/* Rank badge */}
-                          <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${isTop3 ? 'bg-amber-500 shadow-sm' : 'bg-gray-400 dark:bg-gray-600'
-                            }`}>
-                            {rank}
-                          </span>
-                          {/* Avatar */}
-                          <div className={`w-9 h-9 rounded-full ${AVATAR_COLORS[i % AVATAR_COLORS.length]} flex items-center justify-center text-white text-sm font-semibold shrink-0`}>
-                            {entry.username.charAt(0).toUpperCase()}
-                          </div>
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm font-medium block text-gray-900 dark:text-gray-100">
-                              {entry.username}
-                            </span>
-                            <span className="text-xs text-gray-400 dark:text-gray-500">
-                              {countryCodeToFlag(entry.countryCode)} {entry.tripCount} trips
-                            </span>
-                          </div>
-                          {/* Points */}
-                          <span className={`text-sm font-bold ${isTop3 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                            {entry.totalPoints.toLocaleString()}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Card>
+                <XCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-700 dark:text-red-300">Engine Error</p>
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{error}</p>
+                </div>
               </motion.div>
+            )}
 
-              {/* 🌍 Community Picks */}
+            {/* Empty / initial state */}
+            {!loading && !error && !hasResult && (
               <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
+                key="empty"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center py-24 bg-white dark:bg-gray-800/40 border border-dashed border-gray-200 dark:border-gray-700 rounded-2xl"
               >
-                <Card className="h-full">
-                  <div className="flex items-center gap-2 mb-5">
-                    <span className="text-base">🌍</span>
-                    <h2 className="text-base font-semibold text-gray-900 dark:text-white">Community Picks</h2>
-                  </div>
-                  <div className="space-y-4">
-                    {picks.map((pick, i) => (
-                      <motion.div
-                        key={pick.id}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 + i * 0.04 }}
-                        className="border border-gray-100 dark:border-gray-700/50 rounded-xl p-4 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
-                      >
-                        <div className="flex items-start gap-3">
-                          {/* Avatar */}
-                          <div className={`w-10 h-10 rounded-full ${AVATAR_COLORS[(i + 2) % AVATAR_COLORS.length]} flex items-center justify-center text-white text-sm font-semibold shrink-0 mt-0.5`}>
-                            {pick.user.charAt(0)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{pick.city}, {pick.country}</h3>
-                              <span className="text-sm font-bold text-gray-700 dark:text-gray-300">${pick.budget}</span>
-                            </div>
-                            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                              {countryCodeToFlag(pick.countryCode)} {pick.user} · {pick.days}d
-                            </p>
-                            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mt-2 line-clamp-2">{pick.tip}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 mt-3 pl-[52px]">
-                          <button
-                            onClick={() => handleLike(pick.id)}
-                            disabled={likedTips.has(pick.id)}
-                            className={`flex items-center gap-1.5 text-[11px] transition-colors border rounded-lg px-3 py-1.5 
-                              ${likedTips.has(pick.id)
-                                ? 'text-red-500 border-red-200 bg-red-50 dark:bg-red-900/20'
-                                : 'text-gray-500 border-gray-200 dark:border-gray-600 hover:text-red-500 hover:border-red-200 dark:hover:border-red-500/40'
-                              }`}
-                          >
-                            <Heart size={10} className={likedTips.has(pick.id) ? "fill-current" : ""} /> Like {pick.upvotes}
-                          </button>
-                          <button className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 hover:border-blue-200 dark:hover:border-blue-500/40">
-                            <GitFork size={10} /> Fork
-                          </button>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </Card>
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-500/20 dark:to-indigo-500/20 flex items-center justify-center mb-4">
+                  <Zap size={26} className="text-blue-500" />
+                </div>
+                <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">Ready to generate</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 text-center max-w-xs">
+                  Configure your constraints on the left, then click <strong>Generate Logical Route</strong>.
+                </p>
               </motion.div>
+            )}
 
-            </div>
-          </div>
+            {/* Results */}
+            {!loading && hasResult && (
+              <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+
+                {/* ── Route Options ── */}
+                {hasOptions ? (
+                  <section>
+                    <div className="flex items-center gap-2 mb-4">
+                      <CheckCircle2 size={16} className="text-emerald-500" />
+                      <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">
+                        Generated Routes
+                      </h2>
+                      <span className="text-xs bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-semibold px-2 py-0.5 rounded-full">
+                        {result!.options.length} option{result!.options.length > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="space-y-5">
+                      {result!.options.map((opt, i) => (
+                        <RouteOptionCard key={i} option={opt} index={i} />
+                      ))}
+                    </div>
+                  </section>
+                ) : (
+                  <section className="flex items-start gap-3 p-5 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 rounded-2xl">
+                    <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">No viable routes found</p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                        All destinations were eliminated by the engine's rules. See the explanations below.
+                      </p>
+                    </div>
+                  </section>
+                )}
+
+                {/* ── Why NOT Section ── */}
+                {hasEliminations && (
+                  <section>
+                    <div className="flex items-center gap-2 mb-4">
+                      <XCircle size={16} className="text-red-400" />
+                      <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">
+                        Why NOT These Destinations?
+                      </h2>
+                      <span className="text-xs bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 font-semibold px-2 py-0.5 rounded-full">
+                        {result!.eliminations.length} eliminated
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {result!.eliminations.map((elim, i) => (
+                        <EliminationCard key={i} elim={elim} index={i} />
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-3 text-center">
+                      Click any row to see the full engine explanation.
+                    </p>
+                  </section>
+                )}
+
+              </motion.div>
+            )}
+          </AnimatePresence>
 
         </div>
-      </main >
-
-      <ItineraryModal route={selectedRoute} onClose={() => setSelectedRoute(null)} />
-    </>
+      </div>
+    </main>
   );
 }
+
+// ── App ──
 
 function App() {
   return (

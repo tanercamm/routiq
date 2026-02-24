@@ -9,71 +9,34 @@ public class RoutiqDbContext : DbContext
     {
     }
 
+    // ── Core Lookup ──
     public DbSet<Destination> Destinations { get; set; }
     public DbSet<VisaRule> VisaRules { get; set; }
-    public DbSet<UserRequest> UserRequests { get; set; }
+    public DbSet<RegionPriceTier> RegionPriceTiers { get; set; }
+
+    // ── Auth ──
     public DbSet<User> Users { get; set; }
-    public DbSet<Flight> Flights { get; set; }
-    public DbSet<Attraction> Attractions { get; set; }
-    public DbSet<AccommodationZone> AccommodationZones { get; set; }
     public DbSet<UserProfile> UserProfiles { get; set; }
-    public DbSet<UserTrip> UserTrips { get; set; }
-    public DbSet<TripCheckIn> TripCheckIns { get; set; }
-    public DbSet<DestinationTip> DestinationTips { get; set; }
+
+    // ── Route Engine ──
+    public DbSet<RouteQuery> RouteQueries { get; set; }
+    public DbSet<SavedRoute> SavedRoutes { get; set; }
+    public DbSet<RouteStop> RouteStops { get; set; }
+    public DbSet<RouteElimination> RouteEliminations { get; set; }
+
+    // ── Community Loop ──
+    public DbSet<TraveledRoute> TraveledRoutes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // Configure Destination
-        modelBuilder.Entity<Destination>()
-            .Property(d => d.AvgDailyCostLow)
-            .HasPrecision(18, 2);
-
-        modelBuilder.Entity<Destination>()
-            .Property(d => d.AvgDailyCostMid)
-            .HasPrecision(18, 2);
-
-        modelBuilder.Entity<Destination>()
-            .Property(d => d.AvgDailyCostHigh)
-            .HasPrecision(18, 2);
-
-        // Configure UserRequest
-        modelBuilder.Entity<UserRequest>()
-            .Property(ur => ur.TotalBudget)
-            .HasPrecision(18, 2);
-
-        // Configure User
+        // ── User ──
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
 
-        // Configure Flight
-        modelBuilder.Entity<Flight>()
-            .Property(f => f.AveragePrice)
-            .HasPrecision(18, 2);
-
-        modelBuilder.Entity<Flight>()
-            .Property(f => f.MinPrice)
-            .HasPrecision(18, 2);
-
-        modelBuilder.Entity<Flight>()
-            .Property(f => f.MaxPrice)
-            .HasPrecision(18, 2);
-
-        // Configure Attraction
-        modelBuilder.Entity<Attraction>()
-            .Property(a => a.EstimatedCost)
-            .HasPrecision(18, 2);
-
-        // Configure AccommodationZone
-        modelBuilder.Entity<AccommodationZone>()
-            .Property(az => az.AverageNightlyCost)
-            .HasPrecision(18, 2);
-
-        // ── Gamification Entities ──
-
-        // UserProfile: unique FK to User
+        // ── UserProfile ──
         modelBuilder.Entity<UserProfile>()
             .HasIndex(up => up.UserId)
             .IsUnique();
@@ -82,37 +45,87 @@ public class RoutiqDbContext : DbContext
             .HasIndex(up => up.Username)
             .IsUnique();
 
-        // UserProfile → many UserTrips
         modelBuilder.Entity<UserProfile>()
-            .HasMany(up => up.Trips)
-            .WithOne(t => t.UserProfile)
-            .HasForeignKey(t => t.UserProfileId)
+            .HasOne(up => up.User)
+            .WithMany()
+            .HasForeignKey(up => up.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // UserTrip → many TripCheckIns
-        modelBuilder.Entity<UserTrip>()
-            .HasMany(t => t.CheckIns)
-            .WithOne(ci => ci.UserTrip)
-            .HasForeignKey(ci => ci.UserTripId)
+        // ── RouteQuery ──
+        modelBuilder.Entity<RouteQuery>()
+            .HasOne(rq => rq.User)
+            .WithMany()
+            .HasForeignKey(rq => rq.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // UserTrip.TotalBudget precision
-        modelBuilder.Entity<UserTrip>()
-            .Property(t => t.TotalBudget)
-            .HasPrecision(18, 2);
+        // RouteQuery → many SavedRoutes
+        modelBuilder.Entity<SavedRoute>()
+            .HasOne(sr => sr.RouteQuery)
+            .WithMany(rq => rq.SavedRoutes)
+            .HasForeignKey(sr => sr.RouteQueryId)
+            .OnDelete(DeleteBehavior.Restrict); // keep RouteQuery even if SavedRoute deleted
 
-        // ── Community Entities ──
-
-        // UserProfile → many DestinationTips
-        modelBuilder.Entity<UserProfile>()
-            .HasMany(up => up.Tips)
-            .WithOne(t => t.UserProfile)
-            .HasForeignKey(t => t.UserProfileId)
+        // RouteQuery → many RouteEliminations
+        modelBuilder.Entity<RouteElimination>()
+            .HasOne(re => re.RouteQuery)
+            .WithMany(rq => rq.Eliminations)
+            .HasForeignKey(re => re.RouteQueryId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // DestinationTip.Content max length
-        modelBuilder.Entity<DestinationTip>()
-            .Property(t => t.Content)
-            .HasMaxLength(500);
+        // ── SavedRoute ──
+        modelBuilder.Entity<SavedRoute>()
+            .HasOne(sr => sr.User)
+            .WithMany()
+            .HasForeignKey(sr => sr.UserId)
+            .OnDelete(DeleteBehavior.NoAction); // avoid multiple cascade paths
+
+        // SavedRoute → many RouteStops
+        modelBuilder.Entity<RouteStop>()
+            .HasOne(rs => rs.SavedRoute)
+            .WithMany(sr => sr.Stops)
+            .HasForeignKey(rs => rs.SavedRouteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // RouteStop → Destination
+        modelBuilder.Entity<RouteStop>()
+            .HasOne(rs => rs.Destination)
+            .WithMany(d => d.RouteStops)
+            .HasForeignKey(rs => rs.DestinationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // RouteElimination → Destination
+        modelBuilder.Entity<RouteElimination>()
+            .HasOne(re => re.Destination)
+            .WithMany(d => d.Eliminations)
+            .HasForeignKey(re => re.DestinationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // ── TraveledRoute ──
+        // SavedRoute → one TraveledRoute (1:1)
+        modelBuilder.Entity<TraveledRoute>()
+            .HasOne(tr => tr.SavedRoute)
+            .WithOne(sr => sr.TraveledRoute)
+            .HasForeignKey<TraveledRoute>(tr => tr.SavedRouteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // ── Indexes for common query patterns ──
+        // Visa lookups by passport + destination
+        modelBuilder.Entity<VisaRule>()
+            .HasIndex(vr => new { vr.PassportCountryCode, vr.DestinationCountryCode })
+            .IsUnique();
+
+        // Region price tier lookups
+        modelBuilder.Entity<RegionPriceTier>()
+            .HasIndex(rpt => new { rpt.Region, rpt.CostLevel })
+            .IsUnique();
+
+        // SavedRoutes by user
+        modelBuilder.Entity<SavedRoute>()
+            .HasIndex(sr => sr.UserId);
+
+        // RouteStops ordering within a route
+        modelBuilder.Entity<RouteStop>()
+            .HasIndex(rs => new { rs.SavedRouteId, rs.StopOrder })
+            .IsUnique();
     }
 }

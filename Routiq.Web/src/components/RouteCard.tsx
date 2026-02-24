@@ -1,12 +1,15 @@
 import { motion } from 'framer-motion';
-import type { RouteOption } from '../types';
 import { Card } from './ui/Card';
 import { MapPin, Calendar, Sun, CheckCircle } from 'lucide-react';
 
+// V1-compatible types kept local — no longer tied to types/index.ts
+interface V1RouteStop { city: string; country: string; days: number; climate: string; visaStatus: string; }
+interface V1RouteOption { routeType: string; description: string; totalEstimatedCost: number; stops: V1RouteStop[]; }
+
 interface RouteCardProps {
-    option: RouteOption;
+    option: V1RouteOption;
     index: number;
-    onViewItinerary: (option: RouteOption) => void;
+    onViewItinerary: (option: V1RouteOption) => void;
 }
 
 export const RouteCard = ({ option, index, onViewItinerary }: RouteCardProps) => {

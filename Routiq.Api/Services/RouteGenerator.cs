@@ -5,155 +5,345 @@ using Routiq.Api.Entities;
 
 namespace Routiq.Api.Services;
 
+public interface IRouteGenerator
+{
+    Task<RouteResponseDto> GenerateRoutesAsync(RouteRequestDto request);
+}
+
+/// <summary>
+/// V2 Deterministic Route Generator.
+/// Rules-based, explainable. Zero fake data. Zero live API calls.
+/// Outputs: viable route options + eliminated destinations with reasons.
+/// </summary>
 public class RouteGenerator : IRouteGenerator
 {
     private readonly RoutiqDbContext _context;
-    private readonly ICostService _costService;
 
-    public RouteGenerator(RoutiqDbContext context, ICostService costService)
+    public RouteGenerator(RoutiqDbContext context)
     {
         _context = context;
-        _costService = costService;
     }
 
     public async Task<RouteResponseDto> GenerateRoutesAsync(RouteRequestDto request)
     {
         var response = new RouteResponseDto();
 
-        // Step 1: Fetch all data (small dataset, so feasible)
-        var allDestinations = await _context.Destinations.ToListAsync();
-        var allVisaRules = await _context.VisaRules
-            .Where(v => v.PassportCountry == request.PassportCountry)
+        // ── Step 1: Load static data ──
+        var allDestinations = await _context.Destinations
+            .Where(d => d.IsActive)
             .ToListAsync();
 
-        // Step 2: Filter by Visa (Exclude Required)
-        var accessibleDestinations = allDestinations.Where(d =>
-        {
-            var rule = allVisaRules.FirstOrDefault(v => v.DestinationCountry == d.Country);
-            // Default to requiring visa if no rule found, or check specific rule
-            if (rule == null) return true; // Assuming open if unknown, or strict? Let's assume strict: false. But for seed data coverage, let's keep it loose or strict. 
-                                           // Actually, per requirements "Exclude 'Required' visas".
-            return rule.VisaType != VisaType.Required;
-        }).ToList();
+        var visaRules = await _context.VisaRules
+            .Where(v => v.PassportCountryCode == request.PassportCountryCode)
+            .ToListAsync();
 
-        // Step 3: Filter by Budget and Score
-        var eligibleDestinations = accessibleDestinations
-            .Select(d => new
+        var priceTiers = await _context.RegionPriceTiers.ToListAsync();
+
+        // ── Step 2: Filter by region preference ──
+        var regionFiltered = request.RegionPreference == RegionPreference.Any
+            ? allDestinations
+            : allDestinations.Where(d => RegionMatches(d.Region, request.RegionPreference)).ToList();
+
+        // ── Step 3: Apply hard filters — visa, budget, days ──
+        var eligible = new List<Destination>();
+        var eliminations = new List<RouteElimination>();
+
+        foreach (var dest in regionFiltered)
+        {
+            var rule = visaRules.FirstOrDefault(v => v.DestinationCountryCode == dest.CountryCode);
+            var tier = priceTiers.FirstOrDefault(t => t.Region == dest.Region && t.CostLevel == dest.DailyCostLevel);
+
+            // Visa filter
+            if (!IsVisaAccessible(dest, rule, request))
             {
-                Destination = d,
-                Cost = _costService.CalculateTripCost(d, request.DurationDays, request.TotalBudget),
-                Score = d.PopularityScore // Simple scoring for now
-            })
-            .Where(x => x.Cost <= request.TotalBudget)
-            .OrderByDescending(x => x.Score)
-            .ThenBy(x => x.Cost) // Cheaper is better tie-breaker
+                eliminations.Add(new RouteElimination
+                {
+                    RouteQueryId = Guid.Empty, // filled by caller when persisting
+                    DestinationId = dest.Id,
+                    Reason = EliminationReason.VisaRequired,
+                    ExplanationText = BuildVisaEliminationText(dest, rule, request.PassportCountryCode)
+                });
+                continue;
+            }
+
+            // Minimum days filter
+            if (request.DurationDays < dest.MinRecommendedDays)
+            {
+                eliminations.Add(new RouteElimination
+                {
+                    RouteQueryId = Guid.Empty,
+                    DestinationId = dest.Id,
+                    Reason = EliminationReason.DaysInsufficient,
+                    ExplanationText = $"{dest.City} requires at least {dest.MinRecommendedDays} days. " +
+                                      $"Your trip is only {request.DurationDays} days."
+                });
+                continue;
+            }
+
+            // Budget filter — use low tier × min days as the absolute floor
+            if (tier != null)
+            {
+                var minCostEstimate = tier.DailyBudgetUsdMin * dest.MinRecommendedDays;
+                if (minCostEstimate > request.TotalBudgetUsd)
+                {
+                    eliminations.Add(new RouteElimination
+                    {
+                        RouteQueryId = Guid.Empty,
+                        DestinationId = dest.Id,
+                        Reason = EliminationReason.BudgetInsufficient,
+                        ExplanationText = $"{dest.City} minimum cost estimate (${minCostEstimate}) " +
+                                          $"exceeds your budget of ${request.TotalBudgetUsd}."
+                    });
+                    continue;
+                }
+            }
+
+            eligible.Add(dest);
+        }
+
+        if (!eligible.Any())
+        {
+            // Surface eliminations even when no route found
+            response.Eliminations = eliminations
+                .Select(e => MapEliminationToDto(e, allDestinations))
+                .ToList();
+            return response;
+        }
+
+        // ── Step 4: Build route options ──
+        // Sort by popularity weight descending, then by cost level ascending (cheaper is better tie-break)
+        var sorted = eligible
+            .OrderByDescending(d => d.PopularityWeight)
+            .ThenBy(d => (int)d.DailyCostLevel)
             .ToList();
 
-        if (!eligibleDestinations.Any())
-        {
-            return response; // Return empty if nothing fits
-        }
+        // Option 1: Best single city focus
+        var top = sorted.First();
+        response.Options.Add(BuildSingleCityOption(top, request, priceTiers, visaRules));
 
-        // Step 4: Generate 3 Options
-
-        // Option 1: Single City Focus (Top Scorer)
-        var bestSingle = eligibleDestinations.First();
-        response.Options.Add(new RouteOptionDto
-        {
-            RouteType = "Single City Focus",
-            Description = $"Enjoy a fully immersive {request.DurationDays}-day trip to {bestSingle.Destination.City}.",
-            TotalEstimatedCost = bestSingle.Cost,
-            Stops = new List<RouteStopDto>
-            {
-                CreateStopDto(bestSingle.Destination, request.DurationDays, bestSingle.Cost, allVisaRules)
-            }
-        });
-
-        // Option 2: Two-City Combination (if budget/logistics allow)
-        // Heuristic: Find two cities in the same region that fit in budget together.
+        // Option 2: Multi-city loop (if 6+ days)
         if (request.DurationDays >= 6)
         {
-            var splitDays = request.DurationDays / 2;
-            var regionGroups = eligibleDestinations
-                .GroupBy(x => x.Destination.Region)
-                .Where(g => g.Count() >= 2)
-                .OrderByDescending(g => g.Max(x => x.Score))
-                .FirstOrDefault();
-
-            if (regionGroups != null)
-            {
-                var comboStats = regionGroups.Take(2).ToList();
-                var city1 = comboStats[0];
-                var city2 = comboStats[1];
-
-                // Recalculate cost for split duration
-                var cost1 = _costService.CalculateTripCost(city1.Destination, splitDays, request.TotalBudget);
-                var cost2 = _costService.CalculateTripCost(city2.Destination, request.DurationDays - splitDays, request.TotalBudget);
-                var flightBuffer = 150m; // Extra buffer for inter-city travel
-
-                if (cost1 + cost2 + flightBuffer <= request.TotalBudget)
-                {
-                    response.Options.Add(new RouteOptionDto
-                    {
-                        RouteType = "Two-City Combination",
-                        Description = $"Experience the best of {city1.Destination.Region} with {city1.Destination.City} and {city2.Destination.City}.",
-                        TotalEstimatedCost = cost1 + cost2 + flightBuffer,
-                        Stops = new List<RouteStopDto>
-                        {
-                            CreateStopDto(city1.Destination, splitDays, cost1, allVisaRules),
-                            CreateStopDto(city2.Destination, request.DurationDays - splitDays, cost2, allVisaRules)
-                        }
-                    });
-                }
-            }
+            var multiOption = TryBuildMultiCityOption(sorted, request, priceTiers, visaRules);
+            if (multiOption != null)
+                response.Options.Add(multiOption);
         }
 
-        // Option 3: Economy Saver (Cheapest viable option that is still decent)
-        var cheapest = eligibleDestinations.OrderBy(x => x.Cost).First();
-        // Ensure it's not the same as Option 1
-        if (cheapest.Destination.Id != bestSingle.Destination.Id)
-        {
-            response.Options.Add(new RouteOptionDto
-            {
-                RouteType = "Alternative Economy Route",
-                Description = $"Save money while exploring {cheapest.Destination.City}.",
-                TotalEstimatedCost = cheapest.Cost,
-                Stops = new List<RouteStopDto>
-                {
-                    CreateStopDto(cheapest.Destination, request.DurationDays, cheapest.Cost, allVisaRules)
-                }
-            });
-        }
-        else if (eligibleDestinations.Count > 1)
-        {
-            // Pick the second best if cheapest is also the best
-            var secondBest = eligibleDestinations.Skip(1).First();
-            response.Options.Add(new RouteOptionDto
-            {
-                RouteType = "Alternative Choice",
-                Description = $"Consider visiting {secondBest.Destination.City} as a great alternative.",
-                TotalEstimatedCost = secondBest.Cost,
-                Stops = new List<RouteStopDto>
-                 {
-                     CreateStopDto(secondBest.Destination, request.DurationDays, secondBest.Cost, allVisaRules)
-                 }
-            });
-        }
+        // Option 3: Best per-region pick (different region from option 1, if any)
+        var altRegion = sorted.FirstOrDefault(d => d.Region != top.Region);
+        if (altRegion != null)
+            response.Options.Add(BuildSingleCityOption(altRegion, request, priceTiers, visaRules, isAlt: true));
+
+        response.Eliminations = eliminations
+            .Select(e => MapEliminationToDto(e, allDestinations))
+            .ToList();
 
         return response;
     }
 
-    private RouteStopDto CreateStopDto(Destination d, int days, decimal cost, List<VisaRule> rules)
+    // ── Option Builders ──
+
+    private RouteOptionDto BuildSingleCityOption(
+        Destination dest, RouteRequestDto req,
+        List<RegionPriceTier> tiers, List<VisaRule> rules,
+        bool isAlt = false)
     {
-        var rule = rules.FirstOrDefault(r => r.DestinationCountry == d.Country);
+        var tier = tiers.FirstOrDefault(t => t.Region == dest.Region && t.CostLevel == dest.DailyCostLevel);
+        var rule = rules.FirstOrDefault(r => r.DestinationCountryCode == dest.CountryCode);
+        var days = Math.Clamp(req.DurationDays, dest.MinRecommendedDays, dest.MaxRecommendedDays);
+
+        return new RouteOptionDto
+        {
+            RouteName = isAlt
+                ? $"Alternative: {dest.City} Focus"
+                : $"{dest.City} Focus",
+            SelectionReason = BuildSelectionReason(dest, rule, req, days),
+            EstimatedBudgetRange = tier != null
+                ? $"${tier.DailyBudgetUsdMin * days}–${tier.DailyBudgetUsdMax * days}"
+                : "See cost tier",
+            Stops = new List<RouteStopDto>
+            {
+                MapStopToDto(dest, days, 1, tier, rule)
+            }
+        };
+    }
+
+    private RouteOptionDto? TryBuildMultiCityOption(
+        List<Destination> sorted, RouteRequestDto req,
+        List<RegionPriceTier> tiers, List<VisaRule> rules)
+    {
+        // Take top 2–4 destinations and split days proportionally
+        var picks = sorted
+            .Take(4)
+            .ToList();
+
+        if (picks.Count < 2) return null;
+
+        var totalMinDays = picks.Sum(d => d.MinRecommendedDays);
+        if (totalMinDays > req.DurationDays) picks = picks.Take(2).ToList();
+
+        // Recalculate: distribute days proportionally
+        var stops = new List<RouteStopDto>();
+        int daysLeft = req.DurationDays;
+        int totalMinNow = picks.Sum(d => d.MinRecommendedDays);
+
+        for (int i = 0; i < picks.Count; i++)
+        {
+            var dest = picks[i];
+            var tier = tiers.FirstOrDefault(t => t.Region == dest.Region && t.CostLevel == dest.DailyCostLevel);
+            var rule = rules.FirstOrDefault(r => r.DestinationCountryCode == dest.CountryCode);
+
+            int daysForStop = i == picks.Count - 1
+                ? daysLeft
+                : (int)Math.Round((double)dest.MinRecommendedDays / totalMinNow * req.DurationDays);
+
+            daysForStop = Math.Clamp(daysForStop, dest.MinRecommendedDays, dest.MaxRecommendedDays);
+            daysLeft -= daysForStop;
+
+            stops.Add(MapStopToDto(dest, daysForStop, i + 1, tier, rule));
+        }
+
+        // Budget check: sum of min estimates vs total budget
+        int totalMinCost = stops.Sum(s =>
+        {
+            var tier = tiers.FirstOrDefault(t => t.Region == stops.First().Region && t.CostLevel == Enum.Parse<CostLevel>(s.CostLevel));
+            return tier?.DailyBudgetUsdMin * s.RecommendedDays ?? 0;
+        });
+
+        if (totalMinCost > req.TotalBudgetUsd) return null;
+
+        var regionNames = stops.Select(s => s.Region).Distinct().ToList();
+        return new RouteOptionDto
+        {
+            RouteName = $"{picks.Count}-City Loop ({string.Join(" → ", stops.Select(s => s.City))})",
+            SelectionReason = $"All {picks.Count} stops are visa-accessible for {req.PassportCountryCode} passport. " +
+                              $"Combined minimum cost estimate within ${req.TotalBudgetUsd} budget.",
+            EstimatedBudgetRange = $"See individual stops",
+            Stops = stops
+        };
+    }
+
+    // ── Mapping Helpers ──
+
+    private RouteStopDto MapStopToDto(Destination dest, int days, int order,
+        RegionPriceTier? tier, VisaRule? rule)
+    {
         return new RouteStopDto
         {
-            City = d.City,
-            Country = d.Country,
-            Days = days,
-            EstimatedCost = cost,
-            Climate = d.ClimateTags.FirstOrDefault() ?? "Unknown",
-            VisaStatus = rule?.VisaType.ToString() ?? "Unknown"
+            Order = order,
+            City = dest.City,
+            Country = dest.Country,
+            CountryCode = dest.CountryCode,
+            Region = dest.Region,
+            RecommendedDays = days,
+            CostLevel = dest.DailyCostLevel.ToString(),
+            DailyBudgetRange = tier != null
+                ? $"${tier.DailyBudgetUsdMin}–${tier.DailyBudgetUsdMax}/day"
+                : "See region tier",
+            VisaStatus = rule != null
+                ? FormatVisaStatus(rule)
+                : "Check requirements",
+            StopReason = dest.Notes
+        };
+    }
+
+    private EliminationSummaryDto MapEliminationToDto(RouteElimination e, List<Destination> destinations)
+    {
+        var dest = destinations.FirstOrDefault(d => d.Id == e.DestinationId);
+        return new EliminationSummaryDto
+        {
+            City = dest?.City ?? "Unknown",
+            Country = dest?.Country ?? "Unknown",
+            Reason = e.Reason.ToString(),
+            Explanation = e.ExplanationText
+        };
+    }
+
+    // ── Logic Helpers ──
+
+    private bool IsVisaAccessible(Destination dest, VisaRule? rule, RouteRequestDto req)
+    {
+        if (rule == null) return false; // Unknown = assume required (strict/safe default)
+
+        return rule.Requirement switch
+        {
+            VisaRequirement.VisaFree => true,
+            VisaRequirement.EVisa => true,  // eVisa = accessible (user can get before trip)
+            VisaRequirement.OnArrival => true,
+            VisaRequirement.Required => IsSpecialVisaHeld(dest, req),
+            VisaRequirement.Banned => false,
+            _ => false
+        };
+    }
+
+    private bool IsSpecialVisaHeld(Destination dest, RouteRequestDto req)
+    {
+        // If destination country is Schengen and user declared Schengen visa
+        var schengenCountries = new[] { "DE", "FR", "AT", "NL", "ES", "IT", "PT", "BE", "SE", "NO", "FI", "DK", "LU", "CH", "CZ", "PL", "HU", "SK", "SI", "LV", "LT", "EE", "MT", "HR" };
+        if (req.HasSchengenVisa && schengenCountries.Contains(dest.CountryCode)) return true;
+        if (req.HasUsVisa && dest.CountryCode == "US") return true;
+        if (req.HasUkVisa && dest.CountryCode == "GB") return true;
+        return false;
+    }
+
+    private bool RegionMatches(string destRegion, RegionPreference pref)
+    {
+        return pref switch
+        {
+            RegionPreference.SoutheastAsia => destRegion == "Southeast Asia",
+            RegionPreference.EasternEurope => destRegion == "Eastern Europe",
+            RegionPreference.Balkans => destRegion == "Balkans",
+            RegionPreference.LatinAmerica => destRegion == "Latin America",
+            RegionPreference.NorthAfrica => destRegion == "North Africa",
+            RegionPreference.CentralAmerica => destRegion == "Central America",
+            RegionPreference.CentralAsia => destRegion == "Central Asia",
+            RegionPreference.MiddleEast => destRegion == "Middle East",
+            RegionPreference.Caribbean => destRegion == "Caribbean",
+            _ => true
+        };
+    }
+
+    private string BuildSelectionReason(Destination dest, VisaRule? rule, RouteRequestDto req, int days)
+    {
+        var visaPart = rule?.Requirement switch
+        {
+            VisaRequirement.VisaFree => $"Visa-free for {req.PassportCountryCode} passport",
+            VisaRequirement.EVisa => $"eVisa available online for {req.PassportCountryCode} passport",
+            VisaRequirement.OnArrival => $"Visa on arrival for {req.PassportCountryCode} passport",
+            _ => "Visa accessible"
+        };
+
+        return $"{visaPart}. {days} days within {dest.MinRecommendedDays}–{dest.MaxRecommendedDays} day recommended range. " +
+               $"{dest.DailyCostLevel} cost tier fits ${req.TotalBudgetUsd} budget.";
+    }
+
+    private string BuildVisaEliminationText(Destination dest, VisaRule? rule, string passportCode)
+    {
+        if (rule == null)
+            return $"{dest.City} eliminated: No visa rule found for {passportCode} passport → {dest.CountryCode}. Strict default applied.";
+
+        return rule.Requirement switch
+        {
+            VisaRequirement.Required =>
+                $"{dest.City} eliminated: {dest.Country} requires a visa for {passportCode} passport " +
+                $"(avg {rule.AvgProcessingDays} days processing). You declared no qualifying visa. " +
+                (rule.Notes != null ? rule.Notes : ""),
+            VisaRequirement.Banned =>
+                $"{dest.City} eliminated: {dest.Country} does not permit entry for {passportCode} passport holders.",
+            _ => $"{dest.City} eliminated: Visa accessibility could not be confirmed."
+        };
+    }
+
+    private string FormatVisaStatus(VisaRule rule)
+    {
+        return rule.Requirement switch
+        {
+            VisaRequirement.VisaFree => $"Visa-Free (up to {rule.MaxStayDays} days)",
+            VisaRequirement.EVisa => $"eVisa Required",
+            VisaRequirement.OnArrival => $"Visa on Arrival",
+            VisaRequirement.Required => $"Visa Required",
+            VisaRequirement.Banned => "Entry Not Permitted",
+            _ => "Unknown"
         };
     }
 }

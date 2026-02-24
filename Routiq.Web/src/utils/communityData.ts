@@ -1,4 +1,5 @@
-import type { DestinationTip } from '../types';
+// V1-compatible local type — no longer tied to types/index.ts
+interface DestinationTip { username: string; countryCode: string; content: string; upvotes: number; createdAt: string; }
 
 /**
  * Convert a 2-letter ISO country code to an emoji flag.

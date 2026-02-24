@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Routiq.Api.Data;
@@ -21,67 +20,178 @@ public class RoutesController : ControllerBase
         _context = context;
     }
 
+    /// <summary>
+    /// Generates route options based on passport, budget, days, and region preference.
+    /// Returns viable routes AND a list of eliminated destinations with reasons.
+    /// </summary>
     [HttpPost("generate")]
     public async Task<ActionResult<RouteResponseDto>> GenerateRoutes([FromBody] RouteRequestDto request)
     {
-        if (request.TotalBudget <= 0 || request.DurationDays <= 0)
-        {
+        if (request.TotalBudgetUsd <= 0 || request.DurationDays <= 0)
             return BadRequest("Budget and duration must be positive.");
-        }
+
+        if (string.IsNullOrWhiteSpace(request.PassportCountryCode))
+            return BadRequest("Passport country code is required.");
 
         var result = await _routeGenerator.GenerateRoutesAsync(request);
         return Ok(result);
     }
 
+    /// <summary>
+    /// Saves a route (from the engine's output) to the user's profile.
+    /// </summary>
     [HttpPost("save")]
     public async Task<IActionResult> SaveRoute([FromBody] SaveRouteDto request)
     {
-        var userProfile = await _context.UserProfiles.FirstOrDefaultAsync(u => u.UserId == request.UserId);
-        if (userProfile == null)
-        {
-            return NotFound("User profile not found.");
-        }
+        var user = await _context.Users.FindAsync(request.UserId);
+        if (user == null)
+            return NotFound("User not found.");
 
-        var userTrip = new UserTrip
+        // Create the RouteQuery record
+        var query = new RouteQuery
         {
-            UserProfileId = userProfile.Id,
-            DestinationCityId = request.DestinationCityId,
-            TotalBudget = request.TotalBudget,
-            Days = request.Days,
-            RouteJson = JsonSerializer.Serialize(request.RouteDetails),
+            Id = Guid.NewGuid(),
+            UserId = request.UserId,
+            PassportCountryCode = request.PassportCountryCode,
+            BudgetBracket = request.BudgetBracket,
+            TotalBudgetUsd = request.TotalBudgetUsd,
+            DurationDays = request.DurationDays,
+            RegionPreference = request.RegionPreference,
+            HasSchengenVisa = request.HasSchengenVisa,
+            HasUsVisa = request.HasUsVisa,
+            HasUkVisa = request.HasUkVisa,
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.UserTrips.Add(userTrip);
+        var savedRoute = new SavedRoute
+        {
+            Id = Guid.NewGuid(),
+            UserId = request.UserId,
+            RouteQueryId = query.Id,
+            RouteName = request.RouteName,
+            Status = RouteStatus.Saved,
+            SelectionReason = request.SelectionReason,
+            SavedAt = DateTime.UtcNow
+        };
+
+        var stops = request.Stops.Select(s => new RouteStop
+        {
+            SavedRouteId = savedRoute.Id,
+            DestinationId = s.DestinationId,
+            StopOrder = s.StopOrder,
+            RecommendedDays = s.RecommendedDays,
+            ExpectedCostLevel = s.ExpectedCostLevel,
+            StopReason = s.StopReason
+        }).ToList();
+
+        _context.RouteQueries.Add(query);
+        _context.SavedRoutes.Add(savedRoute);
+        _context.RouteStops.AddRange(stops);
         await _context.SaveChangesAsync();
 
-        return Ok(new { Message = "Trip saved successfully", TripId = userTrip.Id });
+        return Ok(new { Message = "Route saved successfully.", RouteId = savedRoute.Id });
     }
 
+    /// <summary>
+    /// Returns all saved routes for a given user, including their ordered stops.
+    /// </summary>
     [HttpGet("user/{userId}")]
-    public async Task<ActionResult<List<UserTripDto>>> GetUserTrips(int userId)
+    public async Task<ActionResult<List<SavedRouteResponseDto>>> GetUserRoutes(int userId)
     {
-        var userProfile = await _context.UserProfiles.Include(u => u.Trips)
-                                                 .ThenInclude(t => t.DestinationCity)
-                                                 .FirstOrDefaultAsync(u => u.UserId == userId);
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            return NotFound("User not found.");
 
-        if (userProfile == null)
+        var routes = await _context.SavedRoutes
+            .Where(sr => sr.UserId == userId)
+            .Include(sr => sr.Stops)
+                .ThenInclude(s => s.Destination)
+            .OrderByDescending(sr => sr.SavedAt)
+            .ToListAsync();
+
+        var result = routes.Select(sr => new SavedRouteResponseDto
         {
-            return NotFound("User profile not found.");
-        }
+            Id = sr.Id,
+            UserId = sr.UserId,
+            RouteName = sr.RouteName,
+            Status = sr.Status.ToString(),
+            SelectionReason = sr.SelectionReason,
+            SavedAt = sr.SavedAt,
+            Stops = sr.Stops
+                .OrderBy(s => s.StopOrder)
+                .Select(s => new RouteStopDto
+                {
+                    Order = s.StopOrder,
+                    City = s.Destination?.City ?? "",
+                    Country = s.Destination?.Country ?? "",
+                    CountryCode = s.Destination?.CountryCode ?? "",
+                    Region = s.Destination?.Region ?? "",
+                    RecommendedDays = s.RecommendedDays,
+                    CostLevel = s.ExpectedCostLevel.ToString(),
+                    StopReason = s.StopReason
+                }).ToList()
+        }).ToList();
 
-        var trips = userProfile.Trips.Select(t => new UserTripDto
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Marks a saved route as Active (user is currently on this trip).
+    /// Deactivates all other routes for the same user.
+    /// </summary>
+    [HttpPut("{routeId}/set-active")]
+    public async Task<IActionResult> SetActiveRoute(Guid routeId)
+    {
+        var route = await _context.SavedRoutes.FindAsync(routeId);
+        if (route == null)
+            return NotFound("Route not found.");
+
+        var userRoutes = await _context.SavedRoutes
+            .Where(sr => sr.UserId == route.UserId)
+            .ToListAsync();
+
+        foreach (var r in userRoutes)
+            r.Status = r.Id == routeId ? RouteStatus.Active : RouteStatus.Saved;
+
+        await _context.SaveChangesAsync();
+        return Ok(new { Message = "Route set as active.", RouteId = route.Id });
+    }
+
+    /// <summary>
+    /// Submits a structured TraveledRoute record for a saved route.
+    /// This is the community feedback loop — structured enums only, 3 capped free-text fields.
+    /// </summary>
+    [HttpPost("{routeId}/traveled")]
+    public async Task<IActionResult> MarkAsTraveled(Guid routeId, [FromBody] SubmitTraveledRouteDto dto)
+    {
+        var route = await _context.SavedRoutes.FindAsync(routeId);
+        if (route == null)
+            return NotFound("Route not found.");
+
+        if (route.TraveledRoute != null)
+            return Conflict("A traveled record already exists for this route.");
+
+        var traveledRoute = new TraveledRoute
         {
-            Id = t.Id,
-            UserId = userId,
-            DestinationCity = t.DestinationCity?.City ?? "Unknown",
-            Country = t.DestinationCity?.Country ?? "Unknown",
-            TotalBudget = t.TotalBudget,
-            Days = t.Days,
-            CreatedAt = t.CreatedAt,
-            RouteDetails = string.IsNullOrEmpty(t.RouteJson) ? null : JsonSerializer.Deserialize<RouteOptionDto>(t.RouteJson)
-        }).OrderByDescending(t => t.CreatedAt).ToList();
+            Id = Guid.NewGuid(),
+            SavedRouteId = routeId,
+            TraveledAt = dto.TraveledAt,
+            TransportExpense = dto.TransportExpense,
+            FoodExpense = dto.FoodExpense,
+            AccommodationExpense = dto.AccommodationExpense,
+            VisaExperience = dto.VisaExperience,
+            DaySufficiencyJson = dto.DaySufficiencyJson,
+            WhyThisRegion = dto.WhyThisRegion,
+            WhatWasChallenging = dto.WhatWasChallenging,
+            WhatIWouldDoDifferently = dto.WhatIWouldDoDifferently,
+            SubmittedAt = DateTime.UtcNow
+        };
 
-        return Ok(trips);
+        route.Status = RouteStatus.Traveled;
+
+        _context.TraveledRoutes.Add(traveledRoute);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { Message = "Trip record submitted.", RecordId = traveledRoute.Id });
     }
 }

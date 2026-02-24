@@ -3,10 +3,12 @@ import { Search, Globe } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
-import type { RouteRequest } from '../types';
+
+// V1-compatible local type — HeroInput is no longer used by the V2 Dashboard
+interface V1RouteRequest { passportCountry: string; totalBudget: number; durationDays: number; }
 
 interface HeroInputProps {
-    onSearch: (request: RouteRequest) => void;
+    onSearch: (request: V1RouteRequest) => void;
     loading: boolean;
     initialBudget?: number;
     initialDays?: number;

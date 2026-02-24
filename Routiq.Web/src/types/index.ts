@@ -1,70 +1,62 @@
-// ── API Request / Response ──
+// ── V2 Enums ──
+
+export type BudgetBracket = 'Shoestring' | 'Budget' | 'Mid' | 'Comfort' | 'Luxury';
+
+export type RegionPreference =
+    | 'Any'
+    | 'SoutheastAsia'
+    | 'EasternEurope'
+    | 'Balkans'
+    | 'LatinAmerica'
+    | 'NorthAfrica'
+    | 'CentralAsia'
+    | 'CentralAmerica'
+    | 'MiddleEast'
+    | 'Caribbean';
+
+// ── V2 API Request ──
 
 export interface RouteRequest {
-    passportCountry: string;
-    totalBudget: number;
+    passportCountryCode: string;
+    budgetBracket: BudgetBracket;
+    totalBudgetUsd: number;
     durationDays: number;
+    regionPreference: RegionPreference;
+    hasSchengenVisa: boolean;
+    hasUsVisa: boolean;
+    hasUkVisa: boolean;
 }
+
+// ── V2 API Response ──
 
 export interface RouteResponse {
     options: RouteOption[];
+    eliminations: EliminationSummary[];
 }
 
 export interface RouteOption {
-    routeType: string;
-    description: string;
-    totalEstimatedCost: number;
+    routeName: string;
+    selectionReason: string;
+    estimatedBudgetRange: string;
     stops: RouteStop[];
 }
 
 export interface RouteStop {
+    order: number;
     city: string;
     country: string;
-    days: number;
-    estimatedCost: number;
-    climate: string;
-    visaStatus: string;
+    countryCode: string;
+    region: string;
+    recommendedDays: number;
+    costLevel: string;        // "Low" | "Medium" | "High"
+    dailyBudgetRange: string; // e.g. "$20–$45/day"
+    visaStatus: string;       // "Visa-Free" | "eVisa Required" | etc.
+    stopReason?: string;
 }
 
-// ── Rich Itinerary Types (mirrors backend entities) ──
-
-export interface FlightInfo {
-    origin: string;
-    destination: string;
-    airlineName: string;
-    flightNumber: string;
-    departureTime: string;
-    arrivalTime: string;
-    isDirect: boolean;
-    averagePrice: number;
-    minPrice: number;
-    maxPrice: number;
-    currency: string;
-}
-
-export interface AttractionInfo {
-    name: string;
-    description: string;
-    category: string;       // "Historical", "Nature", "Museum", "Entertainment"
-    estimatedCost: number;
-    estimatedDurationInHours: number;
-    bestTimeOfDay: string;   // "Morning", "Afternoon", "Evening", "Anytime"
-}
-
-export interface AccommodationInfo {
-    zoneName: string;
-    description: string;
-    category: string;        // "Budget", "Mid-Range", "Luxury"
-    averageNightlyCost: number;
-    currency: string;
-}
-
-// ── Community & Gamification Types ──
-
-export interface DestinationTip {
-    username: string;
-    countryCode: string;     // "TR", "US", "JP" — rendered as emoji flag
-    content: string;
-    upvotes: number;
-    createdAt: string;
+export interface EliminationSummary {
+    city: string;
+    country: string;
+    reason: string;           // EliminationReason enum name
+    explanation: string;
 }

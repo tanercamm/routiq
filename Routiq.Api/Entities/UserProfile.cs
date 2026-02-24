@@ -3,30 +3,38 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Routiq.Api.Entities;
 
+/// <summary>
+/// Extended profile for a registered user.
+/// V2: Gamification points removed. Community loop is validation, not social scoring.
+/// </summary>
 public class UserProfile
 {
     public Guid Id { get; set; }
 
-    /// <summary>FK to the authentication User entity.</summary>
     public int UserId { get; set; }
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 
-    [Required]
+    [Required, MaxLength(80)]
     public string Username { get; set; } = string.Empty;
 
-    [Required]
-    [EmailAddress]
+    [Required, EmailAddress]
     public string Email { get; set; } = string.Empty;
 
-    public string PassportCountry { get; set; } = "Turkey";
+    /// <summary>ISO 3166-1 alpha-2 passport country. Used as the default in RouteQuery generation.</summary>
+    [MaxLength(3)]
+    public string PassportCountryCode { get; set; } = "TR";
+
+    /// <summary>Preferred display currency for the UI (does not affect engine logic — engine uses USD).</summary>
+    [MaxLength(3)]
     public string PreferredCurrency { get; set; } = "USD";
-    public string CountryCode { get; set; } = "TR"; // 2-letter ISO for emoji flag
+
+    /// <summary>ISO 3166-1 alpha-2 for emoji flag rendering in the UI.</summary>
+    [MaxLength(3)]
+    public string CountryCode { get; set; } = "TR";
+
     public int? Age { get; set; }
 
-    public int TotalPoints { get; set; } = 0;
-
     // Navigation
-    public ICollection<UserTrip> Trips { get; set; } = new List<UserTrip>();
-    public ICollection<DestinationTip> Tips { get; set; } = new List<DestinationTip>();
+    public ICollection<SavedRoute> SavedRoutes { get; set; } = new List<SavedRoute>();
 }

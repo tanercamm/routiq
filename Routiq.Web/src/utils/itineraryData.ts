@@ -1,4 +1,34 @@
-import type { FlightInfo, AttractionInfo, AccommodationInfo } from '../types';
+// V1 types — kept local to avoid coupling with V2 types/index.ts
+export interface FlightInfo {
+    origin: string;
+    destination: string;
+    airlineName: string;
+    flightNumber: string;
+    departureTime: string;
+    arrivalTime: string;
+    isDirect: boolean;
+    averagePrice: number;
+    minPrice: number;
+    maxPrice: number;
+    currency: string;
+}
+
+export interface AttractionInfo {
+    name: string;
+    description: string;
+    category: string;
+    estimatedCost: number;
+    estimatedDurationInHours: number;
+    bestTimeOfDay: string;
+}
+
+export interface AccommodationInfo {
+    zoneName: string;
+    description: string;
+    category: string;
+    averageNightlyCost: number;
+    currency: string;
+}
 
 // ──────────────────────────────────────────────────────────────
 // Mock data that mirrors the backend seed data.

@@ -21,17 +21,3 @@ export const generateRoutes = async (payload: RouteRequest): Promise<RouteRespon
     const response = await api.post<RouteResponse>('/routes/generate', payload);
     return response.data;
 };
-// Gamification
-export interface LeaderboardDto {
-    username: string;
-    countryCode: string; // ISO 2-letter, e.g. "TR", "US"
-    age: number;
-    totalPoints: number;
-    tripCount: number;
-    checkInCount: number;
-}
-
-export const getLeaderboard = async (topCount: number = 10): Promise<LeaderboardDto[]> => {
-    const response = await api.get<LeaderboardDto[]>(`/gamification/leaderboard?topCount=${topCount}`);
-    return response.data;
-};

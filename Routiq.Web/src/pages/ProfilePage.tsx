@@ -78,6 +78,24 @@ export const ProfilePage = () => {
         fetchSavedTrips();
     }, []);
 
+    const activeTrip = savedTrips.find((t: any) => t.isActiveTrip);
+
+    const handleSetActive = async (routeId: string) => {
+        // Optimistic update
+        setSavedTrips(prev => prev.map(t => ({
+            ...t,
+            isActiveTrip: t.id === routeId
+        })));
+
+        try {
+            await fetch(`http://localhost:5001/api/routes/${routeId}/set-active`, { method: 'PUT' });
+        } catch (err) {
+            console.error('Failed to set active route', err);
+            // Revert on failure
+            setSavedTrips(prev => prev.map(t => ({ ...t, isActiveTrip: false })));
+        }
+    };
+
     return (
         <div className="min-h-screen">
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -112,6 +130,13 @@ export const ProfilePage = () => {
                                                 <Star size={12} /> {mockProfile.totalPoints} pts
                                             </span>
                                         </div>
+                                        {activeTrip && (
+                                            <div className="mt-3 flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-500/30 rounded-xl px-4 py-2">
+                                                <span className="text-lg">📍</span>
+                                                <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Currently Traveling:</span>
+                                                <span className="text-sm font-bold text-gray-900 dark:text-white">{activeTrip.destinationCity}</span>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="w-full md:w-56">
                                         <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1.5">
@@ -219,26 +244,53 @@ export const ProfilePage = () => {
                                     )}
 
                                     {/* Saved Trips from API */}
-                                    {savedTrips.map((trip) => (
-                                        <div key={trip.id} className="border border-teal-200 dark:border-teal-700/60 bg-teal-50/50 dark:bg-teal-900/10 rounded-lg p-4 hover:bg-teal-100/50 dark:hover:bg-teal-800/20 transition-colors">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{trip.destinationCity}, {trip.country}</h3>
-                                                        <span className="bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 text-[10px] px-1.5 py-0.5 rounded border border-teal-200 dark:border-teal-500/20">Saved</span>
+                                    {savedTrips.map((trip) => {
+                                        let parsedRoute: any = null;
+                                        try {
+                                            if (trip.itinerarySnapshotJson) {
+                                                parsedRoute = JSON.parse(trip.itinerarySnapshotJson);
+                                            }
+                                        } catch { /* ignore parse errors */ }
+
+                                        return (
+                                            <div key={trip.id} className={`border rounded-lg p-4 transition-all ${trip.isActiveTrip
+                                                    ? 'border-emerald-400 dark:border-emerald-500 bg-emerald-50/60 dark:bg-emerald-900/20 ring-2 ring-emerald-300/50 dark:ring-emerald-500/30 shadow-lg shadow-emerald-100 dark:shadow-emerald-900/20'
+                                                    : 'border-teal-200 dark:border-teal-700/60 bg-teal-50/50 dark:bg-teal-900/10 hover:bg-teal-100/50 dark:hover:bg-teal-800/20'
+                                                }`}>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{trip.destinationCity}</h3>
+                                                            {trip.isActiveTrip ? (
+                                                                <span className="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[10px] px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-500/30 font-semibold animate-pulse">📍 Active</span>
+                                                            ) : (
+                                                                <span className="bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 text-[10px] px-1.5 py-0.5 rounded border border-teal-200 dark:border-teal-500/20">Saved</span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-gray-400 mt-0.5">Saved {new Date(trip.savedAt).toLocaleDateString()}</p>
                                                     </div>
-                                                    <p className="text-xs text-gray-400 mt-0.5">Created {new Date(trip.createdAt).toLocaleDateString()}</p>
+                                                    <span className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-300 text-[10px] px-2 py-0.5 rounded-full font-medium">
+                                                        {trip.durationDays} days
+                                                    </span>
                                                 </div>
-                                                <span className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-300 text-[10px] px-2 py-0.5 rounded-full font-medium">
-                                                    {trip.days} days
-                                                </span>
+                                                <div className="flex gap-4 text-xs mb-3">
+                                                    <span className="text-gray-500 dark:text-gray-400">💰 <span className="font-medium text-gray-700 dark:text-gray-200">${trip.totalBudget.toLocaleString()}</span></span>
+                                                    {parsedRoute && <span className="text-gray-500 dark:text-gray-400">📝 <span className="font-medium text-gray-700 dark:text-gray-200">{parsedRoute.stops?.length || 1} stops</span></span>}
+                                                    {parsedRoute && <span className="text-gray-500 dark:text-gray-400">🗺️ <span className="font-medium text-gray-700 dark:text-gray-200">{parsedRoute.routeType}</span></span>}
+                                                </div>
+                                                <button
+                                                    onClick={() => handleSetActive(trip.id)}
+                                                    disabled={trip.isActiveTrip}
+                                                    className={`text-[11px] px-3 py-1.5 rounded-lg border transition-colors font-medium ${trip.isActiveTrip
+                                                            ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30 cursor-default'
+                                                            : 'text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 dark:hover:border-emerald-500/40'
+                                                        }`}
+                                                >
+                                                    {trip.isActiveTrip ? '✓ Active Trip' : '📍 Set as Active Trip'}
+                                                </button>
                                             </div>
-                                            <div className="flex gap-4 text-xs">
-                                                <span className="text-gray-500 dark:text-gray-400">💰 <span className="font-medium text-gray-700 dark:text-gray-200">${trip.totalBudget.toLocaleString()}</span></span>
-                                                <span className="text-gray-500 dark:text-gray-400">📝 <span className="font-medium text-gray-700 dark:text-gray-200">{trip.routeDetails?.stops.length || 1} stops</span></span>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
 
                                     {/* Mock Recent Trips (Legacy/Placeholder) */}
                                     {mockRecentTrips.map((trip, i) => (

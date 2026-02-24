@@ -1,9 +1,12 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { motion } from 'framer-motion';
-import type { RouteOption } from '../types';
+
+// V1-compatible type kept local — no longer tied to types/index.ts
+interface V1RouteStop { city: string; days: number; }
+interface V1RouteOption { routeType: string; totalEstimatedCost: number; stops: V1RouteStop[]; }
 
 interface CostVsDurationChartProps {
-    data: RouteOption[];
+    data: V1RouteOption[];
 }
 
 const COLORS = ['#2dd4bf', '#3b82f6', '#a78bfa', '#f472b6', '#fbbf24'];
