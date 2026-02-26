@@ -30,8 +30,8 @@ public class RoutesController : ControllerBase
         if (request.TotalBudgetUsd <= 0 || request.DurationDays <= 0)
             return BadRequest("Budget and duration must be positive.");
 
-        if (string.IsNullOrWhiteSpace(request.PassportCountryCode))
-            return BadRequest("Passport country code is required.");
+        if (request.Passports == null || request.Passports.Count == 0)
+            return BadRequest("At least one passport country code is required.");
 
         var result = await _routeGenerator.GenerateRoutesAsync(request);
         return Ok(result);
@@ -52,7 +52,7 @@ public class RoutesController : ControllerBase
         {
             Id = Guid.NewGuid(),
             UserId = request.UserId,
-            PassportCountryCode = request.PassportCountryCode,
+            Passports = request.Passports,
             BudgetBracket = request.BudgetBracket,
             TotalBudgetUsd = request.TotalBudgetUsd,
             DurationDays = request.DurationDays,
@@ -74,22 +74,60 @@ public class RoutesController : ControllerBase
             SavedAt = DateTime.UtcNow
         };
 
-        var stops = request.Stops.Select(s => new RouteStop
+        // Resolve DestinationId server-side from City+CountryCode.
+        // CRITICAL: DestinationId is a non-nullable FK — never write 0; skip unresolvable stops.
+        var stops = new List<RouteStop>();
+        var unresolvedCities = new List<string>();
+
+        foreach (var s in request.Stops)
         {
-            SavedRouteId = savedRoute.Id,
-            DestinationId = s.DestinationId,
-            StopOrder = s.StopOrder,
-            RecommendedDays = s.RecommendedDays,
-            ExpectedCostLevel = s.ExpectedCostLevel,
-            StopReason = s.StopReason
-        }).ToList();
+            int? destId = (s.DestinationId.HasValue && s.DestinationId.Value > 0)
+                ? s.DestinationId
+                : null;
+
+            if (destId == null && !string.IsNullOrWhiteSpace(s.City))
+            {
+                var dest = await _context.Destinations
+                    .FirstOrDefaultAsync(d =>
+                        d.City == s.City &&
+                        d.CountryCode == s.CountryCode);
+                destId = dest?.Id;
+            }
+
+            if (destId == null || destId.Value <= 0)
+            {
+                unresolvedCities.Add($"{s.City} ({s.CountryCode})");
+                continue; // FK would be violated — skip this stop
+            }
+
+            if (!Enum.TryParse<CostLevel>(s.ExpectedCostLevel.ToString(), ignoreCase: true, out var costLevel))
+                costLevel = CostLevel.Medium;
+
+            stops.Add(new RouteStop
+            {
+                SavedRouteId = savedRoute.Id,
+                DestinationId = destId.Value,
+                StopOrder = s.StopOrder,
+                RecommendedDays = s.RecommendedDays,
+                ExpectedCostLevel = costLevel,
+                StopReason = s.StopReason
+            });
+        }
 
         _context.RouteQueries.Add(query);
         _context.SavedRoutes.Add(savedRoute);
-        _context.RouteStops.AddRange(stops);
+        if (stops.Count > 0)
+            _context.RouteStops.AddRange(stops);
+
         await _context.SaveChangesAsync();
 
-        return Ok(new { Message = "Route saved successfully.", RouteId = savedRoute.Id });
+        return Ok(new
+        {
+            Message = "Route saved successfully.",
+            RouteId = savedRoute.Id,
+            StopsSaved = stops.Count,
+            UnresolvedStops = unresolvedCities // debug: tells frontend which cities weren't in DB
+        });
     }
 
     /// <summary>
@@ -100,39 +138,55 @@ public class RoutesController : ControllerBase
     {
         var user = await _context.Users.FindAsync(userId);
         if (user == null)
-            return NotFound("User not found.");
+            return NotFound($"User with ID {userId} not found.");
 
-        var routes = await _context.SavedRoutes
-            .Where(sr => sr.UserId == userId)
-            .Include(sr => sr.Stops)
-                .ThenInclude(s => s.Destination)
-            .OrderByDescending(sr => sr.SavedAt)
-            .ToListAsync();
-
-        var result = routes.Select(sr => new SavedRouteResponseDto
+        try
         {
-            Id = sr.Id,
-            UserId = sr.UserId,
-            RouteName = sr.RouteName,
-            Status = sr.Status.ToString(),
-            SelectionReason = sr.SelectionReason,
-            SavedAt = sr.SavedAt,
-            Stops = sr.Stops
-                .OrderBy(s => s.StopOrder)
-                .Select(s => new RouteStopDto
-                {
-                    Order = s.StopOrder,
-                    City = s.Destination?.City ?? "",
-                    Country = s.Destination?.Country ?? "",
-                    CountryCode = s.Destination?.CountryCode ?? "",
-                    Region = s.Destination?.Region ?? "",
-                    RecommendedDays = s.RecommendedDays,
-                    CostLevel = s.ExpectedCostLevel.ToString(),
-                    StopReason = s.StopReason
-                }).ToList()
-        }).ToList();
+            var routes = await _context.SavedRoutes
+                .Where(sr => sr.UserId == userId)
+                .Include(sr => sr.RouteQuery)
+                .Include(sr => sr.Stops)
+                    .ThenInclude(s => s.Destination)
+                .OrderByDescending(sr => sr.SavedAt)
+                .ToListAsync();
 
-        return Ok(result);
+            var result = routes.Select(sr => new SavedRouteResponseDto
+            {
+                Id = sr.Id,
+                UserId = sr.UserId,
+                RouteName = sr.RouteName,
+                Status = sr.Status.ToString(),
+                SelectionReason = sr.SelectionReason,
+                SavedAt = sr.SavedAt,
+                TotalBudgetUsd = sr.RouteQuery?.TotalBudgetUsd ?? 0,
+                DurationDays = sr.RouteQuery?.DurationDays ?? 0,
+                Passports = sr.RouteQuery?.Passports ?? new List<string>(),
+                Stops = (sr.Stops ?? new List<RouteStop>())
+                    .OrderBy(s => s.StopOrder)
+                    .Select(s => new RouteStopDto
+                    {
+                        Order = s.StopOrder,
+                        City = s.Destination?.City ?? "",
+                        Country = s.Destination?.Country ?? "",
+                        CountryCode = s.Destination?.CountryCode ?? "",
+                        Region = s.Destination?.Region ?? "",
+                        RecommendedDays = s.RecommendedDays,
+                        CostLevel = s.ExpectedCostLevel.ToString(),
+                        StopReason = s.StopReason
+                    }).ToList()
+            }).ToList();
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                Error = "Failed to load saved routes.",
+                Detail = ex.Message,
+                InnerDetail = ex.InnerException?.Message
+            });
+        }
     }
 
     /// <summary>

@@ -17,7 +17,8 @@ export type RegionPreference =
 // ── V2 API Request ──
 
 export interface RouteRequest {
-    passportCountryCode: string;
+    /** All passport codes held by the traveler. e.g. ["TR", "DE"] */
+    passports: string[];
     budgetBracket: BudgetBracket;
     totalBudgetUsd: number;
     durationDays: number;
@@ -50,7 +51,8 @@ export interface RouteStop {
     recommendedDays: number;
     costLevel: string;        // "Low" | "Medium" | "High"
     dailyBudgetRange: string; // e.g. "$20–$45/day"
-    visaStatus: string;       // "Visa-Free" | "eVisa Required" | etc.
+    visaStatus: string;       // "Visa-Free (DE)" | "eVisa (TR)" | etc.
+    bestPassport?: string;    // which passport yielded the best visa outcome
     stopReason?: string;
 }
 

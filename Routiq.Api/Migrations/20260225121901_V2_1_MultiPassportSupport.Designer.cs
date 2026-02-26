@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Routiq.Api.Data;
@@ -12,9 +13,11 @@ using Routiq.Api.Data;
 namespace Routiq.Api.Migrations
 {
     [DbContext(typeof(RoutiqDbContext))]
-    partial class RoutiqDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260225121901_V2_1_MultiPassportSupport")]
+    partial class V2_1_MultiPassportSupport
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -169,7 +172,7 @@ namespace Routiq.Api.Migrations
 
                     b.Property<List<string>>("Passports")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text[]");
 
                     b.Property<int>("RegionPreference")
                         .HasColumnType("integer");
@@ -376,7 +379,7 @@ namespace Routiq.Api.Migrations
 
                     b.Property<List<string>>("Passports")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text[]");
 
                     b.Property<string>("PreferredCurrency")
                         .IsRequired()

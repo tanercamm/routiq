@@ -45,9 +45,13 @@ public class RouteQuery
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 
-    /// <summary>ISO 3166-1 alpha-2 passport country code. E.g. "TR", "IN", "US".</summary>
-    [Required, MaxLength(3)]
-    public string PassportCountryCode { get; set; } = string.Empty;
+    /// <summary>
+    /// ISO 3166-1 alpha-2 passport codes for all passports the traveler holds.
+    /// The engine applies best-case visa logic across all passports.
+    /// e.g. ["TR", "DE"] for a Turkish-German dual citizen.
+    /// </summary>
+    [Required]
+    public List<string> Passports { get; set; } = new();
 
     public BudgetBracket BudgetBracket { get; set; }
 

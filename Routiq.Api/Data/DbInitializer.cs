@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity;
+using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using Routiq.Api.Entities;
 
@@ -6,9 +6,9 @@ namespace Routiq.Api.Data;
 
 /// <summary>
 /// V2 Seed Data. Populates:
-/// - RegionPriceTiers (6 regions × 3 cost levels = 18 rows)
-/// - Destinations (~40 cities across 6 regions)
-/// - VisaRules (~4 passport types × key destination countries)
+/// - RegionPriceTiers (9 regions × 3 cost levels = 27 rows)
+/// - Destinations (~55 cities across 9 regions incl. luxury)
+/// - VisaRules (TR/IN/US/GB passports × key destination countries)
 /// - Users, UserProfiles (2 demo users)
 /// - Sample RouteQueries, SavedRoutes, RouteStops, RouteEliminations
 /// </summary>
@@ -16,8 +16,8 @@ public static class DbInitializer
 {
     public static async Task SeedAsync(RoutiqDbContext context)
     {
-        // Ensure DB created
-        await context.Database.EnsureCreatedAsync();
+        // Apply any pending migrations (creates schema if DB is new, upgrades if existing)
+        await context.Database.MigrateAsync();
 
         await SeedRegionPriceTiersAsync(context);
         await SeedDestinationsAsync(context);
@@ -26,13 +26,13 @@ public static class DbInitializer
     }
 
     // ─────────────────────────────────────────────
-    // REGION PRICE TIERS (18 rows — truth table)
+    // REGION PRICE TIERS (27 rows — truth table)
     // ─────────────────────────────────────────────
     private static async Task SeedRegionPriceTiersAsync(RoutiqDbContext context)
     {
         if (await context.RegionPriceTiers.AnyAsync()) return;
 
-        var now = new DateTime(2026, 2, 24, 0, 0, 0, DateTimeKind.Utc);
+        var now = new DateTime(2026, 2, 25, 0, 0, 0, DateTimeKind.Utc);
 
         var tiers = new List<RegionPriceTier>
         {
@@ -65,6 +65,21 @@ public static class DbInitializer
             new() { Region = "Central America", CostLevel = CostLevel.Low,    DailyBudgetUsdMin = 30,  DailyBudgetUsdMax = 55,  Description = "Hostel + comida corrida + chicken buses.",                  LastReviewedAt = now },
             new() { Region = "Central America", CostLevel = CostLevel.Medium, DailyBudgetUsdMin = 55,  DailyBudgetUsdMax = 120, Description = "Budget hotel + restaurant meals + shuttle services.",        LastReviewedAt = now },
             new() { Region = "Central America", CostLevel = CostLevel.High,   DailyBudgetUsdMin = 120, DailyBudgetUsdMax = 260, Description = "Eco-lodge/boutique hotel + fine dining + private transport.", LastReviewedAt = now },
+
+            // ── NEW: Western Europe (luxury-tier) ──────────────────────────────
+            new() { Region = "Western Europe", CostLevel = CostLevel.Low,    DailyBudgetUsdMin = 80,  DailyBudgetUsdMax = 130,  Description = "Hostel or budget hotel + supermarket meals + metro pass.",  LastReviewedAt = now },
+            new() { Region = "Western Europe", CostLevel = CostLevel.Medium, DailyBudgetUsdMin = 130, DailyBudgetUsdMax = 280,  Description = "3-star hotel + restaurant dining + trains/Uber.",            LastReviewedAt = now },
+            new() { Region = "Western Europe", CostLevel = CostLevel.High,   DailyBudgetUsdMin = 280, DailyBudgetUsdMax = 700,  Description = "5-star hotel + fine dining + private concierge.",           LastReviewedAt = now },
+
+            // ── NEW: East Asia ──────────────────────────────────────────────────
+            new() { Region = "East Asia", CostLevel = CostLevel.Low,    DailyBudgetUsdMin = 50,  DailyBudgetUsdMax = 100, Description = "Budget guesthouse + ramen/street food + subway.",             LastReviewedAt = now },
+            new() { Region = "East Asia", CostLevel = CostLevel.Medium, DailyBudgetUsdMin = 100, DailyBudgetUsdMax = 220, Description = "Business hotel + restaurants + shinkansen day trips.",         LastReviewedAt = now },
+            new() { Region = "East Asia", CostLevel = CostLevel.High,   DailyBudgetUsdMin = 220, DailyBudgetUsdMax = 600, Description = "Ryokan/luxury hotel + kaiseki dining + private transport.",    LastReviewedAt = now },
+
+            // ── NEW: Indian Ocean (ultra-luxury tier) ───────────────────────────
+            new() { Region = "Indian Ocean", CostLevel = CostLevel.Low,    DailyBudgetUsdMin = 80,   DailyBudgetUsdMax = 150,  Description = "Guesthouse + local restaurants. Budget version of paradise.",   LastReviewedAt = now },
+            new() { Region = "Indian Ocean", CostLevel = CostLevel.Medium, DailyBudgetUsdMin = 150,  DailyBudgetUsdMax = 350,  Description = "3-4 star resort + restaurant meals.",                          LastReviewedAt = now },
+            new() { Region = "Indian Ocean", CostLevel = CostLevel.High,   DailyBudgetUsdMin = 350,  DailyBudgetUsdMax = 1200, Description = "Overwater bungalow + all-inclusive + seaplane transfers.",   LastReviewedAt = now },
         };
 
         context.RegionPriceTiers.AddRange(tiers);
@@ -72,7 +87,7 @@ public static class DbInitializer
     }
 
     // ─────────────────────────────────────────────
-    // DESTINATIONS (~40 cities)
+    // DESTINATIONS (~55 cities)
     // ─────────────────────────────────────────────
     private static async Task SeedDestinationsAsync(RoutiqDbContext context)
     {
@@ -130,6 +145,27 @@ public static class DbInitializer
             new() { Country = "Costa Rica",  CountryCode = "CR", City = "La Fortuna",   Region = "Central America", DailyCostLevel = CostLevel.Medium, MinRecommendedDays = 2, MaxRecommendedDays = 3, PopularityWeight = 1.3 },
             new() { Country = "Panama",      CountryCode = "PA", City = "Panama City",  Region = "Central America", DailyCostLevel = CostLevel.Medium, MinRecommendedDays = 2, MaxRecommendedDays = 4, PopularityWeight = 1.2 },
             new() { Country = "Nicaragua",   CountryCode = "NI", City = "Granada",      Region = "Central America", DailyCostLevel = CostLevel.Low,    MinRecommendedDays = 2, MaxRecommendedDays = 3, PopularityWeight = 1.1 },
+
+            // ── NEW: Western Europe ─────────────────────────────────────────────
+            new() { Country = "France",       CountryCode = "FR", City = "Paris",        Region = "Western Europe", DailyCostLevel = CostLevel.High,   MinRecommendedDays = 4, MaxRecommendedDays = 10, PopularityWeight = 2.0, Notes = "Schengen. Iconic luxury destination." },
+            new() { Country = "Switzerland",  CountryCode = "CH", City = "Zurich",       Region = "Western Europe", DailyCostLevel = CostLevel.High,   MinRecommendedDays = 3, MaxRecommendedDays = 6,  PopularityWeight = 1.6, Notes = "Schengen. One of the most expensive cities globally." },
+            new() { Country = "Switzerland",  CountryCode = "CH", City = "Geneva",       Region = "Western Europe", DailyCostLevel = CostLevel.High,   MinRecommendedDays = 2, MaxRecommendedDays = 4,  PopularityWeight = 1.4, Notes = "Schengen. Swiss Alps access gateway." },
+            new() { Country = "Austria",      CountryCode = "AT", City = "Vienna",       Region = "Western Europe", DailyCostLevel = CostLevel.High,   MinRecommendedDays = 3, MaxRecommendedDays = 6,  PopularityWeight = 1.7, Notes = "Schengen. Grand imperial city." },
+            new() { Country = "Netherlands",  CountryCode = "NL", City = "Amsterdam",    Region = "Western Europe", DailyCostLevel = CostLevel.Medium, MinRecommendedDays = 3, MaxRecommendedDays = 5,  PopularityWeight = 1.7, Notes = "Schengen." },
+            new() { Country = "Italy",        CountryCode = "IT", City = "Rome",         Region = "Western Europe", DailyCostLevel = CostLevel.Medium, MinRecommendedDays = 4, MaxRecommendedDays = 7,  PopularityWeight = 1.9, Notes = "Schengen." },
+            new() { Country = "Italy",        CountryCode = "IT", City = "Amalfi Coast", Region = "Western Europe", DailyCostLevel = CostLevel.High,   MinRecommendedDays = 3, MaxRecommendedDays = 5,  PopularityWeight = 1.5, Notes = "Schengen. Premium summer destination." },
+            new() { Country = "Spain",        CountryCode = "ES", City = "Barcelona",    Region = "Western Europe", DailyCostLevel = CostLevel.Medium, MinRecommendedDays = 4, MaxRecommendedDays = 7,  PopularityWeight = 1.8, Notes = "Schengen." },
+
+            // ── NEW: East Asia ──────────────────────────────────────────────────
+            new() { Country = "Japan",       CountryCode = "JP", City = "Tokyo",  Region = "East Asia", DailyCostLevel = CostLevel.High,   MinRecommendedDays = 5, MaxRecommendedDays = 14, PopularityWeight = 2.0, Notes = "Visa-free for most passports. Ryokan and fine dining available." },
+            new() { Country = "Japan",       CountryCode = "JP", City = "Kyoto",  Region = "East Asia", DailyCostLevel = CostLevel.High,   MinRecommendedDays = 3, MaxRecommendedDays = 7,  PopularityWeight = 1.8, Notes = "Traditional Japan. Temples, tea houses, kaiseki." },
+            new() { Country = "Japan",       CountryCode = "JP", City = "Osaka",  Region = "East Asia", DailyCostLevel = CostLevel.Medium, MinRecommendedDays = 3, MaxRecommendedDays = 5,  PopularityWeight = 1.7, Notes = "Japan's food capital. More affordable than Tokyo." },
+            new() { Country = "South Korea", CountryCode = "KR", City = "Seoul",  Region = "East Asia", DailyCostLevel = CostLevel.Medium, MinRecommendedDays = 4, MaxRecommendedDays = 8,  PopularityWeight = 1.8, Notes = "Visa-free for many passports. K-culture hub." },
+
+            // ── NEW: Indian Ocean ───────────────────────────────────────────────
+            new() { Country = "Maldives",  CountryCode = "MV", City = "Malé Atolls", Region = "Indian Ocean", DailyCostLevel = CostLevel.High,   MinRecommendedDays = 5, MaxRecommendedDays = 14, PopularityWeight = 1.9, Notes = "30-day visa on arrival all nationalities. Overwater bungalow capital." },
+            new() { Country = "Thailand",  CountryCode = "TH", City = "Phuket",      Region = "Indian Ocean", DailyCostLevel = CostLevel.High,   MinRecommendedDays = 4, MaxRecommendedDays = 10, PopularityWeight = 1.7, Notes = "Luxury beach resort zone." },
+            new() { Country = "Sri Lanka", CountryCode = "LK", City = "Colombo",     Region = "Indian Ocean", DailyCostLevel = CostLevel.Medium, MinRecommendedDays = 3, MaxRecommendedDays = 7,  PopularityWeight = 1.4, Notes = "eVisa required. Rising luxury destination." },
         };
 
         context.Destinations.AddRange(destinations);
@@ -201,6 +237,171 @@ public static class DbInitializer
             new() { PassportCountryCode = "US", DestinationCountryCode = "MA", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
             new() { PassportCountryCode = "US", DestinationCountryCode = "CO", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
             new() { PassportCountryCode = "US", DestinationCountryCode = "MX", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 180, AvgProcessingDays = 0, LastReviewedAt = now },
+
+            // TR → NEW regions (Schengen required, but JP/KR/MV visa-free)
+            new() { PassportCountryCode = "TR", DestinationCountryCode = "FR", Requirement = VisaRequirement.Required,   MaxStayDays = 90, AvgProcessingDays = 15, Notes = "Schengen visa required.", LastReviewedAt = now },
+            new() { PassportCountryCode = "TR", DestinationCountryCode = "CH", Requirement = VisaRequirement.Required,   MaxStayDays = 90, AvgProcessingDays = 15, Notes = "Schengen visa required.", LastReviewedAt = now },
+            new() { PassportCountryCode = "TR", DestinationCountryCode = "AT", Requirement = VisaRequirement.Required,   MaxStayDays = 90, AvgProcessingDays = 15, Notes = "Schengen visa required.", LastReviewedAt = now },
+            new() { PassportCountryCode = "TR", DestinationCountryCode = "NL", Requirement = VisaRequirement.Required,   MaxStayDays = 90, AvgProcessingDays = 15, Notes = "Schengen visa required.", LastReviewedAt = now },
+            new() { PassportCountryCode = "TR", DestinationCountryCode = "IT", Requirement = VisaRequirement.Required,   MaxStayDays = 90, AvgProcessingDays = 15, Notes = "Schengen visa required.", LastReviewedAt = now },
+            new() { PassportCountryCode = "TR", DestinationCountryCode = "ES", Requirement = VisaRequirement.Required,   MaxStayDays = 90, AvgProcessingDays = 15, Notes = "Schengen visa required.", LastReviewedAt = now },
+            new() { PassportCountryCode = "TR", DestinationCountryCode = "JP", Requirement = VisaRequirement.VisaFree,   MaxStayDays = 90, AvgProcessingDays = 0, Notes = "Visa-free since 2024 for TR passport.", LastReviewedAt = now },
+            new() { PassportCountryCode = "TR", DestinationCountryCode = "KR", Requirement = VisaRequirement.VisaFree,   MaxStayDays = 90, AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "TR", DestinationCountryCode = "MV", Requirement = VisaRequirement.OnArrival,  MaxStayDays = 30, AvgProcessingDays = 0, Notes = "Free 30-day visa on arrival all nationalities.", LastReviewedAt = now },
+            new() { PassportCountryCode = "TR", DestinationCountryCode = "LK", Requirement = VisaRequirement.EVisa,      MaxStayDays = 30, AvgProcessingDays = 2, EVisaUrl = "https://eta.gov.lk", LastReviewedAt = now },
+
+            // IN → NEW regions
+            new() { PassportCountryCode = "IN", DestinationCountryCode = "FR", Requirement = VisaRequirement.Required,  MaxStayDays = 90, AvgProcessingDays = 20, Notes = "Schengen visa required.", LastReviewedAt = now },
+            new() { PassportCountryCode = "IN", DestinationCountryCode = "CH", Requirement = VisaRequirement.Required,  MaxStayDays = 90, AvgProcessingDays = 20, Notes = "Schengen visa required.", LastReviewedAt = now },
+            new() { PassportCountryCode = "IN", DestinationCountryCode = "AT", Requirement = VisaRequirement.Required,  MaxStayDays = 90, AvgProcessingDays = 20, Notes = "Schengen visa required.", LastReviewedAt = now },
+            new() { PassportCountryCode = "IN", DestinationCountryCode = "IT", Requirement = VisaRequirement.Required,  MaxStayDays = 90, AvgProcessingDays = 20, Notes = "Schengen visa required.", LastReviewedAt = now },
+            new() { PassportCountryCode = "IN", DestinationCountryCode = "ES", Requirement = VisaRequirement.Required,  MaxStayDays = 90, AvgProcessingDays = 20, Notes = "Schengen visa required.", LastReviewedAt = now },
+            new() { PassportCountryCode = "IN", DestinationCountryCode = "JP", Requirement = VisaRequirement.Required,  MaxStayDays = 90, AvgProcessingDays = 10, Notes = "Visa required for Indian nationals.", LastReviewedAt = now },
+            new() { PassportCountryCode = "IN", DestinationCountryCode = "KR", Requirement = VisaRequirement.EVisa,     MaxStayDays = 90, AvgProcessingDays = 3,  EVisaUrl = "https://www.visa.go.kr", LastReviewedAt = now },
+            new() { PassportCountryCode = "IN", DestinationCountryCode = "MV", Requirement = VisaRequirement.OnArrival, MaxStayDays = 30, AvgProcessingDays = 0, Notes = "Free 30-day visa on arrival all nationalities.", LastReviewedAt = now },
+            new() { PassportCountryCode = "IN", DestinationCountryCode = "LK", Requirement = VisaRequirement.EVisa,     MaxStayDays = 30, AvgProcessingDays = 2, EVisaUrl = "https://eta.gov.lk", LastReviewedAt = now },
+
+            // US → NEW regions (mostly visa-free)
+            new() { PassportCountryCode = "US", DestinationCountryCode = "FR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90, AvgProcessingDays = 0, Notes = "Schengen zone. 90-day visa-free.", LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "CH", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90, AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "AT", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90, AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "NL", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90, AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "IT", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90, AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "ES", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90, AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "JP", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90, AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "KR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90, AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "MV", Requirement = VisaRequirement.OnArrival, MaxStayDays = 30, AvgProcessingDays = 0, Notes = "Free 30-day visa on arrival.", LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "LK", Requirement = VisaRequirement.EVisa,     MaxStayDays = 30, AvgProcessingDays = 2, EVisaUrl = "https://eta.gov.lk", LastReviewedAt = now },
+
+            // ── GB (United Kingdom) — full coverage all 40 destination countries ──
+            // Southeast Asia
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "TH", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 30,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "VN", Requirement = VisaRequirement.EVisa,     MaxStayDays = 90,  AvgProcessingDays = 3, EVisaUrl = "https://evisa.xuatnhapcanh.gov.vn", Notes = "E-visa 90 days for UK nationals.", LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "KH", Requirement = VisaRequirement.OnArrival, MaxStayDays = 30,  AvgProcessingDays = 0, Notes = "Tourist e-Visa / on arrival ~$30.", LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "ID", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 30,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "MY", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            // Balkans
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "RS", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "MK", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "AL", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "BA", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "ME", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "HR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone. UK gets 90/180 rule.", LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "SI", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            // Eastern Europe
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "HU", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "CZ", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "PL", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "RO", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "BG", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "GE", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 365, AvgProcessingDays = 0, LastReviewedAt = now },
+            // Latin America
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "CO", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "PE", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "AR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "MX", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 180, AvgProcessingDays = 0, LastReviewedAt = now },
+            // North Africa
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "MA", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "TN", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "EG", Requirement = VisaRequirement.OnArrival, MaxStayDays = 30,  AvgProcessingDays = 0, Notes = "On-arrival visa ~$25.", LastReviewedAt = now },
+            // Central America
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "GT", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "CR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "PA", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "NI", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            // Western Europe
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "FR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Post-Brexit 90/180 day rule.", LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "CH", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "AT", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "NL", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "IT", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "ES", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            // East Asia
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "JP", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "KR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            // Indian Ocean
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "MV", Requirement = VisaRequirement.OnArrival, MaxStayDays = 30,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "GB", DestinationCountryCode = "LK", Requirement = VisaRequirement.EVisa,     MaxStayDays = 30,  AvgProcessingDays = 2, EVisaUrl = "https://eta.gov.lk", LastReviewedAt = now },
+
+            // ── US (United States) — fill missing destination gaps ──
+            // Southeast Asia (KH, ID, MY were missing)
+            new() { PassportCountryCode = "US", DestinationCountryCode = "KH", Requirement = VisaRequirement.OnArrival, MaxStayDays = 30,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "ID", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 30,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "MY", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            // Balkans (MK, AL, BA, ME, SI were missing)
+            new() { PassportCountryCode = "US", DestinationCountryCode = "MK", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "AL", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "BA", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "ME", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "SI", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            // Eastern Europe (CZ, PL, RO, BG were missing)
+            new() { PassportCountryCode = "US", DestinationCountryCode = "CZ", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "PL", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "RO", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "BG", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            // Latin America (PE, AR, GT, CR, PA, NI were missing)
+            new() { PassportCountryCode = "US", DestinationCountryCode = "PE", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "AR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "GT", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "CR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "PA", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "NI", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            // North Africa (TN, EG were missing)
+            new() { PassportCountryCode = "US", DestinationCountryCode = "TN", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "US", DestinationCountryCode = "EG", Requirement = VisaRequirement.OnArrival, MaxStayDays = 30,  AvgProcessingDays = 0, Notes = "On-arrival visa.", LastReviewedAt = now },
+
+            // ── DE (Germany) — comprehensive coverage all 55 destinations ──
+            // Germany holds one of the world's strongest passports (Henley Index top 3).
+            // Visa-free or on-arrival to virtually every destination in our seed data.
+            // Southeast Asia
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "TH", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 30,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "VN", Requirement = VisaRequirement.EVisa,     MaxStayDays = 90,  AvgProcessingDays = 3, EVisaUrl = "https://evisa.xuatnhapcanh.gov.vn", Notes = "E-visa 90 days for German nationals.", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "KH", Requirement = VisaRequirement.OnArrival, MaxStayDays = 30,  AvgProcessingDays = 0, Notes = "Tourist e-Visa / on arrival ~$30.", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "ID", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 30,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "MY", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            // Balkans
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "RS", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "MK", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "AL", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "BA", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "ME", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "HR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "SI", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            // Eastern Europe
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "HU", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "CZ", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "PL", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "RO", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "BG", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "GE", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 365, AvgProcessingDays = 0, Notes = "Visa-free up to 1 year.", LastReviewedAt = now },
+            // Latin America
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "CO", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "PE", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "AR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "MX", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 180, AvgProcessingDays = 0, LastReviewedAt = now },
+            // North Africa
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "MA", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "TN", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "EG", Requirement = VisaRequirement.OnArrival, MaxStayDays = 30,  AvgProcessingDays = 0, Notes = "On-arrival visa ~$25.", LastReviewedAt = now },
+            // Central America
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "GT", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "CR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "PA", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "NI", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            // Western Europe (fellow Schengen members)
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "FR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "CH", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "AT", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "NL", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "IT", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "ES", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, Notes = "Schengen zone.", LastReviewedAt = now },
+            // East Asia
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "JP", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "KR", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 90,  AvgProcessingDays = 0, LastReviewedAt = now },
+            // Indian Ocean
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "MV", Requirement = VisaRequirement.OnArrival, MaxStayDays = 30,  AvgProcessingDays = 0, Notes = "Free 30-day visa on arrival all nationalities.", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "LK", Requirement = VisaRequirement.EVisa,     MaxStayDays = 30,  AvgProcessingDays = 2, EVisaUrl = "https://eta.gov.lk", LastReviewedAt = now },
+            new() { PassportCountryCode = "DE", DestinationCountryCode = "PH", Requirement = VisaRequirement.VisaFree,  MaxStayDays = 30,  AvgProcessingDays = 0, LastReviewedAt = now },
         };
 
         context.VisaRules.AddRange(rules);
@@ -214,40 +415,38 @@ public static class DbInitializer
     {
         if (await context.Users.AnyAsync()) return;
 
-        var hasher = new PasswordHasher<User>();
-
-        // User 1: Turkish passport holder (demonstrates Schengen filtering)
         var user1 = new User
         {
-            Email = "taner@routiq.app",
-            PasswordHash = string.Empty,
+            Email = "admin@routiq.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
+            FirstName = "Admin",
+            LastName = "Routiq",
             Role = "Admin",
-            CreatedAt = new DateTime(2026, 2, 24, 0, 0, 0, DateTimeKind.Utc)
+            CreatedAt = new DateTime(2026, 2, 25, 0, 0, 0, DateTimeKind.Utc)
         };
-        user1.PasswordHash = hasher.HashPassword(user1, "Admin123!");
         context.Users.Add(user1);
         await context.SaveChangesAsync();
 
         context.UserProfiles.Add(new UserProfile
         {
             UserId = user1.Id,
-            Username = "taner",
+            Username = "admin",
             Email = user1.Email,
-            PassportCountryCode = "TR",
+            Passports = new List<string> { "TR" },
             CountryCode = "TR",
             PreferredCurrency = "USD",
             Age = 29
         });
 
-        // User 2: Indian passport holder (demonstrates different visa landscape)
         var user2 = new User
         {
             Email = "arjun@routiq.app",
-            PasswordHash = string.Empty,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("User123!"),
+            FirstName = "Arjun",
+            LastName = "Demo",
             Role = "User",
-            CreatedAt = new DateTime(2026, 2, 24, 0, 0, 0, DateTimeKind.Utc)
+            CreatedAt = new DateTime(2026, 2, 25, 0, 0, 0, DateTimeKind.Utc)
         };
-        user2.PasswordHash = hasher.HashPassword(user2, "User123!");
         context.Users.Add(user2);
         await context.SaveChangesAsync();
 
@@ -256,7 +455,7 @@ public static class DbInitializer
             UserId = user2.Id,
             Username = "arjun",
             Email = user2.Email,
-            PassportCountryCode = "IN",
+            Passports = new List<string> { "IN" },
             CountryCode = "IN",
             PreferredCurrency = "USD",
             Age = 26
@@ -278,14 +477,14 @@ public static class DbInitializer
 
         var queryId = Guid.NewGuid();
         var routeId = Guid.NewGuid();
-        var queryDate = new DateTime(2026, 2, 24, 9, 0, 0, DateTimeKind.Utc);
+        var queryDate = new DateTime(2026, 2, 25, 9, 0, 0, DateTimeKind.Utc);
 
         // Query: TR passport, Budget bracket, 21 days, $1400, SEA preference
         var query = new RouteQuery
         {
             Id = queryId,
             UserId = userId,
-            PassportCountryCode = "TR",
+            Passports = new List<string> { "TR" },
             BudgetBracket = BudgetBracket.Budget,
             TotalBudgetUsd = 1400,
             DurationDays = 21,

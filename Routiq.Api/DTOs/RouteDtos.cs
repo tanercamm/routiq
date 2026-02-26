@@ -6,8 +6,12 @@ namespace Routiq.Api.DTOs;
 
 public class RouteRequestDto
 {
-    /// <summary>ISO 3166-1 alpha-2 passport code. E.g. "TR", "IN", "US".</summary>
-    public string PassportCountryCode { get; set; } = string.Empty;
+    /// <summary>
+    /// ISO 3166-1 alpha-2 passport codes for all passports held.
+    /// The engine applies best-case visa logic — most favorable outcome across all passports wins.
+    /// e.g. ["TR", "DE"] for a Turkish-German dual citizen.
+    /// </summary>
+    public List<string> Passports { get; set; } = new();
 
     public BudgetBracket BudgetBracket { get; set; }
 
@@ -28,7 +32,7 @@ public class RouteRequestDto
 
 public class RouteResponseDto
 {
-    /// <summary>The selected route options. In V2 typically 1–3 options.</summary>
+    /// <summary>The selected route options. In V2 typically 1–4 options.</summary>
     public List<RouteOptionDto> Options { get; set; } = new();
 
     /// <summary>Destinations considered but eliminated — the "why NOT" explanations.</summary>
@@ -58,7 +62,8 @@ public class RouteStopDto
     public int RecommendedDays { get; set; }
     public string CostLevel { get; set; } = string.Empty;     // "Low" | "Medium" | "High"
     public string DailyBudgetRange { get; set; } = string.Empty;  // e.g. "$20–$45/day"
-    public string VisaStatus { get; set; } = string.Empty;     // "Visa-Free" | "eVisa" | etc.
+    public string VisaStatus { get; set; } = string.Empty;     // "Visa-Free (DE)" | "eVisa" | etc.
+    public string? BestPassport { get; set; }                   // which passport yielded the best outcome
     public string? StopReason { get; set; }
 }
 
@@ -76,7 +81,10 @@ public class SaveRouteDto
 {
     public int UserId { get; set; }
     public string RouteName { get; set; } = string.Empty;
-    public string PassportCountryCode { get; set; } = string.Empty;
+
+    /// <summary>All passports held at time of query (for audit/display purposes).</summary>
+    public List<string> Passports { get; set; } = new();
+
     public BudgetBracket BudgetBracket { get; set; }
     public int TotalBudgetUsd { get; set; }
     public int DurationDays { get; set; }
@@ -90,7 +98,10 @@ public class SaveRouteDto
 
 public class SaveRouteStopDto
 {
-    public int DestinationId { get; set; }
+    /// <summary>If known, the DB destination ID. Optional — server resolves from City+CountryCode if omitted.</summary>
+    public int? DestinationId { get; set; }
+    public string City { get; set; } = string.Empty;
+    public string CountryCode { get; set; } = string.Empty;
     public int StopOrder { get; set; }
     public int RecommendedDays { get; set; }
     public CostLevel ExpectedCostLevel { get; set; }
@@ -107,6 +118,9 @@ public class SavedRouteResponseDto
     public string Status { get; set; } = string.Empty;
     public string SelectionReason { get; set; } = string.Empty;
     public DateTime SavedAt { get; set; }
+    public int TotalBudgetUsd { get; set; }
+    public int DurationDays { get; set; }
+    public List<string> Passports { get; set; } = new();
     public List<RouteStopDto> Stops { get; set; } = new();
 }
 

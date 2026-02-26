@@ -11,9 +11,20 @@ public interface IRouteGenerator
 }
 
 /// <summary>
-/// V2 Deterministic Route Generator.
+/// V2.1 Deterministic Route Generator — Multi-Passport Edition.
 /// Rules-based, explainable. Zero fake data. Zero live API calls.
-/// Outputs: viable route options + eliminated destinations with reasons.
+///
+/// Best-Case Visa Algorithm:
+/// When a traveler holds multiple passports, the engine evaluates ALL of them
+/// for each destination and selects the most favorable outcome:
+///   1. VisaFree  (best — no action needed)
+///   2. OnArrival (second — pay at border)
+///   3. EVisa     (third — apply online beforehand)
+///   4. Required  (worst — full embassy process)
+///   5. Banned    (absolute — never overridable)
+///
+/// A destination is only eliminated on visa grounds if ALL passports result
+/// in Required/Banned (after accounting for declared held visas).
 /// </summary>
 public class RouteGenerator : IRouteGenerator
 {
@@ -24,17 +35,39 @@ public class RouteGenerator : IRouteGenerator
         _context = context;
     }
 
+    // Favorability score — lower is better
+    private static int VisaScore(VisaRequirement req) => req switch
+    {
+        VisaRequirement.VisaFree => 1,
+        VisaRequirement.OnArrival => 2,
+        VisaRequirement.EVisa => 3,
+        VisaRequirement.Required => 4,
+        VisaRequirement.Banned => 5,
+        _ => 6
+    };
+
     public async Task<RouteResponseDto> GenerateRoutesAsync(RouteRequestDto request)
     {
         var response = new RouteResponseDto();
+
+        // Normalise: ensure at least one passport
+        if (request.Passports == null || request.Passports.Count == 0)
+            request.Passports = new List<string> { "XX" };
+
+        // Deduplicate and uppercase
+        request.Passports = request.Passports
+            .Select(p => p.Trim().ToUpperInvariant())
+            .Distinct()
+            .ToList();
 
         // ── Step 1: Load static data ──
         var allDestinations = await _context.Destinations
             .Where(d => d.IsActive)
             .ToListAsync();
 
-        var visaRules = await _context.VisaRules
-            .Where(v => v.PassportCountryCode == request.PassportCountryCode)
+        // Load visa rules for ALL passports the user holds
+        var allVisaRules = await _context.VisaRules
+            .Where(v => request.Passports.Contains(v.PassportCountryCode))
             .ToListAsync();
 
         var priceTiers = await _context.RegionPriceTiers.ToListAsync();
@@ -50,18 +83,24 @@ public class RouteGenerator : IRouteGenerator
 
         foreach (var dest in regionFiltered)
         {
-            var rule = visaRules.FirstOrDefault(v => v.DestinationCountryCode == dest.CountryCode);
+            // Collect all rules for this destination across all passports
+            var rulesForDest = allVisaRules
+                .Where(v => v.DestinationCountryCode == dest.CountryCode)
+                .ToList();
+
             var tier = priceTiers.FirstOrDefault(t => t.Region == dest.Region && t.CostLevel == dest.DailyCostLevel);
 
-            // Visa filter
-            if (!IsVisaAccessible(dest, rule, request))
+            // Best-case visa evaluation
+            var bestOutcome = GetBestVisaOutcome(dest, rulesForDest, request);
+
+            if (!bestOutcome.IsAccessible)
             {
                 eliminations.Add(new RouteElimination
                 {
-                    RouteQueryId = Guid.Empty, // filled by caller when persisting
+                    RouteQueryId = Guid.Empty,
                     DestinationId = dest.Id,
                     Reason = EliminationReason.VisaRequired,
-                    ExplanationText = BuildVisaEliminationText(dest, rule, request.PassportCountryCode)
+                    ExplanationText = BuildVisaEliminationText(dest, rulesForDest, request.Passports)
                 });
                 continue;
             }
@@ -103,7 +142,6 @@ public class RouteGenerator : IRouteGenerator
 
         if (!eligible.Any())
         {
-            // Surface eliminations even when no route found
             response.Eliminations = eliminations
                 .Select(e => MapEliminationToDto(e, allDestinations))
                 .ToList();
@@ -111,7 +149,6 @@ public class RouteGenerator : IRouteGenerator
         }
 
         // ── Step 4: Build route options ──
-        // Sort by popularity weight descending, then by cost level ascending (cheaper is better tie-break)
         var sorted = eligible
             .OrderByDescending(d => d.PopularityWeight)
             .ThenBy(d => (int)d.DailyCostLevel)
@@ -119,12 +156,13 @@ public class RouteGenerator : IRouteGenerator
 
         // Option 1: Best single city focus
         var top = sorted.First();
-        response.Options.Add(BuildSingleCityOption(top, request, priceTiers, visaRules));
+        response.Options.Add(BuildSingleCityOption(top, request, priceTiers, allVisaRules));
 
-        // Option 2: Multi-city loop (if 6+ days)
-        if (request.DurationDays >= 6)
+        // Option 2: Multi-city loop (if 6+ days or high budget)
+        bool isHighBudget = request.TotalBudgetUsd >= 5000;
+        if (request.DurationDays >= 6 || isHighBudget)
         {
-            var multiOption = TryBuildMultiCityOption(sorted, request, priceTiers, visaRules);
+            var multiOption = TryBuildMultiCityOption(sorted, request, priceTiers, allVisaRules);
             if (multiOption != null)
                 response.Options.Add(multiOption);
         }
@@ -132,13 +170,69 @@ public class RouteGenerator : IRouteGenerator
         // Option 3: Best per-region pick (different region from option 1, if any)
         var altRegion = sorted.FirstOrDefault(d => d.Region != top.Region);
         if (altRegion != null)
-            response.Options.Add(BuildSingleCityOption(altRegion, request, priceTiers, visaRules, isAlt: true));
+            response.Options.Add(BuildSingleCityOption(altRegion, request, priceTiers, allVisaRules, isAlt: true));
+
+        // Option 4: Extended grand tour (high-budget premium — more stops, maximum cities)
+        if (isHighBudget && sorted.Count >= 4)
+        {
+            var grandTour = TryBuildMultiCityOption(sorted, request, priceTiers, allVisaRules, maxStops: 6);
+            if (grandTour != null && grandTour.RouteName != response.Options.ElementAtOrDefault(1)?.RouteName)
+                response.Options.Add(grandTour);
+        }
 
         response.Eliminations = eliminations
             .Select(e => MapEliminationToDto(e, allDestinations))
             .ToList();
 
         return response;
+    }
+
+    // ── Visa Outcome Types ──
+
+    private record VisaOutcome(bool IsAccessible, VisaRequirement BestRequirement, string BestPassport);
+
+    /// <summary>
+    /// Evaluates all passports held against the destination and returns the most favorable outcome.
+    /// Special-visa declarations (Schengen/US/UK held) are also checked.
+    /// </summary>
+    private VisaOutcome GetBestVisaOutcome(Destination dest, List<VisaRule> rulesForDest, RouteRequestDto req)
+    {
+        var best = new VisaOutcome(false, VisaRequirement.Banned, "");
+
+        foreach (var passport in req.Passports)
+        {
+            var rule = rulesForDest.FirstOrDefault(r => r.PassportCountryCode == passport);
+            VisaRequirement effective;
+
+            if (rule == null)
+            {
+                // No rule found — default to VisaFree.
+                // Our seed data explicitly records every Required/Banned case for each supported
+                // passport. An absent row means the destination imposes no restriction on that
+                // passport (common for strong passports like DE/US/GB/AU vs. small nations).
+                // Treating unknown as Required was the source of the algorithm bias.
+                effective = VisaRequirement.VisaFree;
+            }
+            else if (rule.Requirement == VisaRequirement.Required && IsSpecialVisaHeld(dest, req))
+            {
+                // User declared a held visa that covers this destination
+                effective = VisaRequirement.EVisa; // treat held visa as eVisa-level accessibility
+            }
+            else
+            {
+                effective = rule.Requirement;
+            }
+
+            bool accessible = effective != VisaRequirement.Required && effective != VisaRequirement.Banned;
+
+            // Update best if this passport gives a lower (more favorable) score
+            if (best.BestPassport == "" || VisaScore(effective) < VisaScore(best.BestRequirement))
+            {
+                best = new VisaOutcome(accessible, effective, passport);
+            }
+        }
+
+        return best;
     }
 
     // ── Option Builders ──
@@ -149,7 +243,8 @@ public class RouteGenerator : IRouteGenerator
         bool isAlt = false)
     {
         var tier = tiers.FirstOrDefault(t => t.Region == dest.Region && t.CostLevel == dest.DailyCostLevel);
-        var rule = rules.FirstOrDefault(r => r.DestinationCountryCode == dest.CountryCode);
+        var rulesForDest = rules.Where(r => r.DestinationCountryCode == dest.CountryCode).ToList();
+        var outcome = GetBestVisaOutcome(dest, rulesForDest, req);
         var days = Math.Clamp(req.DurationDays, dest.MinRecommendedDays, dest.MaxRecommendedDays);
 
         return new RouteOptionDto
@@ -157,32 +252,39 @@ public class RouteGenerator : IRouteGenerator
             RouteName = isAlt
                 ? $"Alternative: {dest.City} Focus"
                 : $"{dest.City} Focus",
-            SelectionReason = BuildSelectionReason(dest, rule, req, days),
+            SelectionReason = BuildSelectionReason(dest, outcome, req, days),
             EstimatedBudgetRange = tier != null
                 ? $"${tier.DailyBudgetUsdMin * days}–${tier.DailyBudgetUsdMax * days}"
                 : "See cost tier",
             Stops = new List<RouteStopDto>
             {
-                MapStopToDto(dest, days, 1, tier, rule)
+                MapStopToDto(dest, days, 1, tier, outcome)
             }
         };
     }
 
     private RouteOptionDto? TryBuildMultiCityOption(
         List<Destination> sorted, RouteRequestDto req,
-        List<RegionPriceTier> tiers, List<VisaRule> rules)
+        List<RegionPriceTier> tiers, List<VisaRule> rules,
+        int? maxStops = null)
     {
-        // Take top 2–4 destinations and split days proportionally
+        int stopLimit = maxStops ?? Math.Max(2, Math.Min(6, req.DurationDays / 3));
+
         var picks = sorted
-            .Take(4)
+            .Take(stopLimit + 2)
             .ToList();
 
         if (picks.Count < 2) return null;
 
         var totalMinDays = picks.Sum(d => d.MinRecommendedDays);
-        if (totalMinDays > req.DurationDays) picks = picks.Take(2).ToList();
+        while (picks.Count > 2 && totalMinDays > req.DurationDays)
+        {
+            picks.RemoveAt(picks.Count - 1);
+            totalMinDays = picks.Sum(d => d.MinRecommendedDays);
+        }
 
-        // Recalculate: distribute days proportionally
+        if (picks.Count < 2) return null;
+
         var stops = new List<RouteStopDto>();
         int daysLeft = req.DurationDays;
         int totalMinNow = picks.Sum(d => d.MinRecommendedDays);
@@ -191,7 +293,8 @@ public class RouteGenerator : IRouteGenerator
         {
             var dest = picks[i];
             var tier = tiers.FirstOrDefault(t => t.Region == dest.Region && t.CostLevel == dest.DailyCostLevel);
-            var rule = rules.FirstOrDefault(r => r.DestinationCountryCode == dest.CountryCode);
+            var rulesForDest = rules.Where(r => r.DestinationCountryCode == dest.CountryCode).ToList();
+            var outcome = GetBestVisaOutcome(dest, rulesForDest, req);
 
             int daysForStop = i == picks.Count - 1
                 ? daysLeft
@@ -200,25 +303,26 @@ public class RouteGenerator : IRouteGenerator
             daysForStop = Math.Clamp(daysForStop, dest.MinRecommendedDays, dest.MaxRecommendedDays);
             daysLeft -= daysForStop;
 
-            stops.Add(MapStopToDto(dest, daysForStop, i + 1, tier, rule));
+            stops.Add(MapStopToDto(dest, daysForStop, i + 1, tier, outcome));
         }
 
-        // Budget check: sum of min estimates vs total budget
+        // Budget check
         int totalMinCost = stops.Sum(s =>
         {
-            var tier = tiers.FirstOrDefault(t => t.Region == stops.First().Region && t.CostLevel == Enum.Parse<CostLevel>(s.CostLevel));
-            return tier?.DailyBudgetUsdMin * s.RecommendedDays ?? 0;
+            var t = tiers.FirstOrDefault(t => t.Region == s.Region && t.CostLevel == Enum.Parse<CostLevel>(s.CostLevel));
+            return t?.DailyBudgetUsdMin * s.RecommendedDays ?? 0;
         });
 
         if (totalMinCost > req.TotalBudgetUsd) return null;
 
-        var regionNames = stops.Select(s => s.Region).Distinct().ToList();
+        var passportLabel = string.Join("+", req.Passports);
+        string tourLabel = maxStops.HasValue && maxStops >= 5 ? "Grand Tour" : $"{picks.Count}-City Loop";
         return new RouteOptionDto
         {
-            RouteName = $"{picks.Count}-City Loop ({string.Join(" → ", stops.Select(s => s.City))})",
-            SelectionReason = $"All {picks.Count} stops are visa-accessible for {req.PassportCountryCode} passport. " +
-                              $"Combined minimum cost estimate within ${req.TotalBudgetUsd} budget.",
-            EstimatedBudgetRange = $"See individual stops",
+            RouteName = $"{tourLabel} ({string.Join(" → ", stops.Select(s => s.City))})",
+            SelectionReason = $"All {picks.Count} stops visa-accessible with [{passportLabel}] passport(s). " +
+                              $"Best-case visa logic applied. Combined minimum cost within ${req.TotalBudgetUsd} budget.",
+            EstimatedBudgetRange = "See individual stops",
             Stops = stops
         };
     }
@@ -226,7 +330,7 @@ public class RouteGenerator : IRouteGenerator
     // ── Mapping Helpers ──
 
     private RouteStopDto MapStopToDto(Destination dest, int days, int order,
-        RegionPriceTier? tier, VisaRule? rule)
+        RegionPriceTier? tier, VisaOutcome outcome)
     {
         return new RouteStopDto
         {
@@ -240,9 +344,8 @@ public class RouteGenerator : IRouteGenerator
             DailyBudgetRange = tier != null
                 ? $"${tier.DailyBudgetUsdMin}–${tier.DailyBudgetUsdMax}/day"
                 : "See region tier",
-            VisaStatus = rule != null
-                ? FormatVisaStatus(rule)
-                : "Check requirements",
+            VisaStatus = FormatVisaStatus(outcome),
+            BestPassport = outcome.BestPassport,
             StopReason = dest.Notes
         };
     }
@@ -261,26 +364,10 @@ public class RouteGenerator : IRouteGenerator
 
     // ── Logic Helpers ──
 
-    private bool IsVisaAccessible(Destination dest, VisaRule? rule, RouteRequestDto req)
-    {
-        if (rule == null) return false; // Unknown = assume required (strict/safe default)
-
-        return rule.Requirement switch
-        {
-            VisaRequirement.VisaFree => true,
-            VisaRequirement.EVisa => true,  // eVisa = accessible (user can get before trip)
-            VisaRequirement.OnArrival => true,
-            VisaRequirement.Required => IsSpecialVisaHeld(dest, req),
-            VisaRequirement.Banned => false,
-            _ => false
-        };
-    }
-
     private bool IsSpecialVisaHeld(Destination dest, RouteRequestDto req)
     {
-        // If destination country is Schengen and user declared Schengen visa
-        var schengenCountries = new[] { "DE", "FR", "AT", "NL", "ES", "IT", "PT", "BE", "SE", "NO", "FI", "DK", "LU", "CH", "CZ", "PL", "HU", "SK", "SI", "LV", "LT", "EE", "MT", "HR" };
-        if (req.HasSchengenVisa && schengenCountries.Contains(dest.CountryCode)) return true;
+        var schengen = new[] { "DE", "FR", "AT", "NL", "ES", "IT", "PT", "BE", "SE", "NO", "FI", "DK", "LU", "CH", "CZ", "PL", "HU", "SK", "SI", "LV", "LT", "EE", "MT", "HR" };
+        if (req.HasSchengenVisa && schengen.Contains(dest.CountryCode)) return true;
         if (req.HasUsVisa && dest.CountryCode == "US") return true;
         if (req.HasUkVisa && dest.CountryCode == "GB") return true;
         return false;
@@ -303,45 +390,51 @@ public class RouteGenerator : IRouteGenerator
         };
     }
 
-    private string BuildSelectionReason(Destination dest, VisaRule? rule, RouteRequestDto req, int days)
+    private string BuildSelectionReason(Destination dest, VisaOutcome outcome, RouteRequestDto req, int days)
     {
-        var visaPart = rule?.Requirement switch
+        var visaPart = outcome.BestRequirement switch
         {
-            VisaRequirement.VisaFree => $"Visa-free for {req.PassportCountryCode} passport",
-            VisaRequirement.EVisa => $"eVisa available online for {req.PassportCountryCode} passport",
-            VisaRequirement.OnArrival => $"Visa on arrival for {req.PassportCountryCode} passport",
+            VisaRequirement.VisaFree => $"Visa-free via {outcome.BestPassport} passport",
+            VisaRequirement.EVisa => $"eVisa available online (best: {outcome.BestPassport})",
+            VisaRequirement.OnArrival => $"Visa on arrival (best: {outcome.BestPassport})",
             _ => "Visa accessible"
         };
 
-        return $"{visaPart}. {days} days within {dest.MinRecommendedDays}–{dest.MaxRecommendedDays} day recommended range. " +
+        var multiPassportNote = req.Passports.Count > 1
+            ? $" Best-case evaluated across [{string.Join(", ", req.Passports)}]."
+            : "";
+
+        return $"{visaPart}.{multiPassportNote} {days} days within {dest.MinRecommendedDays}–{dest.MaxRecommendedDays} day recommended range. " +
                $"{dest.DailyCostLevel} cost tier fits ${req.TotalBudgetUsd} budget.";
     }
 
-    private string BuildVisaEliminationText(Destination dest, VisaRule? rule, string passportCode)
+    private string BuildVisaEliminationText(Destination dest, List<VisaRule> rulesForDest, List<string> passports)
     {
-        if (rule == null)
-            return $"{dest.City} eliminated: No visa rule found for {passportCode} passport → {dest.CountryCode}. Strict default applied.";
+        if (rulesForDest.Count == 0)
+            return $"{dest.City} eliminated: No visa rule found for any of [{string.Join(", ", passports)}] → {dest.CountryCode}. Strict default applied.";
 
-        return rule.Requirement switch
+        var parts = rulesForDest.Select(r => r.Requirement switch
         {
             VisaRequirement.Required =>
-                $"{dest.City} eliminated: {dest.Country} requires a visa for {passportCode} passport " +
-                $"(avg {rule.AvgProcessingDays} days processing). You declared no qualifying visa. " +
-                (rule.Notes != null ? rule.Notes : ""),
+                $"{r.PassportCountryCode}: visa required (≈{r.AvgProcessingDays}d processing)" +
+                (r.Notes != null ? $" — {r.Notes}" : ""),
             VisaRequirement.Banned =>
-                $"{dest.City} eliminated: {dest.Country} does not permit entry for {passportCode} passport holders.",
-            _ => $"{dest.City} eliminated: Visa accessibility could not be confirmed."
-        };
+                $"{r.PassportCountryCode}: entry not permitted",
+            _ =>
+                $"{r.PassportCountryCode}: {r.Requirement}"
+        });
+
+        return $"{dest.City} eliminated — all passports blocked: {string.Join("; ", parts)}.";
     }
 
-    private string FormatVisaStatus(VisaRule rule)
+    private string FormatVisaStatus(VisaOutcome outcome)
     {
-        return rule.Requirement switch
+        return outcome.BestRequirement switch
         {
-            VisaRequirement.VisaFree => $"Visa-Free (up to {rule.MaxStayDays} days)",
-            VisaRequirement.EVisa => $"eVisa Required",
-            VisaRequirement.OnArrival => $"Visa on Arrival",
-            VisaRequirement.Required => $"Visa Required",
+            VisaRequirement.VisaFree => $"Visa-Free ({outcome.BestPassport})",
+            VisaRequirement.EVisa => $"eVisa ({outcome.BestPassport})",
+            VisaRequirement.OnArrival => $"On Arrival ({outcome.BestPassport})",
+            VisaRequirement.Required => "Visa Required",
             VisaRequirement.Banned => "Entry Not Permitted",
             _ => "Unknown"
         };

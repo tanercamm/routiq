@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
@@ -11,38 +11,17 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { TravelGroupsPage } from './pages/TravelGroupsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AppLayout } from './components/AppLayout';
-import { generateRoutes } from './api/routiqApi';
+import { generateRoutes, saveRoute } from './api/routiqApi';
 import type { RouteRequest, RouteResponse, RouteOption, RouteStop, EliminationSummary, BudgetBracket, RegionPreference } from './types';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactCountryFlag from 'react-country-flag';
+import { flagLabel } from './constants/passports';
 import {
-  Loader2, Globe, Wallet, Calendar, MapPin, CheckSquare,
-  ChevronDown, ChevronRight, XCircle, CheckCircle2, Zap, AlertTriangle, Clock, Map
+  Loader2, Wallet, Calendar, MapPin, CheckSquare,
+  ChevronDown, ChevronRight, XCircle, CheckCircle2, Zap, AlertTriangle, Clock, Map, BookmarkPlus
 } from 'lucide-react';
 
-// ── Constants ──
-
-const PASSPORT_OPTIONS: { code: string; label: string }[] = [
-  { code: 'TR', label: '🇹🇷 Turkey' },
-  { code: 'US', label: '🇺🇸 United States' },
-  { code: 'GB', label: '🇬🇧 United Kingdom' },
-  { code: 'DE', label: '🇩🇪 Germany' },
-  { code: 'FR', label: '🇫🇷 France' },
-  { code: 'IN', label: '🇮🇳 India' },
-  { code: 'CN', label: '🇨🇳 China' },
-  { code: 'RU', label: '🇷🇺 Russia' },
-  { code: 'BR', label: '🇧🇷 Brazil' },
-  { code: 'AU', label: '🇦🇺 Australia' },
-  { code: 'CA', label: '🇨🇦 Canada' },
-  { code: 'JP', label: '🇯🇵 Japan' },
-  { code: 'KR', label: '🇰🇷 South Korea' },
-  { code: 'MX', label: '🇲🇽 Mexico' },
-  { code: 'ZA', label: '🇿🇦 South Africa' },
-  { code: 'EG', label: '🇪🇬 Egypt' },
-  { code: 'PK', label: '🇵🇰 Pakistan' },
-  { code: 'NG', label: '🇳🇬 Nigeria' },
-  { code: 'PH', label: '🇵🇭 Philippines' },
-  { code: 'ID', label: '🇮🇩 Indonesia' },
-];
+// PASSPORT_OPTIONS removed — citizenship is account-level, set in Profile/Registration
 
 const BUDGET_BRACKETS: { value: BudgetBracket; label: string; sub: string }[] = [
   { value: 'Shoestring', label: 'Shoestring', sub: '~$0–30/day' },
@@ -99,7 +78,7 @@ function SelectField({ value, onChange, children, id }: {
         id={id}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 pr-10 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer transition-colors"
+        className="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer transition-colors"
       >
         {children}
       </select>
@@ -108,9 +87,30 @@ function SelectField({ value, onChange, children, id }: {
   );
 }
 
-function RouteOptionCard({ option, index }: { option: RouteOption; index: number }) {
-  const colors = ['from-blue-600 to-indigo-600', 'from-teal-600 to-emerald-600', 'from-violet-600 to-purple-600'];
+function RouteOptionCard({
+  option, index, onSave, saved
+}: {
+  option: RouteOption; index: number; onSave: (option: RouteOption) => Promise<void>; saved: boolean;
+}) {
+  const colors = ['from-blue-600 to-indigo-600', 'from-teal-600 to-emerald-600', 'from-violet-600 to-purple-600', 'from-rose-600 to-orange-500'];
   const gradient = colors[index % colors.length];
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<'idle' | 'success' | 'error'>('idle');
+
+  const handleClick = async () => {
+    if (saved || saving) return;
+    setSaving(true);
+    try {
+      await onSave(option);
+      setToast('success');
+      setTimeout(() => setToast('idle'), 3000);
+    } catch {
+      setToast('error');
+      setTimeout(() => setToast('idle'), 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <motion.div
@@ -120,7 +120,7 @@ function RouteOptionCard({ option, index }: { option: RouteOption; index: number
       className="bg-white dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 rounded-2xl overflow-hidden shadow-sm"
     >
       {/* Header */}
-      <div className={`bg-gradient-to-r ${gradient} px-5 py-4`}>
+      <div className={`bg-gradient-to-r ${gradient} px-4 py-3`}>
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-white font-bold text-base">{option.routeName}</h3>
@@ -138,20 +138,66 @@ function RouteOptionCard({ option, index }: { option: RouteOption; index: number
           <StopRow key={si} stop={stop} index={si} />
         ))}
       </div>
+
+      {/* Save footer */}
+      <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800/40 border-t border-gray-100 dark:border-gray-700/40 flex items-center justify-between gap-3">
+        {/* Toast message */}
+        <AnimatePresence>
+          {toast === 'success' && (
+            <motion.span
+              key="ok"
+              initial={{ opacity: 0, x: -6 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0 }}
+              className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1"
+            >
+              <CheckCircle2 size={12} /> Route saved to your profile!
+            </motion.span>
+          )}
+          {toast === 'error' && (
+            <motion.span
+              key="err"
+              initial={{ opacity: 0, x: -6 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0 }}
+              className="text-xs text-red-500 font-medium"
+            >
+              Save failed — is the API running?
+            </motion.span>
+          )}
+          {toast === 'idle' && <span />}
+        </AnimatePresence>
+
+        <button
+          onClick={handleClick}
+          disabled={saved || saving}
+          className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all shrink-0 ${saved
+            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 cursor-default'
+            : saving
+              ? 'bg-blue-50 text-blue-400 dark:bg-blue-500/10 cursor-wait opacity-70 border border-blue-200 dark:border-blue-500/30'
+              : 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30'
+            }`}
+        >
+          {saved ? <><CheckCircle2 size={13} /> Saved!</> : saving ? <>Saving...</> : <><BookmarkPlus size={13} /> Save This Route</>}
+        </button>
+      </div>
     </motion.div>
   );
 }
 
 function StopRow({ stop, index }: { stop: RouteStop; index: number }) {
   return (
-    <div className="flex items-start gap-3 px-5 py-3.5">
+    <div className="flex items-start gap-3 px-4 py-3">
       {/* Order badge */}
       <span className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-300 shrink-0 mt-0.5">
         {index + 1}
       </span>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">{stop.city}</span>
+          <span className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+            <ReactCountryFlag countryCode={stop.countryCode} svg style={{ width: '1.1em', height: '1.1em', borderRadius: '2px' }} title={stop.countryCode} />
+            {stop.city}
+          </span>
           <span className="text-xs text-gray-400 dark:text-gray-500">{stop.country}</span>
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${COST_LEVEL_BADGE[stop.costLevel] ?? 'bg-gray-100 text-gray-600'}`}>
             {stop.costLevel}
@@ -249,10 +295,13 @@ function EliminationCard({ elim, index }: { elim: EliminationSummary; index: num
 // ── Dashboard ──
 
 function Dashboard() {
-  useTheme(); // keep ThemeProvider hook active for dark mode CSS classes
+  useTheme();
+  const { user } = useAuth();
+  // Passports are account-level — read from AuthContext, never editable here
+  const citizenPassports = user?.passports ?? ['TR'];
 
   const [form, setForm] = useState<RouteRequest>({
-    passportCountryCode: 'TR',
+    passports: citizenPassports,
     budgetBracket: 'Budget',
     totalBudgetUsd: 1500,
     durationDays: 10,
@@ -265,6 +314,8 @@ function Dashboard() {
   const [result, setResult] = useState<RouteResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Track saved route option names to show per-card saved state
+  const [savedRouteNames, setSavedRouteNames] = useState<Set<string>>(new Set());
 
   const setField = <K extends keyof RouteRequest>(key: K, value: RouteRequest[K]) =>
     setForm(prev => ({ ...prev, [key]: value }));
@@ -274,6 +325,7 @@ function Dashboard() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setSavedRouteNames(new Set());
     try {
       const data = await generateRoutes(form);
       setResult(data);
@@ -285,15 +337,42 @@ function Dashboard() {
     }
   };
 
+  const handleSave = async (option: RouteOption) => {
+    const payload = {
+      userId: 1,
+      routeName: option.routeName,
+      passports: form.passports,
+      budgetBracket: form.budgetBracket,
+      totalBudgetUsd: form.totalBudgetUsd,
+      durationDays: form.durationDays,
+      regionPreference: form.regionPreference,
+      hasSchengenVisa: form.hasSchengenVisa,
+      hasUsVisa: form.hasUsVisa,
+      hasUkVisa: form.hasUkVisa,
+      selectionReason: option.selectionReason,
+      stops: option.stops.map((s, i) => ({
+        city: s.city,
+        countryCode: s.countryCode,
+        recommendedDays: s.recommendedDays,
+        stopOrder: i + 1,
+        costLevel: s.costLevel,
+        stopReason: s.stopReason,
+      })),
+    };
+    console.log('[routiq] Save Route Payload:', JSON.stringify(payload, null, 2));
+    await saveRoute(payload);
+    setSavedRouteNames(prev => new Set([...prev, option.routeName]));
+  };
+
   const hasResult = result !== null;
   const hasOptions = hasResult && result.options.length > 0;
   const hasEliminations = hasResult && result.eliminations.length > 0;
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-5">
 
       {/* Page header */}
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
         <div className="flex items-center gap-3 mb-1">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
             <Zap size={16} className="text-white" />
@@ -308,32 +387,34 @@ function Dashboard() {
       </motion.div>
 
       {/* 2-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
         {/* ═══ LEFT: Input Engine ═══ */}
         <motion.div
           initial={{ opacity: 0, x: -12 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}
-          className="lg:col-span-4 lg:sticky lg:top-24"
+          className="lg:col-span-4 lg:sticky lg:top-20"
         >
-          <div className="bg-white dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 rounded-2xl p-6 shadow-sm space-y-5">
+          <div className="bg-white dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 rounded-xl p-4 shadow-sm space-y-3">
 
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">
+            <div className="flex items-center gap-2 mb-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              <h2 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wide">
                 Input Engine
               </h2>
             </div>
 
-            {/* Passport */}
-            <div>
-              <FormLabel icon={Globe}>Passport Country</FormLabel>
-              <SelectField id="passport" value={form.passportCountryCode} onChange={v => setField('passportCountryCode', v)}>
-                {PASSPORT_OPTIONS.map(o => (
-                  <option key={o.code} value={o.code}>{o.label}</option>
+            {/* Read-Only Citizen Identity */}
+            <div className="bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
+              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Logged-in Citizen of</p>
+              <div className="flex flex-wrap gap-1">
+                {citizenPassports.map(code => (
+                  <span key={code} className="inline-flex items-center text-[11px] font-semibold bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                    {flagLabel(code)}
+                  </span>
                 ))}
-              </SelectField>
+              </div>
             </div>
 
             {/* Budget Bracket */}
@@ -356,7 +437,7 @@ function Dashboard() {
                 step={100}
                 value={form.totalBudgetUsd}
                 onChange={e => setField('totalBudgetUsd', Number(e.target.value))}
-                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
+                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
                 placeholder="e.g. 1500"
               />
             </div>
@@ -371,7 +452,7 @@ function Dashboard() {
                 max={90}
                 value={form.durationDays}
                 onChange={e => setField('durationDays', Number(e.target.value))}
-                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
+                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
                 placeholder="e.g. 10"
               />
             </div>
@@ -391,14 +472,14 @@ function Dashboard() {
               <FormLabel icon={CheckSquare}>Visas You Hold</FormLabel>
               <div className="space-y-2.5">
                 {([
-                  { key: 'hasUsVisa', label: '🇺🇸 US Visa' },
-                  { key: 'hasUkVisa', label: '🇬🇧 UK Visa' },
-                  { key: 'hasSchengenVisa', label: '🇪🇺 Schengen Visa' },
-                ] as const).map(({ key, label }) => (
+                  { key: 'hasUsVisa', code: 'US', label: 'US Visa' },
+                  { key: 'hasUkVisa', code: 'GB', label: 'UK Visa' },
+                  { key: 'hasSchengenVisa', code: 'EU', label: 'Schengen Visa' },
+                ] as const).map(({ key, code, label }) => (
                   <label
                     key={key}
                     htmlFor={key}
-                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
                   >
                     <input
                       id={key}
@@ -407,7 +488,10 @@ function Dashboard() {
                       onChange={e => setField(key, e.target.checked)}
                       className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
                     />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                      <ReactCountryFlag countryCode={code} svg style={{ width: '1.1em', height: '1.1em', borderRadius: '2px' }} title={label} />
+                      {label}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -418,7 +502,7 @@ function Dashboard() {
               id="generate-route-btn"
               onClick={handleGenerate}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl px-6 py-3.5 text-sm shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-200 mt-1"
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl px-6 py-3 text-sm shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-200 mt-1"
             >
               {loading ? (
                 <><Loader2 size={16} className="animate-spin" /> Generating Route...</>
@@ -490,7 +574,7 @@ function Dashboard() {
                 {/* ── Route Options ── */}
                 {hasOptions ? (
                   <section>
-                    <div className="flex items-center gap-2 mb-4">
+                    <div className="flex items-center gap-2 mb-4 flex-wrap">
                       <CheckCircle2 size={16} className="text-emerald-500" />
                       <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">
                         Generated Routes
@@ -498,10 +582,21 @@ function Dashboard() {
                       <span className="text-xs bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-semibold px-2 py-0.5 rounded-full">
                         {result!.options.length} option{result!.options.length > 1 ? 's' : ''}
                       </span>
+                      <span className="flex items-center gap-1">
+                        {form.passports.map(c => (
+                          <ReactCountryFlag key={c} countryCode={c} svg style={{ width: '1.3em', height: '1.3em', borderRadius: '3px' }} title={c} />
+                        ))}
+                      </span>
                     </div>
                     <div className="space-y-5">
                       {result!.options.map((opt, i) => (
-                        <RouteOptionCard key={i} option={opt} index={i} />
+                        <RouteOptionCard
+                          key={i}
+                          option={opt}
+                          index={i}
+                          onSave={handleSave}
+                          saved={savedRouteNames.has(opt.routeName)}
+                        />
                       ))}
                     </div>
                   </section>

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { RotateCcw, GitFork, MapPin, Calendar, DollarSign, Check } from 'lucide-react';
 import { Card } from '../components/ui/Card';
-import { countryCodeToFlag } from '../utils/communityData';
+import ReactCountryFlag from 'react-country-flag';
 
 // ── Mock trip data ──
 
@@ -169,7 +169,7 @@ export const DiscoverPage = () => {
                                 <div className="flex items-start justify-between mb-3">
                                     <div>
                                         <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                            <span className="text-xl">{countryCodeToFlag(card.countryCode)}</span>
+                                            <ReactCountryFlag countryCode={card.countryCode} svg style={{ width: '1.3em', height: '1.3em', borderRadius: '3px' }} title={card.country} />
                                             {card.destination}
                                         </h3>
                                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{card.country}</p>

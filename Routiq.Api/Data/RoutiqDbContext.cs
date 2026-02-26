@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Routiq.Api.Entities;
 
 namespace Routiq.Api.Data;
@@ -35,6 +36,26 @@ public class RoutiqDbContext : DbContext
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
+
+        // ── List<string> ValueConverters ──
+        // EF Core / Npgsql does not auto-map List<string> to text[].
+        // Serialise as comma-joined text so the column is a simple VARCHAR.
+        var stringListConverter = new ValueConverter<List<string>, string>(
+            v => string.Join(',', v),
+            v => string.IsNullOrEmpty(v)
+                     ? new List<string>()
+                     : v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+        );
+
+        modelBuilder.Entity<UserProfile>()
+            .Property(up => up.Passports)
+            .HasConversion(stringListConverter)
+            .HasColumnType("text");
+
+        modelBuilder.Entity<RouteQuery>()
+            .Property(rq => rq.Passports)
+            .HasConversion(stringListConverter)
+            .HasColumnType("text");
 
         // ── UserProfile ──
         modelBuilder.Entity<UserProfile>()

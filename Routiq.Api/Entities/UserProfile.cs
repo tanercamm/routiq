@@ -6,6 +6,7 @@ namespace Routiq.Api.Entities;
 /// <summary>
 /// Extended profile for a registered user.
 /// V2: Gamification points removed. Community loop is validation, not social scoring.
+/// V2.1: PassportCountryCode replaced by Passports (multi-citizenship support).
 /// </summary>
 public class UserProfile
 {
@@ -21,15 +22,18 @@ public class UserProfile
     [Required, EmailAddress]
     public string Email { get; set; } = string.Empty;
 
-    /// <summary>ISO 3166-1 alpha-2 passport country. Used as the default in RouteQuery generation.</summary>
-    [MaxLength(3)]
-    public string PassportCountryCode { get; set; } = "TR";
+    /// <summary>
+    /// ISO 3166-1 alpha-2 passport country codes. Supports dual/multiple citizenship.
+    /// Stored as a JSON array column by EF Core.
+    /// e.g. ["TR", "DE"] for a Turkish-German dual citizen.
+    /// </summary>
+    public List<string> Passports { get; set; } = new() { "TR" };
 
     /// <summary>Preferred display currency for the UI (does not affect engine logic — engine uses USD).</summary>
     [MaxLength(3)]
     public string PreferredCurrency { get; set; } = "USD";
 
-    /// <summary>ISO 3166-1 alpha-2 for emoji flag rendering in the UI.</summary>
+    /// <summary>ISO 3166-1 alpha-2 for emoji flag rendering in the UI (primary passport country).</summary>
     [MaxLength(3)]
     public string CountryCode { get; set; } = "TR";
 

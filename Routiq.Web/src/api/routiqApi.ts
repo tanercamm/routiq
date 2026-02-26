@@ -18,6 +18,44 @@ export const register = async (userData: { email: string; password: string; firs
 };
 
 export const generateRoutes = async (payload: RouteRequest): Promise<RouteResponse> => {
+    console.log('Payload being sent:', payload);
     const response = await api.post<RouteResponse>('/routes/generate', payload);
     return response.data;
+};
+
+export interface SaveRoutePayload {
+    userId: number;
+    routeName: string;
+    passports: string[];
+    budgetBracket: string;
+    totalBudgetUsd: number;
+    durationDays: number;
+    regionPreference: string;
+    hasSchengenVisa: boolean;
+    hasUsVisa: boolean;
+    hasUkVisa: boolean;
+    selectionReason: string;
+    stops: {
+        city: string;
+        countryCode: string;
+        recommendedDays: number;
+        stopOrder: number;
+        costLevel: string;
+        stopReason?: string;
+    }[];
+}
+
+export const saveRoute = async (payload: SaveRoutePayload): Promise<{ id: string }> => {
+    try {
+        console.log('[routiq] POST /routes/save payload:', JSON.stringify(payload, null, 2));
+        const response = await api.post('/routes/save', payload);
+        console.log('[routiq] Save route success:', response.data);
+        return response.data;
+    } catch (err: any) {
+        console.error('[routiq] Save route FAILED:',
+            err?.response?.status,
+            err?.response?.data ?? err?.message
+        );
+        throw err;
+    }
 };
