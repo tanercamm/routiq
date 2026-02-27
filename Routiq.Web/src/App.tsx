@@ -62,7 +62,7 @@ const COST_LEVEL_BADGE: Record<string, string> = {
 
 function FormLabel({ icon: Icon, children }: { icon: React.FC<{ size?: number; className?: string }>; children: React.ReactNode }) {
   return (
-    <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+    <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
       <Icon size={12} className="opacity-70" />
       {children}
     </label>
@@ -78,7 +78,7 @@ function SelectField({ value, onChange, children, id }: {
         id={id}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer transition-colors"
+        className="w-full appearance-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-1.5 pr-8 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer transition-colors"
       >
         {children}
       </select>
@@ -120,13 +120,13 @@ function RouteOptionCard({
       className="bg-white dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 rounded-2xl overflow-hidden shadow-sm"
     >
       {/* Header */}
-      <div className={`bg-gradient-to-r ${gradient} px-4 py-3`}>
+      <div className={`bg-gradient-to-r ${gradient} px-2.5 py-1.5`}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-white font-bold text-base">{option.routeName}</h3>
-            <p className="text-white/80 text-xs mt-0.5 leading-relaxed">{option.selectionReason}</p>
+            <h3 className="text-white font-bold text-xs">{option.routeName}</h3>
+            <p className="text-white/80 text-[10px] mt-0.5 leading-relaxed">{option.selectionReason}</p>
           </div>
-          <span className="shrink-0 bg-white/20 text-white text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
+          <span className="shrink-0 bg-white/20 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap mt-0.5">
             {option.estimatedBudgetRange}
           </span>
         </div>
@@ -140,7 +140,7 @@ function RouteOptionCard({
       </div>
 
       {/* Save footer */}
-      <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800/40 border-t border-gray-100 dark:border-gray-700/40 flex items-center justify-between gap-3">
+      <div className="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800/40 border-t border-gray-100 dark:border-gray-700/40 flex items-center justify-between gap-3">
         {/* Toast message */}
         <AnimatePresence>
           {toast === 'success' && (
@@ -171,7 +171,7 @@ function RouteOptionCard({
         <button
           onClick={handleClick}
           disabled={saved || saving}
-          className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all shrink-0 ${saved
+          className={`flex items-center gap-1.5 text-[10px] uppercase tracking-wide font-bold px-2.5 py-1 rounded-md transition-all shrink-0 ${saved
             ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 cursor-default'
             : saving
               ? 'bg-blue-50 text-blue-400 dark:bg-blue-500/10 cursor-wait opacity-70 border border-blue-200 dark:border-blue-500/30'
@@ -187,35 +187,35 @@ function RouteOptionCard({
 
 function StopRow({ stop, index }: { stop: RouteStop; index: number }) {
   return (
-    <div className="flex items-start gap-3 px-4 py-3">
+    <div className="flex items-start gap-2.5 px-2.5 py-2">
       {/* Order badge */}
-      <span className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-500 dark:text-gray-300 shrink-0 mt-0.5">
+      <span className="w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-[10px] font-bold text-gray-500 dark:text-gray-300 shrink-0 mt-0.5">
         {index + 1}
       </span>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
-            <ReactCountryFlag countryCode={stop.countryCode} svg style={{ width: '1.1em', height: '1.1em', borderRadius: '2px' }} title={stop.countryCode} />
+          <span className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+            <ReactCountryFlag countryCode={stop.countryCode} svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px' }} title={stop.countryCode} />
             {stop.city}
           </span>
-          <span className="text-xs text-gray-400 dark:text-gray-500">{stop.country}</span>
-          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${COST_LEVEL_BADGE[stop.costLevel] ?? 'bg-gray-100 text-gray-600'}`}>
+          <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide font-semibold mt-0.5">{stop.country}</span>
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wide mt-0.5 ${COST_LEVEL_BADGE[stop.costLevel] ?? 'bg-gray-100 text-gray-600'}`}>
             {stop.costLevel}
           </span>
         </div>
-        <div className="flex items-center gap-3 mt-1 flex-wrap">
-          <span className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+        <div className="flex items-center gap-2.5 mt-0.5 flex-wrap">
+          <span className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1 font-medium">
             <Calendar size={10} /> {stop.recommendedDays} days
           </span>
-          <span className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+          <span className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1 font-medium">
             <Wallet size={10} /> {stop.dailyBudgetRange}
           </span>
-          <span className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">
+          <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wide">
             {stop.visaStatus}
           </span>
         </div>
         {stop.stopReason && (
-          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 italic leading-relaxed">
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">
             {stop.stopReason}
           </p>
         )}
@@ -259,16 +259,16 @@ function EliminationCard({ elim, index }: { elim: EliminationSummary; index: num
     >
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left"
         aria-expanded={open}
       >
-        <Icon size={14} className={`shrink-0 ${iconColorMap[meta.color]}`} />
+        <Icon size={12} className={`shrink-0 ${iconColorMap[meta.color]}`} />
         <div className="flex-1 min-w-0">
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">
-            {elim.city}, {elim.country}
+          <span className="text-xs font-bold text-gray-900 dark:text-white">
+            {elim.city}, <span className="text-gray-500 text-[10px] uppercase font-semibold">{elim.country}</span>
           </span>
         </div>
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${badgeColorMap[meta.color]}`}>
+        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm shrink-0 uppercase tracking-wide ${badgeColorMap[meta.color]}`}>
           {meta.label}
         </span>
         <ChevronRight size={12} className={`shrink-0 text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} />
@@ -282,7 +282,7 @@ function EliminationCard({ elim, index }: { elim: EliminationSummary; index: num
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <p className="px-4 pb-3 pl-11 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+            <p className="px-2.5 pb-1.5 pl-8 text-[10px] text-gray-600 dark:text-gray-300 leading-snug">
               {elim.explanation}
             </p>
           </motion.div>
@@ -376,10 +376,9 @@ function Dashboard() {
   const hasEliminations = hasResult && result.eliminations.length > 0;
 
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-5">
-
+    <main className="max-w-[1600px] w-[96%] mx-auto px-4 sm:px-6 py-4 min-h-[calc(100vh-4rem)] xl:h-[calc(100vh-4rem)] flex flex-col">
       {/* Page header */}
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
         <div className="flex items-center gap-3 mb-1">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
             <Zap size={16} className="text-white" />
@@ -394,16 +393,16 @@ function Dashboard() {
       </motion.div>
 
       {/* 2-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch flex-1 min-h-0">
 
         {/* ═══ LEFT: Input Engine ═══ */}
         <motion.div
           initial={{ opacity: 0, x: -12 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}
-          className="lg:col-span-4 lg:sticky lg:top-20"
+          className="lg:col-span-4 lg:sticky lg:top-20 lg:h-[calc(100vh-10rem)] mb-8 flex flex-col"
         >
-          <div className="bg-white dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 rounded-xl p-4 shadow-sm space-y-3">
+          <div className="bg-white dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 rounded-xl p-5 shadow-sm space-y-4 h-full flex-1 overflow-y-auto custom-scrollbar">
 
             <div className="flex items-center gap-2 mb-0.5">
               <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
@@ -422,9 +421,9 @@ function Dashboard() {
                   if (!code) return null;
                   const name = countryNames[code] || code;
                   return (
-                    <span key={code} className="inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                    <span key={code} className="inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-full">
                       <ReactCountryFlag countryCode={code} svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px', display: 'flex', alignItems: 'center' }} title={name} />
-                      <span className="mt-0.5">{name}</span>
+                      <span>{name}</span>
                     </span>
                   )
                 })}
@@ -441,34 +440,35 @@ function Dashboard() {
               </SelectField>
             </div>
 
-            {/* Total Budget */}
-            <div>
-              <FormLabel icon={Wallet}>Total Budget Cap (USD)</FormLabel>
-              <input
-                id="totalBudget"
-                type="number"
-                min={0}
-                step={100}
-                value={form.totalBudgetUsd}
-                onChange={e => setField('totalBudgetUsd', Number(e.target.value))}
-                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
-                placeholder="e.g. 1500"
-              />
-            </div>
+            {/* Side-by-side: Budget Cap & Duration */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FormLabel icon={Wallet}>Total Budget (USD)</FormLabel>
+                <input
+                  id="totalBudget"
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={form.totalBudgetUsd}
+                  onChange={e => setField('totalBudgetUsd', Number(e.target.value))}
+                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-2.5 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
+                  placeholder="e.g. 1500"
+                />
+              </div>
 
-            {/* Duration */}
-            <div>
-              <FormLabel icon={Calendar}>Duration (Days)</FormLabel>
-              <input
-                id="duration"
-                type="number"
-                min={1}
-                max={90}
-                value={form.durationDays}
-                onChange={e => setField('durationDays', Number(e.target.value))}
-                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
-                placeholder="e.g. 10"
-              />
+              <div>
+                <FormLabel icon={Calendar}>Duration (Days)</FormLabel>
+                <input
+                  id="duration"
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={form.durationDays}
+                  onChange={e => setField('durationDays', Number(e.target.value))}
+                  className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-2.5 py-1.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
+                  placeholder="e.g. 10"
+                />
+              </div>
             </div>
 
             {/* Region */}
@@ -484,7 +484,7 @@ function Dashboard() {
             {/* Visa flags */}
             <div>
               <FormLabel icon={CheckSquare}>Visas You Hold</FormLabel>
-              <div className="space-y-2.5">
+              <div className="flex flex-wrap gap-2">
                 {([
                   { key: 'hasUsVisa', code: 'US', label: 'US Visa' },
                   { key: 'hasUkVisa', code: 'GB', label: 'UK Visa' },
@@ -493,18 +493,18 @@ function Dashboard() {
                   <label
                     key={key}
                     htmlFor={key}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                    className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
                   >
                     <input
                       id={key}
                       type="checkbox"
                       checked={form[key]}
                       onChange={e => setField(key, e.target.checked)}
-                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
                     />
                     <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                      <ReactCountryFlag countryCode={code} svg style={{ width: '1.1em', height: '1.1em', borderRadius: '2px' }} title={label} />
-                      {label}
+                      <ReactCountryFlag countryCode={code} svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px' }} title={label} />
+                      <span className="mt-0.5">{label}</span>
                     </span>
                   </label>
                 ))}
@@ -516,7 +516,7 @@ function Dashboard() {
               id="generate-route-btn"
               onClick={handleGenerate}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl px-6 py-3 text-sm shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-200 mt-1"
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl px-4 py-2 text-sm shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-200 mt-2"
             >
               {loading ? (
                 <><Loader2 size={16} className="animate-spin" /> Generating Route...</>
@@ -529,137 +529,141 @@ function Dashboard() {
         </motion.div>
 
         {/* ═══ RIGHT: Output & Explanation ═══ */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className="lg:col-span-8 lg:h-[calc(100vh-10rem)] mb-8">
+          <div className="bg-white dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 rounded-xl p-5 shadow-sm h-full overflow-y-auto custom-scrollbar">
+            <div className="space-y-4">
 
-          <AnimatePresence mode="wait">
-            {/* Loading state */}
-            {loading && (
-              <motion.div
-                key="loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-24 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-2xl"
-              >
-                <Loader2 size={36} className="text-blue-500 animate-spin mb-4" />
-                <p className="text-gray-600 dark:text-gray-300 font-medium">Running deterministic filters...</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Visa rules → Budget → Days</p>
-              </motion.div>
-            )}
+              <AnimatePresence mode="wait">
+                {/* Loading state */}
+                {loading && (
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col items-center justify-center py-24 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-2xl"
+                  >
+                    <Loader2 size={36} className="text-blue-500 animate-spin mb-4" />
+                    <p className="text-gray-600 dark:text-gray-300 font-medium">Running deterministic filters...</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Visa rules → Budget → Days</p>
+                  </motion.div>
+                )}
 
-            {/* Error state */}
-            {!loading && error && (
-              <motion.div
-                key="error"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-start gap-3 p-5 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-2xl"
-              >
-                <XCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-red-700 dark:text-red-300">Engine Error</p>
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{error}</p>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Empty / initial state */}
-            {!loading && !error && !hasResult && (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center py-24 bg-white dark:bg-gray-800/40 border border-dashed border-gray-200 dark:border-gray-700 rounded-2xl"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-500/20 dark:to-indigo-500/20 flex items-center justify-center mb-4">
-                  <Zap size={26} className="text-blue-500" />
-                </div>
-                <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">Ready to generate</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 text-center max-w-xs">
-                  Configure your constraints on the left, then click <strong>Generate Logical Route</strong>.
-                </p>
-              </motion.div>
-            )}
-
-            {/* Results */}
-            {!loading && hasResult && (
-              <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-
-                {/* ── Route Options ── */}
-                {hasOptions ? (
-                  <section>
-                    <div className="flex items-center gap-2 mb-4 flex-wrap">
-                      <CheckCircle2 size={16} className="text-emerald-500" />
-                      <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">
-                        Generated Routes
-                      </h2>
-                      <span className="text-xs bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-semibold px-2 py-0.5 rounded-full">
-                        {result!.options.length} option{result!.options.length > 1 ? 's' : ''}
-                      </span>
-                      <span className="flex items-center gap-2">
-                        {Array.isArray(form.passports) && form.passports.map(c => {
-                          if (!c) return null;
-                          const name = countryNames[c] || c;
-                          return (
-                            <span key={c} className="inline-flex items-center justify-center gap-1">
-                              <ReactCountryFlag countryCode={c} svg style={{ width: '1.3em', height: '1.3em', borderRadius: '3px', display: 'flex', alignItems: 'center' }} title={name} />
-                              <span className="mt-0.5 text-xs font-semibold text-gray-700 dark:text-gray-300">{name}</span>
-                            </span>
-                          )
-                        })}
-                      </span>
-                    </div>
-                    <div className="space-y-5">
-                      {result!.options.map((opt, i) => (
-                        <RouteOptionCard
-                          key={i}
-                          option={opt}
-                          index={i}
-                          onSave={handleSave}
-                          saved={savedRouteNames.has(opt.routeName)}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                ) : (
-                  <section className="flex items-start gap-3 p-5 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 rounded-2xl">
-                    <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                {/* Error state */}
+                {!loading && error && (
+                  <motion.div
+                    key="error"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-start gap-3 p-5 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-2xl"
+                  >
+                    <XCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">No viable routes found</p>
-                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                        All destinations were eliminated by the engine's rules. See the explanations below.
-                      </p>
+                      <p className="text-sm font-semibold text-red-700 dark:text-red-300">Engine Error</p>
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{error}</p>
                     </div>
-                  </section>
+                  </motion.div>
                 )}
 
-                {/* ── Why NOT Section ── */}
-                {hasEliminations && (
-                  <section>
-                    <div className="flex items-center gap-2 mb-4">
-                      <XCircle size={16} className="text-red-400" />
-                      <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">
-                        Why NOT These Destinations?
-                      </h2>
-                      <span className="text-xs bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 font-semibold px-2 py-0.5 rounded-full">
-                        {result!.eliminations.length} eliminated
-                      </span>
+                {/* Empty / initial state */}
+                {!loading && !error && !hasResult && (
+                  <motion.div
+                    key="empty"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col items-center justify-center py-24 bg-white dark:bg-gray-800/40 border border-dashed border-gray-200 dark:border-gray-700 rounded-2xl"
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-500/20 dark:to-indigo-500/20 flex items-center justify-center mb-4">
+                      <Zap size={26} className="text-blue-500" />
                     </div>
-                    <div className="space-y-2">
-                      {result!.eliminations.map((elim, i) => (
-                        <EliminationCard key={i} elim={elim} index={i} />
-                      ))}
-                    </div>
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-3 text-center">
-                      Click any row to see the full engine explanation.
+                    <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">Ready to generate</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 text-center max-w-xs">
+                      Configure your constraints on the left, then click <strong>Generate Logical Route</strong>.
                     </p>
-                  </section>
+                  </motion.div>
                 )}
 
-              </motion.div>
-            )}
-          </AnimatePresence>
+                {/* Results */}
+                {!loading && hasResult && (
+                  <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
 
+                    {/* ── Route Options ── */}
+                    {hasOptions ? (
+                      <section>
+                        <div className="flex items-center gap-2 mb-4 flex-wrap">
+                          <CheckCircle2 size={16} className="text-emerald-500" />
+                          <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">
+                            Generated Routes
+                          </h2>
+                          <span className="text-[10px] uppercase tracking-wide bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-sm">
+                            {result!.options.length} option{result!.options.length > 1 ? 's' : ''}
+                          </span>
+                          <span className="flex items-center gap-1.5 ml-auto">
+                            {Array.isArray(form.passports) && form.passports.map(c => {
+                              if (!c) return null;
+                              const name = countryNames[c] || c;
+                              return (
+                                <span key={c} className="inline-flex items-center justify-center gap-1">
+                                  <ReactCountryFlag countryCode={c} svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px', display: 'flex', alignItems: 'center' }} title={name} />
+                                  <span className="mt-0.5 text-[10px] uppercase font-bold text-gray-700 dark:text-gray-300">{c}</span>
+                                </span>
+                              )
+                            })}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {result!.options.map((opt, i) => (
+                            <RouteOptionCard
+                              key={i}
+                              option={opt}
+                              index={i}
+                              onSave={handleSave}
+                              saved={savedRouteNames.has(opt.routeName)}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    ) : (
+                      <section className="flex items-start gap-3 p-5 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 rounded-2xl">
+                        <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">No viable routes found</p>
+                          <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                            All destinations were eliminated by the engine's rules. See the explanations below.
+                          </p>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* ── Why NOT Section ── */}
+                    {hasEliminations && (
+                      <section>
+                        <div className="flex items-center gap-2 mb-4">
+                          <XCircle size={16} className="text-red-400" />
+                          <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">
+                            Why NOT These Destinations?
+                          </h2>
+                          <span className="text-[10px] uppercase tracking-wide bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 font-bold px-2 py-0.5 rounded-sm">
+                            {result!.eliminations.length} eliminated
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {result!.eliminations.map((elim, i) => (
+                            <EliminationCard key={i} elim={elim} index={i} />
+                          ))}
+                        </div>
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-3 text-center">
+                          Click any row to see the full engine explanation.
+                        </p>
+                      </section>
+                    )}
+
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+            </div>
+          </div>
         </div>
       </div>
     </main>

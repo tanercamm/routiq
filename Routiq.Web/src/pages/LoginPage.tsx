@@ -27,7 +27,8 @@ export const LoginPage = () => {
             login(response.token, {
                 email: response.email,
                 name: response.name,
-                role: response.role
+                role: response.role,
+                passports: response.passports || []
             });
             navigate('/');
         } catch (err: any) {
