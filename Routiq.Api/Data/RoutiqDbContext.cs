@@ -19,6 +19,10 @@ public class RoutiqDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<UserProfile> UserProfiles { get; set; }
 
+    // ── Travel Groups ──
+    public DbSet<TravelGroup> TravelGroups { get; set; }
+    public DbSet<TravelGroupMember> TravelGroupMembers { get; set; }
+
     // ── Route Engine ──
     public DbSet<RouteQuery> RouteQueries { get; set; }
     public DbSet<SavedRoute> SavedRoutes { get; set; }
@@ -36,6 +40,26 @@ public class RoutiqDbContext : DbContext
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
+
+        // ── Travel Groups ──
+        modelBuilder.Entity<TravelGroup>()
+            .HasIndex(tg => tg.InviteCode)
+            .IsUnique();
+
+        modelBuilder.Entity<TravelGroupMember>()
+            .HasKey(tgm => new { tgm.GroupId, tgm.UserId });
+
+        modelBuilder.Entity<TravelGroupMember>()
+            .HasOne(tgm => tgm.Group)
+            .WithMany(tg => tg.Members)
+            .HasForeignKey(tgm => tgm.GroupId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TravelGroupMember>()
+            .HasOne(tgm => tgm.User)
+            .WithMany() // or add navigation to User
+            .HasForeignKey(tgm => tgm.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // ── List<string> ValueConverters ──
         // EF Core / Npgsql does not auto-map List<string> to text[].

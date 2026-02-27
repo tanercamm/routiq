@@ -6,8 +6,9 @@ import { Button } from '../components/ui/Button';
 import { PASSPORT_CODES } from '../constants/passports';
 import ReactCountryFlag from 'react-country-flag';
 import {
-    User, Plane, Globe, Settings, ChevronDown, ChevronUp, CheckCircle2
+    User, Plane, Globe, Settings, ChevronDown, ChevronUp, CheckCircle2, Loader2, Camera, Trash2, X
 } from 'lucide-react';
+import { routiqApi } from '../api/routiqApi';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 import { countryNames } from '../utils/countryMapper';
@@ -17,14 +18,16 @@ const CURRENCIES = ['USD', 'EUR', 'GBP', 'TRY', 'JPY', 'THB', 'CAD', 'AUD', 'PLN
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export const ProfilePage = () => {
-    const { user, updatePassports } = useAuth();
+    const { user, updatePassports, setUserAvatar } = useAuth();
 
     // Citizenship is driven by AuthContext — this is the ONLY place to edit it
     const [passports, setPassports] = useState<string[]>(Array.isArray(user?.passports) ? user.passports : ['TR']);
     const [preferredCurrency, setPreferredCurrency] = useState('USD');
     const [prefsSaved, setPrefsSaved] = useState(false);
     const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
+    const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
     const [savedTrips, setSavedTrips] = useState<any[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
 
     // Keep local passport state in sync if context loads late
     useEffect(() => {
@@ -39,25 +42,59 @@ export const ProfilePage = () => {
 
     useEffect(() => {
         const fetchSavedTrips = async () => {
+            if (!user?.id) return;
             try {
-                const userId = 1; // TODO: resolve from JWT
-                const response = await fetch(`http://localhost:5107/api/routes/user/${userId}`);
-                if (response.ok) setSavedTrips(await response.json());
+                const response = await routiqApi.get(`/routes/user/${user.id}`);
+                setSavedTrips(response.data);
             } catch (err) {
                 console.error('Failed to fetch saved trips', err);
             }
         };
         fetchSavedTrips();
-    }, []);
+    }, [user?.id]);
 
     const activeTrip = savedTrips.find((t: any) => t.status === 'Active');
 
     const handleSetActive = async (routeId: string) => {
         setSavedTrips(prev => prev.map(t => ({ ...t, status: t.id === routeId ? 'Active' : 'Saved' })));
         try {
-            await fetch(`http://localhost:5107/api/routes/${routeId}/set-active`, { method: 'PUT' });
+            await routiqApi.put(`/routes/${routeId}/set-active`);
         } catch {
             setSavedTrips(prev => prev.map(t => ({ ...t, status: 'Saved' })));
+        }
+    };
+
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            setIsUploading(true);
+            const response = await routiqApi.post('/auth/profile/avatar', formData);
+            if (response.data?.avatarUrl) {
+                setUserAvatar(response.data.avatarUrl);
+            }
+        } catch (err) {
+            console.error('Failed to upload avatar', err);
+        } finally {
+            setIsUploading(false);
+            setIsAvatarModalOpen(false); // Close modal on success
+        }
+    };
+
+    const handleRemoveAvatar = async () => {
+        try {
+            setIsUploading(true);
+            await routiqApi.delete('/auth/profile/avatar');
+            setUserAvatar(null);
+            setIsAvatarModalOpen(false);
+        } catch (err) {
+            console.error('Failed to remove avatar', err);
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -71,8 +108,20 @@ export const ProfilePage = () => {
                         <Card>
                             <div className="flex items-center gap-4">
                                 {/* Avatar */}
-                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center shrink-0">
-                                    <User size={20} className="text-white" />
+                                <div className="relative shrink-0">
+                                    <button
+                                        onClick={() => setIsAvatarModalOpen(true)}
+                                        className="w-14 h-14 rounded-full flex items-center justify-center overflow-hidden transition-all hover:ring-2 hover:ring-teal-500 focus:outline-none"
+                                        aria-label="Manage Avatar"
+                                    >
+                                        {user?.avatarUrl ? (
+                                            <img src={`http://localhost:5107${user.avatarUrl}`} alt="Profile" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center">
+                                                <User size={24} className="text-white" />
+                                            </div>
+                                        )}
+                                    </button>
                                 </div>
                                 {/* Info */}
                                 <div className="flex-1 min-w-0">
@@ -283,6 +332,77 @@ export const ProfilePage = () => {
 
                 </div>
             </main>
+
+            {/* ── Avatar Management Modal ────────────────────────────────────── */}
+            <AnimatePresence>
+                {isAvatarModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                            onClick={() => !isUploading && setIsAvatarModalOpen(false)}
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md overflow-hidden"
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Profile Picture</h3>
+                                <button
+                                    onClick={() => !isUploading && setIsAvatarModalOpen(false)}
+                                    className="p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                                    disabled={isUploading}
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            <div className="flex flex-col items-center justify-center py-2 space-y-8">
+                                {/* Jumbo Avatar Display */}
+                                <div className="w-72 h-72 rounded-full overflow-hidden ring-4 ring-gray-100 dark:ring-gray-800 shadow-2xl relative">
+                                    {isUploading && (
+                                        <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center backdrop-blur-sm">
+                                            <Loader2 size={32} className="text-white animate-spin" />
+                                        </div>
+                                    )}
+
+                                    {user?.avatarUrl ? (
+                                        <img src={`http://localhost:5107${user.avatarUrl}`} alt="Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center">
+                                            <User size={48} className="text-white" />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Actions */}
+                                <div className="w-full space-y-2">
+                                    <label className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-xl transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-800 dark:hover:bg-gray-100 cursor-pointer'}`}>
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleAvatarChange} disabled={isUploading} />
+                                        <Camera size={18} />
+                                        Change Photo
+                                    </label>
+
+                                    {user?.avatarUrl && (
+                                        <button
+                                            onClick={handleRemoveAvatar}
+                                            disabled={isUploading}
+                                            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white dark:bg-transparent text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 font-medium rounded-xl border border-red-200 dark:border-transparent transition-colors disabled:opacity-50"
+                                        >
+                                            <Trash2 size={18} />
+                                            Remove Photo
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

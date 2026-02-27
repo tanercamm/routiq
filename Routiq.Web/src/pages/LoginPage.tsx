@@ -25,6 +25,7 @@ export const LoginPage = () => {
         try {
             const response = await apiLogin({ email, password });
             login(response.token, {
+                id: response.id,
                 email: response.email,
                 name: response.name,
                 role: response.role,

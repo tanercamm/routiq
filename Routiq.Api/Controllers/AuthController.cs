@@ -80,4 +80,83 @@ public class AuthController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+    [Authorize]
+    [HttpPost("profile/avatar")]
+    public async Task<ActionResult<AuthResponseDto>> UploadAvatar(IFormFile file)
+    {
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdStr, out int userId)) return Unauthorized();
+
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "No file uploaded." });
+
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "avatars");
+            if (!Directory.Exists(uploadsFolder))
+                Directory.CreateDirectory(uploadsFolder);
+
+            var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var avatarUrl = $"/uploads/avatars/{uniqueFileName}";
+
+            // Inject DbContext to update User entity
+            var dbContext = HttpContext.RequestServices.GetRequiredService<Routiq.Api.Data.RoutiqDbContext>();
+            var user = await dbContext.Users.FindAsync(userId);
+            if (user == null) return NotFound("User not found");
+
+            user.AvatarUrl = avatarUrl;
+            await dbContext.SaveChangesAsync();
+
+            // Refresh the whole profile via existing service
+            var response = await _authService.GetMeAsync(userId);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+    [Authorize]
+    [HttpDelete("profile/avatar")]
+    public async Task<ActionResult<AuthResponseDto>> RemoveAvatar()
+    {
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdStr, out int userId)) return Unauthorized();
+
+            var dbContext = HttpContext.RequestServices.GetRequiredService<Routiq.Api.Data.RoutiqDbContext>();
+            var user = await dbContext.Users.FindAsync(userId);
+            if (user == null) return NotFound("User not found");
+
+            if (!string.IsNullOrEmpty(user.AvatarUrl))
+            {
+                // Physical file deletion
+                var fileName = Path.GetFileName(user.AvatarUrl);
+                var physicalPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "avatars", fileName);
+
+                if (System.IO.File.Exists(physicalPath))
+                {
+                    System.IO.File.Delete(physicalPath);
+                }
+
+                user.AvatarUrl = null;
+                await dbContext.SaveChangesAsync();
+            }
+
+            var response = await _authService.GetMeAsync(userId);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

@@ -3,9 +3,11 @@ import type { ReactNode } from 'react';
 import { routiqApi } from '../api/routiqApi';
 
 interface User {
+    id: number;
     email: string;
     name: string;
     role: string;
+    avatarUrl?: string;
     /** ISO-3166-1 alpha-2 codes for all citizenships, e.g. ["TR", "DE"] */
     passports: string[];
 }
@@ -18,6 +20,8 @@ interface AuthContextType {
     isAuthenticated: boolean;
     /** Update the stored passports list (used from ProfilePage preferences) */
     updatePassports: (passports: string[]) => Promise<void>;
+    /** Update the user's avatar URL dynamically */
+    setUserAvatar: (url: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -127,8 +131,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const setUserAvatar = (url: string | null) => {
+        setUser(prev => {
+            if (!prev) return prev;
+            const updated = { ...prev, avatarUrl: url || undefined };
+            localStorage.setItem('user', JSON.stringify(updated));
+            return updated;
+        });
+    };
+
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, updatePassports }}>
+        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, updatePassports, setUserAvatar }}>
             {children}
         </AuthContext.Provider>
     );

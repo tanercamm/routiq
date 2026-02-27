@@ -19,4 +19,9 @@ public class User
     public string Role { get; set; } = "User"; // "Admin", "User"
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public string? AvatarUrl { get; set; }
+
+    // Navigation
+    public ICollection<TravelGroupMember> GroupMemberships { get; set; } = new List<TravelGroupMember>();
 }

@@ -134,10 +134,12 @@ public class AuthService : IAuthService
 
         return new AuthResponseDto
         {
+            Id = user.Id,
             Token = tokenHandler.WriteToken(token),
             Email = user.Email,
             Name = $"{user.FirstName} {user.LastName}".Trim(),
             Role = user.Role,
+            AvatarUrl = user.AvatarUrl,
             Passports = profile?.Passports ?? new List<string> { "TR" }
         };
     }

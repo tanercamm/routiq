@@ -121,6 +121,7 @@ export const RegisterPage = () => {
         try {
             const response = await apiRegister({ email, password, firstName, lastName });
             login(response.token, {
+                id: response.id,
                 email: response.email,
                 name: response.name,
                 role: response.role,

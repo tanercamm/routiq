@@ -136,6 +136,12 @@ public class RoutesController : ControllerBase
     [HttpGet("user/{userId}")]
     public async Task<ActionResult<List<SavedRouteResponseDto>>> GetUserRoutes(int userId)
     {
+        var currentUserIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(currentUserIdStr, out int currentUserId) || currentUserId != userId)
+        {
+            return Forbid();
+        }
+
         var user = await _context.Users.FindAsync(userId);
         if (user == null)
             return NotFound($"User with ID {userId} not found.");

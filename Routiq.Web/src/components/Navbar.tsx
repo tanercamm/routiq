@@ -64,13 +64,17 @@ export const Navbar = () => {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => navigate('/profile')}
-                            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${location.pathname === '/profile'
+                            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all overflow-hidden ${location.pathname === '/profile'
                                 ? 'bg-blue-600 dark:bg-blue-500 ring-2 ring-blue-300 dark:ring-blue-500/40'
                                 : 'bg-blue-100 dark:bg-blue-500/20 hover:ring-2 hover:ring-blue-300 dark:hover:ring-blue-500/40'
                                 }`}
                             title="Profile"
                         >
-                            <User size={16} className={location.pathname === '/profile' ? 'text-white' : 'text-blue-600 dark:text-blue-400'} />
+                            {user?.avatarUrl ? (
+                                <img src={`http://localhost:5107${user.avatarUrl}`} alt="Navbar Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                                <User size={16} className={location.pathname === '/profile' ? 'text-white' : 'text-blue-600 dark:text-blue-400'} />
+                            )}
                         </button>
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline cursor-pointer hover:text-gray-900 dark:hover:text-white" onClick={() => navigate('/profile')}>
                             {user?.name || user?.email || 'User'}
