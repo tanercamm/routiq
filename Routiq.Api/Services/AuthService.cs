@@ -14,6 +14,8 @@ public interface IAuthService
 {
     Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request);
     Task<AuthResponseDto> LoginAsync(LoginRequestDto request);
+    Task<AuthResponseDto> GetMeAsync(int userId);
+    Task<AuthResponseDto> UpdateProfileAsync(int userId, UpdateProfileRequestDto request);
 }
 
 public class AuthService : IAuthService
@@ -47,7 +49,18 @@ public class AuthService : IAuthService
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        return GenerateAuthResponse(user);
+        var profile = new UserProfile
+        {
+            UserId = user.Id,
+            Username = string.IsNullOrWhiteSpace(request.FirstName) ? request.Email.Split('@')[0] : request.FirstName,
+            Email = request.Email,
+            Passports = new List<string> { "TR" }
+        };
+
+        _context.UserProfiles.Add(profile);
+        await _context.SaveChangesAsync();
+
+        return GenerateAuthResponse(user, profile);
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginRequestDto request)
@@ -59,10 +72,49 @@ public class AuthService : IAuthService
             throw new Exception("Invalid email or password.");
         }
 
-        return GenerateAuthResponse(user);
+        var profile = await _context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+
+        return GenerateAuthResponse(user, profile);
     }
 
-    private AuthResponseDto GenerateAuthResponse(User user)
+    public async Task<AuthResponseDto> GetMeAsync(int userId)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) throw new Exception("User not found.");
+
+        var profile = await _context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+
+        return GenerateAuthResponse(user, profile);
+    }
+
+    public async Task<AuthResponseDto> UpdateProfileAsync(int userId, UpdateProfileRequestDto request)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) throw new Exception("User not found.");
+
+        var profile = await _context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (profile == null)
+        {
+            profile = new UserProfile
+            {
+                UserId = userId,
+                Username = string.IsNullOrWhiteSpace(user.FirstName) ? user.Email.Split('@')[0] : user.FirstName,
+                Email = user.Email,
+                Passports = request.Passports
+            };
+            _context.UserProfiles.Add(profile);
+        }
+        else
+        {
+            profile.Passports = request.Passports;
+        }
+
+        await _context.SaveChangesAsync();
+
+        return GenerateAuthResponse(user, profile);
+    }
+
+    private AuthResponseDto GenerateAuthResponse(User user, UserProfile? profile)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"] ?? "SuperSecretKeyForDevelopmentOnly123!"); // Move to appsettings
@@ -85,7 +137,8 @@ public class AuthService : IAuthService
             Token = tokenHandler.WriteToken(token),
             Email = user.Email,
             Name = $"{user.FirstName} {user.LastName}".Trim(),
-            Role = user.Role
+            Role = user.Role,
+            Passports = profile?.Passports ?? new List<string> { "TR" }
         };
     }
 }

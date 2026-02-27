@@ -61,7 +61,8 @@ function CitizenshipStep({
                     {passports.length === 0 && (
                         <span className="text-xs text-gray-400 italic">No passports selected yet — add one below.</span>
                     )}
-                    {passports.map(code => {
+                    {Array.isArray(passports) && passports.map(code => {
+                        if (!code) return null;
                         const opt = PASSPORT_CODES.find(o => o.code === code);
                         return (
                             <span key={code} className="inline-flex items-center gap-1 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-300 text-xs font-semibold px-2.5 py-1 rounded-full">
@@ -82,11 +83,11 @@ function CitizenshipStep({
                 {/* Add dropdown */}
                 <select
                     value=""
-                    onChange={e => { const v = e.target.value; if (v && !passports.includes(v)) setPassports([...passports, v]); }}
+                    onChange={e => { const v = e.target.value; if (v && Array.isArray(passports) && !passports.includes(v)) setPassports([...passports, v]); }}
                     className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 transition-colors"
                 >
                     <option value="">+ Add a passport country...</option>
-                    {PASSPORT_CODES.filter(o => !passports.includes(o.code)).map(o => (
+                    {Array.isArray(passports) && PASSPORT_CODES.filter(o => !passports.includes(o.code)).map(o => (
                         <option key={o.code} value={o.code}>{o.label}</option>
                     ))}
                 </select>

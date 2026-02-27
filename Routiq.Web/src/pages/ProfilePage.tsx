@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-// PASSPORT_CODES imported from ../constants/passports
+import { countryNames } from '../utils/countryMapper';
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'TRY', 'JPY', 'THB', 'CAD', 'AUD', 'PLN'];
 
@@ -20,7 +20,7 @@ export const ProfilePage = () => {
     const { user, updatePassports } = useAuth();
 
     // Citizenship is driven by AuthContext — this is the ONLY place to edit it
-    const [passports, setPassports] = useState<string[]>(user?.passports ?? ['TR']);
+    const [passports, setPassports] = useState<string[]>(Array.isArray(user?.passports) ? user.passports : ['TR']);
     const [preferredCurrency, setPreferredCurrency] = useState('USD');
     const [prefsSaved, setPrefsSaved] = useState(false);
     const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -28,7 +28,7 @@ export const ProfilePage = () => {
 
     // Keep local passport state in sync if context loads late
     useEffect(() => {
-        if (user?.passports?.length) setPassports(user.passports);
+        if (Array.isArray(user?.passports) && user.passports.length) setPassports(user.passports);
     }, [user?.passports]);
 
     const handleSavePrefs = () => {
@@ -82,12 +82,15 @@ export const ProfilePage = () => {
                                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                                         <span className="inline-flex items-center gap-1.5 text-[11px] border border-gray-200 dark:border-gray-700 rounded-full px-2 py-0.5 text-gray-600 dark:text-gray-300">
                                             <Globe size={10} className="text-teal-500" />
-                                            {passports.map(c => {
-                                                const opt = PASSPORT_CODES.find(o => o.code === c);
+                                            {(!user || !user.passports) ? (
+                                                <span className="text-xs text-gray-400 italic">...</span>
+                                            ) : Array.isArray(passports) && passports.map(c => {
+                                                if (!c) return null;
+                                                const name = countryNames[c] || c;
                                                 return (
-                                                    <span key={c} className="inline-flex items-center gap-1">
-                                                        <ReactCountryFlag countryCode={c} svg style={{ width: '1em', height: '1em', borderRadius: '2px' }} title={c} />
-                                                        {opt?.code ?? c}
+                                                    <span key={c} className="inline-flex items-center justify-center gap-1.5">
+                                                        <ReactCountryFlag countryCode={c} svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px', display: 'flex', alignItems: 'center' }} title={name} />
+                                                        <span className="mt-0.5">{name}</span>
                                                     </span>
                                                 );
                                             })}
@@ -156,14 +159,17 @@ export const ProfilePage = () => {
                                                 <div>
                                                     <label className="text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1 block uppercase tracking-wide">Citizenships</label>
                                                     <div className="flex flex-wrap gap-1.5 mb-2">
-                                                        {passports.map(code => {
-                                                            const opt = PASSPORT_CODES.find(o => o.code === code);
+                                                        {(!user || !user.passports) ? (
+                                                            <span className="text-xs text-gray-400 italic">Loading passports...</span>
+                                                        ) : Array.isArray(passports) && passports.map(code => {
+                                                            if (!code) return null;
+                                                            const name = countryNames[code] || code;
                                                             return (
-                                                                <span key={code} className="inline-flex items-center gap-1.5 bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 text-teal-700 dark:text-teal-300 text-xs font-semibold px-2 py-0.5 rounded-full">
-                                                                    <ReactCountryFlag countryCode={code} svg style={{ width: '1em', height: '1em', borderRadius: '2px' }} title={code} />
-                                                                    {opt?.code ?? code}
+                                                                <span key={code} className="inline-flex items-center justify-center gap-1.5 bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 text-teal-700 dark:text-teal-300 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                                                    <ReactCountryFlag countryCode={code} svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px', display: 'flex', alignItems: 'center' }} title={name} />
+                                                                    <span className="mt-0.5">{name}</span>
                                                                     {passports.length > 1 && (
-                                                                        <button type="button" onClick={() => setPassports(prev => prev.filter(p => p !== code))} className="ml-0.5 hover:text-red-500 transition-colors" aria-label={`Remove ${code}`}>×</button>
+                                                                        <button type="button" onClick={() => setPassports(prev => prev.filter(p => p !== code))} className="ml-1 hover:text-red-500 transition-colors" aria-label={`Remove ${name}`}>×</button>
                                                                     )}
                                                                 </span>
                                                             );
@@ -171,11 +177,11 @@ export const ProfilePage = () => {
                                                     </div>
                                                     <select
                                                         value=""
-                                                        onChange={e => { const v = e.target.value; if (v && !passports.includes(v)) setPassports(prev => [...prev, v]); }}
+                                                        onChange={e => { const v = e.target.value; if (v && Array.isArray(passports) && !passports.includes(v)) setPassports(prev => [...prev, v]); }}
                                                         className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500/40 transition-colors"
                                                     >
                                                         <option value="">+ Add citizenship...</option>
-                                                        {PASSPORT_CODES.filter(o => !passports.includes(o.code)).map(o => (
+                                                        {Array.isArray(passports) && PASSPORT_CODES.filter(o => !passports.includes(o.code)).map(o => (
                                                             <option key={o.code} value={o.code}>{o.code} — {o.label.replace(/^[^ ]+ /, '')}</option>
                                                         ))}
                                                     </select>

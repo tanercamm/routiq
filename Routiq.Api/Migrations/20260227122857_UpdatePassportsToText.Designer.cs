@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Routiq.Api.Data;
@@ -11,9 +12,11 @@ using Routiq.Api.Data;
 namespace Routiq.Api.Migrations
 {
     [DbContext(typeof(RoutiqDbContext))]
-    partial class RoutiqDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260227122857_UpdatePassportsToText")]
+    partial class UpdatePassportsToText
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

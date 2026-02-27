@@ -17,7 +17,7 @@ interface AuthContextType {
     logout: () => void;
     isAuthenticated: boolean;
     /** Update the stored passports list (used from ProfilePage preferences) */
-    updatePassports: (passports: string[]) => void;
+    updatePassports: (passports: string[]) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,16 +32,72 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (storedToken && storedUser) {
             setToken(storedToken);
-            const parsed = JSON.parse(storedUser);
-            // Backward-compat: add passports if missing from stored data
-            if (!parsed.passports) parsed.passports = ['TR'];
-            setUser(parsed);
-            routiqApi.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+            try {
+                const parsed = JSON.parse(storedUser);
+
+                // Safely ensure passports is an array
+                if (!parsed.passports) {
+                    parsed.passports = ['TR'];
+                } else if (typeof parsed.passports === 'string') {
+                    try {
+                        const innerParsed = JSON.parse(parsed.passports);
+                        parsed.passports = Array.isArray(innerParsed) ? innerParsed : ['TR'];
+                    } catch {
+                        parsed.passports = ['TR'];
+                    }
+                } else if (!Array.isArray(parsed.passports)) {
+                    parsed.passports = ['TR'];
+                }
+
+                setUser(parsed);
+                routiqApi.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+
+                // Hydrate the latest state directly from backend
+                routiqApi.get('/auth/me').then(res => {
+                    const refreshedUser = res.data;
+
+                    // Safely ensure passports is an array from API too
+                    if (!refreshedUser.passports) {
+                        refreshedUser.passports = ['TR'];
+                    } else if (typeof refreshedUser.passports === 'string') {
+                        try {
+                            const innerParsed = JSON.parse(refreshedUser.passports);
+                            refreshedUser.passports = Array.isArray(innerParsed) ? innerParsed : ['TR'];
+                        } catch {
+                            refreshedUser.passports = ['TR'];
+                        }
+                    } else if (!Array.isArray(refreshedUser.passports)) {
+                        refreshedUser.passports = ['TR'];
+                    }
+
+                    setUser(refreshedUser);
+                    localStorage.setItem('user', JSON.stringify(refreshedUser));
+                }).catch(err => {
+                    console.error("Failed to hydrate user profile:", err);
+                });
+            } catch (e) {
+                console.error("Failed to parse stored user:", e);
+                localStorage.removeItem('user');
+                localStorage.removeItem('token');
+            }
         }
     }, []);
 
     const login = (newToken: string, newUser: User) => {
-        if (!newUser.passports) newUser.passports = [];
+        // Safely ensure passports is an array
+        if (!newUser.passports) {
+            newUser.passports = ['TR'];
+        } else if (typeof newUser.passports === 'string') {
+            try {
+                const innerParsed = JSON.parse(newUser.passports);
+                newUser.passports = Array.isArray(innerParsed) ? innerParsed : ['TR'];
+            } catch {
+                newUser.passports = ['TR'];
+            }
+        } else if (!Array.isArray(newUser.passports)) {
+            newUser.passports = ['TR'];
+        }
+
         setToken(newToken);
         setUser(newUser);
         localStorage.setItem('token', newToken);
@@ -57,13 +113,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         delete routiqApi.defaults.headers.common['Authorization'];
     };
 
-    const updatePassports = (passports: string[]) => {
-        setUser(prev => {
-            if (!prev) return prev;
-            const updated = { ...prev, passports };
-            localStorage.setItem('user', JSON.stringify(updated));
-            return updated;
-        });
+    const updatePassports = async (passports: string[]) => {
+        try {
+            await routiqApi.put('/auth/profile', { passports });
+            setUser(prev => {
+                if (!prev) return prev;
+                const updated = { ...prev, passports };
+                localStorage.setItem('user', JSON.stringify(updated));
+                return updated;
+            });
+        } catch (err) {
+            console.error("Failed to update passports:", err);
+        }
     };
 
     return (

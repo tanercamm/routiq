@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
@@ -15,7 +15,7 @@ import { generateRoutes, saveRoute } from './api/routiqApi';
 import type { RouteRequest, RouteResponse, RouteOption, RouteStop, EliminationSummary, BudgetBracket, RegionPreference } from './types';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactCountryFlag from 'react-country-flag';
-import { flagLabel } from './constants/passports';
+import { countryNames } from './utils/countryMapper';
 import {
   Loader2, Wallet, Calendar, MapPin, CheckSquare,
   ChevronDown, ChevronRight, XCircle, CheckCircle2, Zap, AlertTriangle, Clock, Map, BookmarkPlus
@@ -298,7 +298,7 @@ function Dashboard() {
   useTheme();
   const { user } = useAuth();
   // Passports are account-level — read from AuthContext, never editable here
-  const citizenPassports = user?.passports ?? ['TR'];
+  const citizenPassports = Array.isArray(user?.passports) ? user.passports : ['TR'];
 
   const [form, setForm] = useState<RouteRequest>({
     passports: citizenPassports,
@@ -310,6 +310,13 @@ function Dashboard() {
     hasUsVisa: false,
     hasUkVisa: false,
   });
+
+  // Hydrate local form state if AuthContext sets/loads passport array late
+  useEffect(() => {
+    if (Array.isArray(user?.passports) && user.passports.length > 0) {
+      setForm(prev => ({ ...prev, passports: user.passports }));
+    }
+  }, [user?.passports]);
 
   const [result, setResult] = useState<RouteResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -408,12 +415,19 @@ function Dashboard() {
             {/* Read-Only Citizen Identity */}
             <div className="bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
               <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Logged-in Citizen of</p>
-              <div className="flex flex-wrap gap-1">
-                {citizenPassports.map(code => (
-                  <span key={code} className="inline-flex items-center text-[11px] font-semibold bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
-                    {flagLabel(code)}
-                  </span>
-                ))}
+              <div className="flex flex-wrap gap-2">
+                {(!user || !user.passports) ? (
+                  <span className="text-xs text-gray-400 italic">Loading profile...</span>
+                ) : Array.isArray(citizenPassports) && citizenPassports.map(code => {
+                  if (!code) return null;
+                  const name = countryNames[code] || code;
+                  return (
+                    <span key={code} className="inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                      <ReactCountryFlag countryCode={code} svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px', display: 'flex', alignItems: 'center' }} title={name} />
+                      <span className="mt-0.5">{name}</span>
+                    </span>
+                  )
+                })}
               </div>
             </div>
 
@@ -582,10 +596,17 @@ function Dashboard() {
                       <span className="text-xs bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-semibold px-2 py-0.5 rounded-full">
                         {result!.options.length} option{result!.options.length > 1 ? 's' : ''}
                       </span>
-                      <span className="flex items-center gap-1">
-                        {form.passports.map(c => (
-                          <ReactCountryFlag key={c} countryCode={c} svg style={{ width: '1.3em', height: '1.3em', borderRadius: '3px' }} title={c} />
-                        ))}
+                      <span className="flex items-center gap-2">
+                        {Array.isArray(form.passports) && form.passports.map(c => {
+                          if (!c) return null;
+                          const name = countryNames[c] || c;
+                          return (
+                            <span key={c} className="inline-flex items-center justify-center gap-1">
+                              <ReactCountryFlag countryCode={c} svg style={{ width: '1.3em', height: '1.3em', borderRadius: '3px', display: 'flex', alignItems: 'center' }} title={name} />
+                              <span className="mt-0.5 text-xs font-semibold text-gray-700 dark:text-gray-300">{name}</span>
+                            </span>
+                          )
+                        })}
                       </span>
                     </div>
                     <div className="space-y-5">

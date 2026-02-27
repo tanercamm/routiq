@@ -39,12 +39,12 @@ public class RoutiqDbContext : DbContext
 
         // ── List<string> ValueConverters ──
         // EF Core / Npgsql does not auto-map List<string> to text[].
-        // Serialise as comma-joined text so the column is a simple VARCHAR.
+        // Serialise as JSON array string so the column is a simple VARCHAR.
         var stringListConverter = new ValueConverter<List<string>, string>(
-            v => string.Join(',', v),
+            v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions)null),
             v => string.IsNullOrEmpty(v)
                      ? new List<string>()
-                     : v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                     : System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions)null) ?? new List<string>()
         );
 
         modelBuilder.Entity<UserProfile>()
