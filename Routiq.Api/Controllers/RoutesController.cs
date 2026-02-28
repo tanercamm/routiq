@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Routiq.Api.Data;
@@ -40,9 +42,18 @@ public class RoutesController : ControllerBase
     /// <summary>
     /// Saves a route (from the engine's output) to the user's profile.
     /// </summary>
+    [Authorize]
     [HttpPost("save")]
     public async Task<IActionResult> SaveRoute([FromBody] SaveRouteDto request)
     {
+        // 1. JWT IDENTITY EXTRACTION
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdStr, out int currentUserId))
+            return Unauthorized("Invalid or missing user token.");
+
+        // 2. OVERRIDE TRIVIAL/MALICIOUS DATA FROM BODY
+        request.UserId = currentUserId;
+
         var user = await _context.Users.FindAsync(request.UserId);
         if (user == null)
             return NotFound("User not found.");

@@ -29,6 +29,17 @@ export const ProfilePage = () => {
     const [savedTrips, setSavedTrips] = useState<any[]>([]);
     const [isUploading, setIsUploading] = useState(false);
 
+    // Preview states for Modal flow
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!isAvatarModalOpen) {
+            setSelectedFile(null);
+            setPreviewUrl(null);
+        }
+    }, [isAvatarModalOpen]);
+
     // Keep local passport state in sync if context loads late
     useEffect(() => {
         if (Array.isArray(user?.passports) && user.passports.length) setPassports(user.passports);
@@ -64,12 +75,19 @@ export const ProfilePage = () => {
         }
     };
 
-    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        setSelectedFile(file);
+        setPreviewUrl(URL.createObjectURL(file));
+    };
+
+    const handleSaveAvatar = async () => {
+        if (!selectedFile) return;
+
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', selectedFile);
 
         try {
             setIsUploading(true);
@@ -115,7 +133,7 @@ export const ProfilePage = () => {
                                         aria-label="Manage Avatar"
                                     >
                                         {user?.avatarUrl ? (
-                                            <img src={`http://localhost:5107${user.avatarUrl}`} alt="Profile" className="w-full h-full object-cover" />
+                                            <img src={user.avatarUrl.startsWith('http') ? user.avatarUrl : `http://localhost:5107${user.avatarUrl}`} alt="Profile" className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center">
                                                 <User size={24} className="text-white" />
@@ -370,8 +388,8 @@ export const ProfilePage = () => {
                                         </div>
                                     )}
 
-                                    {user?.avatarUrl ? (
-                                        <img src={`http://localhost:5107${user.avatarUrl}`} alt="Profile" className="w-full h-full object-cover" />
+                                    {(previewUrl || user?.avatarUrl) ? (
+                                        <img src={previewUrl || (user?.avatarUrl?.startsWith('http') ? user.avatarUrl : `http://localhost:5107${user?.avatarUrl}`)} alt="Profile" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center">
                                             <User size={48} className="text-white" />
@@ -381,21 +399,42 @@ export const ProfilePage = () => {
 
                                 {/* Actions */}
                                 <div className="w-full space-y-2">
-                                    <label className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-xl transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-800 dark:hover:bg-gray-100 cursor-pointer'}`}>
-                                        <input type="file" className="hidden" accept="image/*" onChange={handleAvatarChange} disabled={isUploading} />
-                                        <Camera size={18} />
-                                        Change Photo
-                                    </label>
+                                    {!selectedFile ? (
+                                        <>
+                                            <label className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-xl transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-800 dark:hover:bg-gray-100 cursor-pointer'}`}>
+                                                <input type="file" className="hidden" accept="image/*" onChange={handleFileSelect} disabled={isUploading} />
+                                                <Camera size={18} />
+                                                Change Photo
+                                            </label>
 
-                                    {user?.avatarUrl && (
-                                        <button
-                                            onClick={handleRemoveAvatar}
-                                            disabled={isUploading}
-                                            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white dark:bg-transparent text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 font-medium rounded-xl border border-red-200 dark:border-transparent transition-colors disabled:opacity-50"
-                                        >
-                                            <Trash2 size={18} />
-                                            Remove Photo
-                                        </button>
+                                            {user?.avatarUrl && (
+                                                <button
+                                                    onClick={handleRemoveAvatar}
+                                                    disabled={isUploading}
+                                                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white dark:bg-transparent text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 font-medium rounded-xl border border-red-200 dark:border-transparent transition-colors disabled:opacity-50"
+                                                >
+                                                    <Trash2 size={18} />
+                                                    Remove Photo
+                                                </button>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => { setSelectedFile(null); setPreviewUrl(null); }}
+                                                disabled={isUploading}
+                                                className="flex-1 py-2.5 px-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={handleSaveAvatar}
+                                                disabled={isUploading}
+                                                className="flex-1 py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl shadow-sm transition-colors flex justify-center items-center disabled:opacity-50"
+                                            >
+                                                {isUploading ? <Loader2 size={18} className="animate-spin" /> : "Save Picture"}
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             </div>

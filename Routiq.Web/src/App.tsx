@@ -11,6 +11,7 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { TravelGroupsPage } from './pages/TravelGroupsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AppLayout } from './components/AppLayout';
+import RouteDetailsModal from './components/RouteDetailsModal';
 import { generateRoutes, saveRoute } from './api/routiqApi';
 import type { RouteRequest, RouteResponse, RouteOption, RouteStop, EliminationSummary, BudgetBracket, RegionPreference } from './types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,7 +19,7 @@ import ReactCountryFlag from 'react-country-flag';
 import { countryNames } from './utils/countryMapper';
 import {
   Loader2, Wallet, Calendar, MapPin, CheckSquare,
-  ChevronDown, ChevronRight, XCircle, CheckCircle2, Zap, AlertTriangle, Clock, Map, BookmarkPlus
+  ChevronDown, ChevronRight, XCircle, CheckCircle2, Zap, AlertTriangle, Clock, Map
 } from 'lucide-react';
 
 // PASSPORT_OPTIONS removed — citizenship is account-level, set in Profile/Registration
@@ -95,18 +96,16 @@ function RouteOptionCard({
   const colors = ['from-blue-600 to-indigo-600', 'from-teal-600 to-emerald-600', 'from-violet-600 to-purple-600', 'from-rose-600 to-orange-500'];
   const gradient = colors[index % colors.length];
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<'idle' | 'success' | 'error'>('idle');
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const trip = { destination: option.stops.length > 0 ? option.stops[0].city : 'Tokyo', isSaved: saved };
 
   const handleClick = async () => {
     if (saved || saving) return;
     setSaving(true);
     try {
       await onSave(option);
-      setToast('success');
-      setTimeout(() => setToast('idle'), 3000);
     } catch {
-      setToast('error');
-      setTimeout(() => setToast('idle'), 3000);
+      // Ignored
     } finally {
       setSaving(false);
     }
@@ -139,47 +138,23 @@ function RouteOptionCard({
         ))}
       </div>
 
-      {/* Save footer */}
-      <div className="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800/40 border-t border-gray-100 dark:border-gray-700/40 flex items-center justify-between gap-3">
-        {/* Toast message */}
-        <AnimatePresence>
-          {toast === 'success' && (
-            <motion.span
-              key="ok"
-              initial={{ opacity: 0, x: -6 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1"
-            >
-              <CheckCircle2 size={12} /> Route saved to your profile!
-            </motion.span>
-          )}
-          {toast === 'error' && (
-            <motion.span
-              key="err"
-              initial={{ opacity: 0, x: -6 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-xs text-red-500 font-medium"
-            >
-              Save failed — is the API running?
-            </motion.span>
-          )}
-          {toast === 'idle' && <span />}
-        </AnimatePresence>
+      {/* FORCE-SHRUNK FOOTER - MATCHES RouteCard.tsx */}
+      <div className="mt-2 h-10 border-t border-gray-200 dark:border-gray-700/50 flex justify-end items-center bg-transparent px-3">
 
         <button
-          onClick={handleClick}
-          disabled={saved || saving}
-          className={`flex items-center gap-1.5 text-[10px] uppercase tracking-wide font-bold px-2.5 py-1 rounded-md transition-all shrink-0 ${saved
-            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 cursor-default'
-            : saving
-              ? 'bg-blue-50 text-blue-400 dark:bg-blue-500/10 cursor-wait opacity-70 border border-blue-200 dark:border-blue-500/30'
-              : 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30'
-            }`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDetailsOpen(true);
+          }}
+          className="h-7 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-[11px] font-black uppercase tracking-widest rounded transition-all border border-gray-300 dark:border-gray-600 shadow-sm flex items-center"
         >
-          {saved ? <><CheckCircle2 size={13} /> Saved!</> : saving ? <>Saving...</> : <><BookmarkPlus size={13} /> Save This Route</>}
+          VIEW DETAILS &rarr;
         </button>
+
+        {isDetailsOpen && (
+          <RouteDetailsModal trip={trip} onClose={() => setIsDetailsOpen(false)} onSave={() => handleClick()} />
+        )}
       </div>
     </motion.div>
   );
@@ -187,38 +162,23 @@ function RouteOptionCard({
 
 function StopRow({ stop, index }: { stop: RouteStop; index: number }) {
   return (
-    <div className="flex items-start gap-2.5 px-2.5 py-2">
-      {/* Order badge */}
-      <span className="w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-[10px] font-bold text-gray-500 dark:text-gray-300 shrink-0 mt-0.5">
-        {index + 1}
-      </span>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-            <ReactCountryFlag countryCode={stop.countryCode} svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px' }} title={stop.countryCode} />
-            {stop.city}
-          </span>
-          <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide font-semibold mt-0.5">{stop.country}</span>
-          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wide mt-0.5 ${COST_LEVEL_BADGE[stop.costLevel] ?? 'bg-gray-100 text-gray-600'}`}>
-            {stop.costLevel}
-          </span>
-        </div>
-        <div className="flex items-center gap-2.5 mt-0.5 flex-wrap">
-          <span className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1 font-medium">
-            <Calendar size={10} /> {stop.recommendedDays} days
-          </span>
-          <span className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1 font-medium">
-            <Wallet size={10} /> {stop.dailyBudgetRange}
-          </span>
-          <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wide">
-            {stop.visaStatus}
-          </span>
-        </div>
-        {stop.stopReason && (
-          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">
-            {stop.stopReason}
-          </p>
-        )}
+    <div className="flex items-center justify-between py-2 mt-2 px-2.5">
+      {/* Left side: Destination Info */}
+      <div className="flex items-center gap-3">
+        <span className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 flex items-center justify-center text-xs font-bold">{index + 1}</span>
+        <span className="text-lg"><ReactCountryFlag countryCode={stop.countryCode} svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px' }} title={stop.countryCode} /></span>
+        <span className="font-bold text-gray-900 dark:text-gray-100">{stop.city}</span>
+        <span className="text-[10px] text-gray-500 tracking-widest uppercase ml-1">{stop.country}</span>
+        <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold ml-2 ${COST_LEVEL_BADGE[stop.costLevel] ?? 'bg-gray-100 dark:bg-gray-800 text-gray-600 border-gray-200'}`}>{stop.costLevel}</span>
+      </div>
+
+      {/* Right side: Core Metrics */}
+      <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 font-medium hidden sm:flex">
+        <span className="flex items-center gap-1">🗓️ {stop.recommendedDays} Days</span>
+        <span className="text-gray-300 dark:text-gray-700">|</span>
+        <span className="flex items-center gap-1">💰 {stop.dailyBudgetRange}</span>
+        <span className="text-gray-300 dark:text-gray-700">|</span>
+        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">{stop.visaStatus}</span>
       </div>
     </div>
   );

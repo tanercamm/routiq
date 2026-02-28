@@ -120,14 +120,46 @@ public class GroupController : ControllerBase
             id = g.Id,
             name = g.Name,
             inviteCode = g.InviteCode,
-            members = g.Members.Count,
+            ownerId = g.Members.OrderBy(m => m.JoinedAt).FirstOrDefault()?.UserId ?? 0,
+            members = g.Members.Select(m => new
+            {
+                id = m.UserId,
+                name = (m.User?.FirstName + " " + m.User?.LastName).Trim(),
+                avatar = m.User?.AvatarUrl ?? $"https://ui-avatars.com/api/?name={Uri.EscapeDataString((m.User?.FirstName + " " + m.User?.LastName).Trim())}&background=random&color=fff",
+                origin = "", // Default until implemented in DB
+                budget = ""  // Default until implemented in DB
+            }).ToList(),
             isEngineReady = g.Members.Count > 1, // At least 2 members for intersection logic 
             avatars = g.Members.Select(m =>
-                $"https://ui-avatars.com/api/?name={Uri.EscapeDataString((m.User?.FirstName + " " + m.User?.LastName).Trim())}&background=random&color=fff"
+                m.User?.AvatarUrl ?? $"https://ui-avatars.com/api/?name={Uri.EscapeDataString((m.User?.FirstName + " " + m.User?.LastName).Trim())}&background=random&color=fff"
             ).ToList()
         });
 
         return Ok(result);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteGroup(Guid id)
+    {
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdStr, out int userId)) return Unauthorized();
+
+        var group = await _context.TravelGroups
+            .Include(g => g.Members)
+            .FirstOrDefaultAsync(g => g.Id == id);
+
+        if (group == null)
+            return NotFound(new { message = "Group not found." });
+
+        // Check if the current user is the owner (first member who joined)
+        var ownerId = group.Members.OrderBy(m => m.JoinedAt).FirstOrDefault()?.UserId ?? 0;
+        if (ownerId != userId)
+            return Forbid(); // Only the owner can delete the group
+
+        _context.TravelGroups.Remove(group);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Group deleted successfully." });
     }
 
     private static string GenerateInviteCode()

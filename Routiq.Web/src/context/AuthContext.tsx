@@ -39,6 +39,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             try {
                 const parsed = JSON.parse(storedUser);
 
+                // Explicitly map the URL
+                parsed.avatarUrl = parsed.avatarUrl || parsed.AvatarUrl;
+
                 // Safely ensure passports is an array
                 if (!parsed.passports) {
                     parsed.passports = ['TR'];
@@ -54,11 +57,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 }
 
                 setUser(parsed);
-                routiqApi.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+            } catch (e) {
+                console.error("Failed to parse stored user:", e);
+                localStorage.removeItem('user');
+                localStorage.removeItem('token');
+            }
+        }
 
-                // Hydrate the latest state directly from backend
-                routiqApi.get('/auth/me').then(res => {
+        if (storedToken) {
+            routiqApi.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+
+            // Hydrate the latest state directly from backend
+            routiqApi.get('/auth/me').then(res => {
+                if (res.data) {
                     const refreshedUser = res.data;
+
+                    // EXACT MAPPING: Read from data.avatarUrl or data.AvatarUrl
+                    refreshedUser.avatarUrl = refreshedUser.avatarUrl || refreshedUser.AvatarUrl;
 
                     // Safely ensure passports is an array from API too
                     if (!refreshedUser.passports) {
@@ -76,18 +91,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
                     setUser(refreshedUser);
                     localStorage.setItem('user', JSON.stringify(refreshedUser));
-                }).catch(err => {
-                    console.error("Failed to hydrate user profile:", err);
-                });
-            } catch (e) {
-                console.error("Failed to parse stored user:", e);
-                localStorage.removeItem('user');
-                localStorage.removeItem('token');
-            }
+                }
+            }).catch(err => {
+                console.error("Failed to hydrate user profile:", err);
+            });
         }
     }, []);
 
     const login = (newToken: string, newUser: User) => {
+        // Explicitly map the URL
+        newUser.avatarUrl = newUser.avatarUrl || (newUser as any).AvatarUrl;
+
         // Safely ensure passports is an array
         if (!newUser.passports) {
             newUser.passports = ['TR'];

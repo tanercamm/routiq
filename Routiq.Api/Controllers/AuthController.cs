@@ -55,6 +55,15 @@ public class AuthController : ControllerBase
             if (!int.TryParse(userIdStr, out int userId)) return Unauthorized();
 
             var response = await _authService.GetMeAsync(userId);
+
+            // Explicitly map the URL
+            var dbContext = HttpContext.RequestServices.GetRequiredService<Routiq.Api.Data.RoutiqDbContext>();
+            var user = await dbContext.Users.FindAsync(userId);
+            if (user != null)
+            {
+                response.AvatarUrl = user.AvatarUrl;
+            }
+
             return Ok(response);
         }
         catch (Exception ex)
@@ -82,7 +91,7 @@ public class AuthController : ControllerBase
     }
     [Authorize]
     [HttpPost("profile/avatar")]
-    public async Task<ActionResult<AuthResponseDto>> UploadAvatar(IFormFile file)
+    public async Task<IActionResult> UploadAvatar(IFormFile file)
     {
         try
         {
@@ -112,11 +121,10 @@ public class AuthController : ControllerBase
             if (user == null) return NotFound("User not found");
 
             user.AvatarUrl = avatarUrl;
+            dbContext.Users.Update(user);
             await dbContext.SaveChangesAsync();
 
-            // Refresh the whole profile via existing service
-            var response = await _authService.GetMeAsync(userId);
-            return Ok(response);
+            return Ok(new { avatarUrl = user.AvatarUrl });
         }
         catch (Exception ex)
         {
@@ -125,7 +133,7 @@ public class AuthController : ControllerBase
     }
     [Authorize]
     [HttpDelete("profile/avatar")]
-    public async Task<ActionResult<AuthResponseDto>> RemoveAvatar()
+    public async Task<IActionResult> RemoveAvatar()
     {
         try
         {
@@ -148,11 +156,11 @@ public class AuthController : ControllerBase
                 }
 
                 user.AvatarUrl = null;
+                dbContext.Users.Update(user);
                 await dbContext.SaveChangesAsync();
             }
 
-            var response = await _authService.GetMeAsync(userId);
-            return Ok(response);
+            return Ok(new { avatarUrl = user.AvatarUrl });
         }
         catch (Exception ex)
         {

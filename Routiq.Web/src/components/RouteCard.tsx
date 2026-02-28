@@ -1,8 +1,8 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from './ui/Card';
 import { MapPin, Calendar, Sun, CheckCircle } from 'lucide-react';
-
-// V1-compatible types kept local — no longer tied to types/index.ts
+import RouteDetailsModal from './RouteDetailsModal';
 interface V1RouteStop { city: string; country: string; days: number; climate: string; visaStatus: string; }
 interface V1RouteOption { routeType: string; description: string; totalEstimatedCost: number; stops: V1RouteStop[]; }
 
@@ -10,16 +10,21 @@ interface RouteCardProps {
     option: V1RouteOption;
     index: number;
     onViewItinerary: (option: V1RouteOption) => void;
+    onSave?: (option: V1RouteOption) => Promise<void>;
+    saved?: boolean;
 }
 
-export const RouteCard = ({ option, index, onViewItinerary }: RouteCardProps) => {
+export const RouteCard = ({ option, index, onViewItinerary, onSave, saved }: RouteCardProps) => {
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const trip = { destination: option.stops.length > 0 ? option.stops[0].city : 'Tokyo', isSaved: saved };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.08 }}
         >
-            <Card hoverEffect className="h-full flex flex-col justify-between border-t-2 border-t-teal-500">
+            <Card hoverEffect className="h-full flex flex-col justify-between border-t-2 border-t-teal-500 relative">
                 <div>
                     <div className="flex justify-between items-start mb-4">
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -34,39 +39,47 @@ export const RouteCard = ({ option, index, onViewItinerary }: RouteCardProps) =>
                         {option.description}
                     </p>
 
-                    <div className="space-y-3 mb-5">
+                    <div className="space-y-1 mb-5 divide-y divide-gray-100 dark:divide-gray-800/50">
                         {option.stops.map((stop, i) => (
-                            <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-100 dark:border-gray-700/40">
-                                <div className="mt-0.5 text-teal-500">
-                                    <MapPin size={14} />
+                            <div key={i} className="flex items-center justify-between py-2 mt-2">
+                                {/* Left side: Destination Info */}
+                                <div className="flex items-center gap-3">
+                                    <span className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 flex items-center justify-center text-xs font-bold">{i + 1}</span>
+                                    <span className="text-lg">📍</span> {/* Dynamic flag normally here */}
+                                    <span className="font-bold text-gray-900 dark:text-gray-100">{stop.city}</span>
+                                    <span className="text-[10px] text-gray-500 tracking-widest uppercase ml-1">{stop.country}</span>
                                 </div>
-                                <div>
-                                    <p className="font-medium text-sm text-gray-900 dark:text-white">{stop.city}, {stop.country}</p>
-                                    <div className="flex gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                        <span className="flex items-center gap-1"><Calendar size={11} /> {stop.days} days</span>
-                                        <span className="flex items-center gap-1"><Sun size={11} /> {stop.climate}</span>
-                                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400"><CheckCircle size={11} /> {stop.visaStatus}</span>
-                                    </div>
+
+                                {/* Right side: Core Metrics */}
+                                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 font-medium">
+                                    <span className="flex items-center gap-1">🗓️ {stop.days} Days</span>
+                                    <span className="text-gray-300 dark:text-gray-700">|</span>
+                                    <span className="flex items-center gap-1">☀️ {stop.climate}</span>
+                                    <span className="text-gray-300 dark:text-gray-700">|</span>
+                                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">{stop.visaStatus}</span>
                                 </div>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                <div className="pt-4 border-t border-gray-200 dark:border-gray-700/60 flex justify-between items-end">
-                    <div>
-                        <span className="text-xs text-gray-500 block mb-0.5">Total Est. Cost</span>
-                        <span className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-                            <span className="text-teal-500">$</span>
-                            {option.totalEstimatedCost.toLocaleString()}
-                        </span>
-                    </div>
+                {/* FORCE-SHRUNK FOOTER - DO NOT MODIFY */}
+                <div className="mt-2 h-10 border-t border-gray-200 dark:border-gray-700/50 flex justify-end items-center bg-transparent px-3">
+
                     <button
-                        onClick={() => onViewItinerary(option)}
-                        className="text-sm font-medium text-teal-600 dark:text-teal-400 hover:text-white hover:bg-teal-600 dark:hover:bg-teal-500 rounded-lg px-4 py-2 border border-teal-200 dark:border-teal-500/30 hover:border-transparent transition-all"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsDetailsOpen(true);
+                        }}
+                        className="h-7 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-[11px] font-black uppercase tracking-widest rounded transition-all border border-gray-300 dark:border-gray-600 shadow-sm flex items-center"
                     >
-                        View Itinerary
+                        VIEW DETAILS &rarr;
                     </button>
+
+                    {isDetailsOpen && (
+                        <RouteDetailsModal trip={trip} onClose={() => setIsDetailsOpen(false)} onSave={() => onSave?.(option)} />
+                    )}
                 </div>
             </Card>
         </motion.div>

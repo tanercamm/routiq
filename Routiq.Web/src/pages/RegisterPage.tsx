@@ -126,6 +126,7 @@ export const RegisterPage = () => {
                 name: response.name,
                 role: response.role,
                 passports,
+                avatarUrl: response.avatarUrl || response.AvatarUrl
             });
             navigate('/');
         } catch (err: any) {

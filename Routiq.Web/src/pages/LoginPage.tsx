@@ -29,7 +29,8 @@ export const LoginPage = () => {
                 email: response.email,
                 name: response.name,
                 role: response.role,
-                passports: response.passports || []
+                passports: response.passports || [],
+                avatarUrl: response.avatarUrl || response.AvatarUrl
             });
             navigate('/');
         } catch (err: any) {

@@ -1,0 +1,92 @@
+{
+    "paris": {
+        "flightNumber": "TK 1821",
+        "duration": "3h 40m",
+        "price": "₺8,500 TRY",
+        "vibe": "European Hub"
+    },
+    "london": {
+        "flightNumber": "TK 1979",
+        "duration": "4h 10m",
+        "price": "₺10,200 TRY",
+        "vibe": "European Hub"
+    },
+    "berlin": {
+        "flightNumber": "TK 1721",
+        "duration": "3h 05m",
+        "price": "₺7,800 TRY",
+        "vibe": "European Hub"
+    },
+    "rome": {
+        "flightNumber": "TK 1865",
+        "duration": "2h 45m",
+        "price": "₺7,200 TRY",
+        "vibe": "European Hub"
+    },
+    "new york": {
+        "flightNumber": "TK 1",
+        "duration": "11h 15m",
+        "price": "₺40,500 TRY",
+        "vibe": "Long-haul transcontinental route."
+    },
+    "los angeles": {
+        "flightNumber": "TK 9",
+        "duration": "13h 50m",
+        "price": "₺48,200 TRY",
+        "vibe": "Long-haul transcontinental route."
+    },
+    "tokyo": {
+        "flightNumber": "TK 198",
+        "duration": "11h 30m",
+        "price": "₺45,000 TRY",
+        "vibe": "Far East / Asian connection."
+    },
+    "seoul": {
+        "flightNumber": "TK 90",
+        "duration": "10h 20m",
+        "price": "₺42,000 TRY",
+        "vibe": "Far East / Asian connection."
+    },
+    "bangkok": {
+        "flightNumber": "TK 68",
+        "duration": "9h 40m",
+        "price": "₺35,000 TRY",
+        "vibe": "Far East / Asian connection."
+    },
+    "dubai": {
+        "flightNumber": "TK 762",
+        "duration": "4h 20m",
+        "price": "₺15,000 TRY",
+        "vibe": "Middle East connection."
+    },
+    "doha": {
+        "flightNumber": "TK 782",
+        "duration": "4h 15m",
+        "price": "₺14,500 TRY",
+        "vibe": "Middle East connection."
+    },
+    "tbilisi": {
+        "flightNumber": "TK 378",
+        "duration": "2h 15m",
+        "price": "₺6,500 TRY",
+        "vibe": "Standard regional connection."
+    },
+    "belgrade": {
+        "flightNumber": "TK 1081",
+        "duration": "1h 45m",
+        "price": "₺5,800 TRY",
+        "vibe": "Standard regional connection."
+    },
+    "sarajevo": {
+        "flightNumber": "TK 1023",
+        "duration": "1h 55m",
+        "price": "₺6,200 TRY",
+        "vibe": "Standard regional connection."
+    },
+    "bali": {
+        "flightNumber": "TK 66",
+        "duration": "13h 10m",
+        "price": "₺52,000 TRY",
+        "vibe": "Far East / Asian connection."
+    }
+}

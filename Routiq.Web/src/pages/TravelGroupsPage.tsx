@@ -5,12 +5,15 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { routiqApi } from '../api/routiqApi';
+import GroupDashboard from '../components/GroupDashboard';
+import { useAuth } from '../context/AuthContext';
 
 interface TravelGroup {
     id: string;
     name: string;
     inviteCode?: string;
-    members: number;
+    members: any[];
+    ownerId: number;
     isEngineReady: boolean;
     avatars: string[];
 }
@@ -54,6 +57,9 @@ export const TravelGroupsPage = () => {
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [selectedGroup, setSelectedGroup] = useState<TravelGroup | null>(null);
+
+    const { user: currentUser } = useAuth();
 
     const fetchGroups = async () => {
         try {
@@ -110,6 +116,26 @@ export const TravelGroupsPage = () => {
             setActionLoading(false);
         }
     };
+
+    const deleteGroup = async (groupId: string) => {
+        try {
+            await routiqApi.delete(`/groups/${groupId}`);
+            fetchGroups(); // refresh groups
+        } catch (err) {
+            console.error('Failed to delete group', err);
+        }
+    };
+
+    if (selectedGroup) {
+        return (
+            <GroupDashboard
+                group={selectedGroup}
+                onBack={() => setSelectedGroup(null)}
+                deleteGroup={deleteGroup}
+                currentUser={currentUser}
+            />
+        );
+    }
 
     return (
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -281,19 +307,19 @@ export const TravelGroupsPage = () => {
                                                         <img src={url} alt="Avatar" className="w-full h-full object-cover" />
                                                     </div>
                                                 ))}
-                                                {group.members > group.avatars.length && (
+                                                {group.members.length > group.avatars.length && (
                                                     <div className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 -ml-2 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-300 z-0">
-                                                        +{group.members - group.avatars.length}
+                                                        +{group.members.length - group.avatars.length}
                                                     </div>
                                                 )}
                                             </div>
                                             <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                                {group.members} members
+                                                {group.members.length} members
                                             </span>
                                         </div>
                                     </div>
 
-                                    <Button variant="outline" className="w-full flex items-center justify-between group/btn">
+                                    <Button variant="outline" className="w-full flex items-center justify-between group/btn" onClick={() => setSelectedGroup(group)}>
                                         <span>Open Dashboard</span>
                                         <ChevronRight size={16} className="text-gray-400 group-hover/btn:text-gray-700 dark:group-hover/btn:text-gray-200 transition-colors" />
                                     </Button>

@@ -11,6 +11,8 @@ import {
 import { getCommunityTipsForCity, countryCodeToFlag } from '../utils/communityData';
 import { MessageCircle, ThumbsUp } from 'lucide-react';
 import { formatTimeAMPM, calculateFlightDuration, isNextDay } from '../utils/timeFormat';
+import { useAuth } from '../context/AuthContext';
+import LiveFlightModal from './LiveFlightModal';
 
 // V1-compatible shape the modal was built against
 interface V1RouteStop {
@@ -51,13 +53,17 @@ const timeOfDayIcon: Record<string, string> = {
 export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
     const [saved, setSaved] = useState(false);
     const [showToast, setShowToast] = useState(false);
+    const [isLiveFlightModalOpen, setIsLiveFlightModalOpen] = useState(false);
+    const { token } = useAuth();
 
     if (!route) return null;
 
     const handleSave = async () => {
         try {
-            // TODO: Get actual logged-in user ID from context/auth
-            const userId = 1;
+            if (!token) {
+                console.error("No auth token available");
+                return;
+            }
 
             const firstCity = route.stops.length > 0 ? route.stops[0].city : 'Unknown';
 
@@ -65,9 +71,9 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    userId: userId,
                     destinationCity: firstCity,
                     totalBudget: route.totalEstimatedCost,
                     durationDays: totalDays,
@@ -432,7 +438,7 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                         </div>
 
                         {/* ── Footer ── */}
-                        <div className="sticky bottom-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center">
+                        <div className="sticky bottom-0 z-20 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
                             <div className="flex gap-6 text-sm">
                                 <span className="text-gray-500 dark:text-gray-400">
                                     <span className="font-semibold text-gray-900 dark:text-white">{route.stops.length}</span> {route.stops.length === 1 ? 'city' : 'cities'}
@@ -440,12 +446,44 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                                 <span className="text-gray-500 dark:text-gray-400">
                                     <span className="font-semibold text-gray-900 dark:text-white">{totalDays}</span> days
                                 </span>
-                            </div>
-                            <div className="text-right">
-                                <span className="text-xs text-gray-500 dark:text-gray-400 block">Total Estimated Cost</span>
-                                <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    <span className="text-teal-500">$</span>{route.totalEstimatedCost.toLocaleString()}
+                                <span className="text-gray-500 dark:text-gray-400">
+                                    <span className="text-teal-500">$</span><span className="font-semibold text-gray-900 dark:text-white">{route.totalEstimatedCost.toLocaleString()}</span> est.
                                 </span>
+                            </div>
+
+                            <div className="flex w-full sm:w-auto gap-3">
+                                {/* THY Live Flight Data Button */}
+                                <button
+                                    onClick={() => setIsLiveFlightModalOpen(true)}
+                                    className="flex-1 sm:flex-none relative overflow-hidden group bg-gray-900 hover:bg-black dark:bg-black dark:hover:bg-gray-900 text-white font-medium text-sm px-4 py-2 rounded-lg border border-gray-800 dark:border-gray-700 shadow-sm transition-all duration-300 flex items-center justify-center gap-2"
+                                >
+                                    <div className="absolute inset-0 w-1/4 h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:animate-shimmer" />
+                                    <div className="relative flex items-center justify-center bg-red-600 rounded-full w-4 h-4 shrink-0 shadow-sm border border-red-500">
+                                        <span className="text-[10px] text-white">✈️</span>
+                                    </div>
+                                    <span className="tracking-wide text-xs sm:text-sm">Check Live THY Flights</span>
+                                    <div className="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <span className="animate-ping absolute inline-flex h-1.5 w-1.5 rounded-full bg-red-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
+                                    </div>
+                                </button>
+
+                                <button
+                                    onClick={onClose}
+                                    className="flex-1 sm:flex-none px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-transparent"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={saved}
+                                    className={`flex items-center justify-center sm:justify-start gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all flex-1 sm:flex-none ${saved
+                                        ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/20 cursor-default'
+                                        : 'bg-teal-600 hover:bg-teal-500 text-white shadow-sm'
+                                        }`}
+                                >
+                                    {saved ? <><Check size={16} /> Saved</> : <><Bookmark size={16} /> Save Trip</>}
+                                </button>
                             </div>
                         </div>
                     </motion.div>
@@ -463,6 +501,14 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                             </motion.div>
                         )}
                     </AnimatePresence>
+
+                    {/* Embedded LiveFlightModal */}
+                    {isLiveFlightModalOpen && (
+                        <LiveFlightModal
+                            onClose={() => setIsLiveFlightModalOpen(false)}
+                            destination={route.stops.length > 0 ? route.stops[0].city : 'Unknown'}
+                        />
+                    )}
                 </motion.div>
             )}
         </AnimatePresence>
