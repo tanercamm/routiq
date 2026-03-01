@@ -111,6 +111,7 @@ public class GroupController : ControllerBase
             .Include(m => m.Group)
                 .ThenInclude(g => g.Members)
                     .ThenInclude(gm => gm.User)
+                        .ThenInclude(u => u.Profile)
             .Select(m => m.Group)
             .OrderByDescending(g => g.CreatedAt)
             .ToListAsync();
@@ -126,7 +127,7 @@ public class GroupController : ControllerBase
                 id = m.UserId,
                 name = (m.User?.FirstName + " " + m.User?.LastName).Trim(),
                 avatar = m.User?.AvatarUrl ?? $"https://ui-avatars.com/api/?name={Uri.EscapeDataString((m.User?.FirstName + " " + m.User?.LastName).Trim())}&background=random&color=fff",
-                origin = "", // Default until implemented in DB
+                origin = !string.IsNullOrWhiteSpace(m.User?.Profile?.Origin) ? m.User.Profile.Origin : (m.User?.Profile?.Passports?.FirstOrDefault() ?? "IST"),
                 budget = ""  // Default until implemented in DB
             }).ToList(),
             isEngineReady = g.Members.Count > 1, // At least 2 members for intersection logic 

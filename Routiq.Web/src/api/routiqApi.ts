@@ -12,7 +12,7 @@ export const login = async (credentials: { email: string; password: string }) =>
     return response.data;
 };
 
-export const register = async (userData: { email: string; password: string; firstName: string; lastName: string }) => {
+export const register = async (userData: { email: string; password: string; firstName: string; lastName: string; passports?: string[] }) => {
     const response = await api.post('/auth/register', userData);
     return response.data;
 };

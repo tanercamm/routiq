@@ -69,7 +69,12 @@ export const TravelGroupsPage = () => {
             setError(null);
         } catch (err: any) {
             console.error('Failed to fetch groups', err);
-            setError('Failed to load workspaces.');
+            if (err?.response?.status === 404) {
+                setGroups([]);
+                setError(null);
+            } else {
+                setError('Failed to load workspaces.');
+            }
         } finally {
             setLoading(false);
         }
@@ -118,18 +123,20 @@ export const TravelGroupsPage = () => {
     };
 
     const deleteGroup = async (groupId: string) => {
+        setGroups(prev => prev.filter(g => g.id !== groupId));
         try {
             await routiqApi.delete(`/groups/${groupId}`);
-            fetchGroups(); // refresh groups
         } catch (err) {
             console.error('Failed to delete group', err);
+            fetchGroups(); // Revert on failure
         }
     };
 
     if (selectedGroup) {
         return (
             <GroupDashboard
-                group={selectedGroup}
+                allGroups={groups}
+                selectedGroupId={selectedGroup.id}
                 onBack={() => setSelectedGroup(null)}
                 deleteGroup={deleteGroup}
                 currentUser={currentUser}
@@ -298,18 +305,26 @@ export const TravelGroupsPage = () => {
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between mb-6 mt-2">
                                             <div className="flex items-center">
-                                                {group.avatars.map((url, i) => (
-                                                    <div
-                                                        key={i}
-                                                        className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 -ml-2 first:ml-0 overflow-hidden bg-gray-200 dark:bg-gray-700"
-                                                        style={{ zIndex: 10 - i }}
-                                                    >
-                                                        <img src={url} alt="Avatar" className="w-full h-full object-cover" />
-                                                    </div>
-                                                ))}
-                                                {group.members.length > group.avatars.length && (
+                                                {group.members.slice(0, 5).map((member: any, i: number) => {
+                                                    const avatarSrc = member.avatar || member.avatarUrl;
+                                                    const solvedUrl = avatarSrc
+                                                        ? (avatarSrc.startsWith('http') ? avatarSrc : `http://localhost:5107${avatarSrc}`)
+                                                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || 'User')}&background=random&color=fff`;
+
+                                                    return (
+                                                        <div
+                                                            key={i}
+                                                            className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 -ml-2 first:ml-0 overflow-hidden bg-gray-200 dark:bg-gray-700 hover:z-20 transition-transform hover:scale-110"
+                                                            style={{ zIndex: 10 - i }}
+                                                            title={member.name}
+                                                        >
+                                                            <img src={solvedUrl} alt={member.name} className="w-full h-full object-cover" />
+                                                        </div>
+                                                    );
+                                                })}
+                                                {group.members.length > 5 && (
                                                     <div className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 -ml-2 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-300 z-0">
-                                                        +{group.members.length - group.avatars.length}
+                                                        +{group.members.length - 5}
                                                     </div>
                                                 )}
                                             </div>

@@ -1,0 +1,31 @@
+  Determining projects to restore...
+C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj : warning NU1903: Package 'Npgsql' 8.0.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-x9vc-6hfv-hg8c
+  All projects are up-to-date for restore.
+C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj : warning NU1903: Package 'Npgsql' 8.0.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-x9vc-6hfv-hg8c
+C:\Users\taner\source\repos\routiq\Routiq.Api\Data\RoutiqDbContext.cs(68,63): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Data\RoutiqDbContext.cs(71,85): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Controllers\GroupController.cs(112,35): warning CS8602: Dereference of a possibly null reference. [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Controllers\GroupController.cs(114,43): warning CS8602: Dereference of a possibly null reference. [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Controllers\GroupController.cs(116,37): warning CS8602: Dereference of a possibly null reference. [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Controllers\GroupController.cs(121,18): warning CS8602: Dereference of a possibly null reference. [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Services\AuthService.cs(57,33): error CS1061: 'RegisterRequestDto' does not contain a definition for 'Passports' and no accessible extension method 'Passports' accepting a first argument of type 'RegisterRequestDto' could be found (are you missing a using directive or an assembly reference?) [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Services\AuthService.cs(57,62): error CS1061: 'RegisterRequestDto' does not contain a definition for 'Passports' and no accessible extension method 'Passports' accepting a first argument of type 'RegisterRequestDto' could be found (are you missing a using directive or an assembly reference?) [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Services\AuthService.cs(57,88): error CS1061: 'RegisterRequestDto' does not contain a definition for 'Passports' and no accessible extension method 'Passports' accepting a first argument of type 'RegisterRequestDto' could be found (are you missing a using directive or an assembly reference?) [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+
+Build FAILED.
+
+C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj : warning NU1903: Package 'Npgsql' 8.0.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-x9vc-6hfv-hg8c
+C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj : warning NU1903: Package 'Npgsql' 8.0.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-x9vc-6hfv-hg8c
+C:\Users\taner\source\repos\routiq\Routiq.Api\Data\RoutiqDbContext.cs(68,63): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Data\RoutiqDbContext.cs(71,85): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Controllers\GroupController.cs(112,35): warning CS8602: Dereference of a possibly null reference. [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Controllers\GroupController.cs(114,43): warning CS8602: Dereference of a possibly null reference. [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Controllers\GroupController.cs(116,37): warning CS8602: Dereference of a possibly null reference. [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Controllers\GroupController.cs(121,18): warning CS8602: Dereference of a possibly null reference. [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Services\AuthService.cs(57,33): error CS1061: 'RegisterRequestDto' does not contain a definition for 'Passports' and no accessible extension method 'Passports' accepting a first argument of type 'RegisterRequestDto' could be found (are you missing a using directive or an assembly reference?) [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Services\AuthService.cs(57,62): error CS1061: 'RegisterRequestDto' does not contain a definition for 'Passports' and no accessible extension method 'Passports' accepting a first argument of type 'RegisterRequestDto' could be found (are you missing a using directive or an assembly reference?) [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+C:\Users\taner\source\repos\routiq\Routiq.Api\Services\AuthService.cs(57,88): error CS1061: 'RegisterRequestDto' does not contain a definition for 'Passports' and no accessible extension method 'Passports' accepting a first argument of type 'RegisterRequestDto' could be found (are you missing a using directive or an assembly reference?) [C:\Users\taner\source\repos\routiq\Routiq.Api\Routiq.Api.csproj]
+    8 Warning(s)
+    3 Error(s)
+
+Time Elapsed 00:00:02.64

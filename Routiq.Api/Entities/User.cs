@@ -23,5 +23,6 @@ public class User
     public string? AvatarUrl { get; set; }
 
     // Navigation
+    public UserProfile? Profile { get; set; }
     public ICollection<TravelGroupMember> GroupMemberships { get; set; } = new List<TravelGroupMember>();
 }

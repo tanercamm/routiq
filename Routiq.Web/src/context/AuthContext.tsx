@@ -10,6 +10,7 @@ interface User {
     avatarUrl?: string;
     /** ISO-3166-1 alpha-2 codes for all citizenships, e.g. ["TR", "DE"] */
     passports: string[];
+    origin?: string;
 }
 
 interface AuthContextType {
@@ -19,7 +20,7 @@ interface AuthContextType {
     logout: () => void;
     isAuthenticated: boolean;
     /** Update the stored passports list (used from ProfilePage preferences) */
-    updatePassports: (passports: string[]) => Promise<void>;
+    updateProfile: (data: { passports: string[], origin?: string }) => Promise<void>;
     /** Update the user's avatar URL dynamically */
     setUserAvatar: (url: string | null) => void;
 }
@@ -44,16 +45,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
                 // Safely ensure passports is an array
                 if (!parsed.passports) {
-                    parsed.passports = ['TR'];
+                    parsed.passports = [];
                 } else if (typeof parsed.passports === 'string') {
                     try {
-                        const innerParsed = JSON.parse(parsed.passports);
-                        parsed.passports = Array.isArray(innerParsed) ? innerParsed : ['TR'];
+                        const innerParsed = JSON.parse(parsed.passports as any);
+                        parsed.passports = Array.isArray(innerParsed) ? innerParsed : [parsed.passports as any];
                     } catch {
-                        parsed.passports = ['TR'];
+                        parsed.passports = [parsed.passports as any];
                     }
                 } else if (!Array.isArray(parsed.passports)) {
-                    parsed.passports = ['TR'];
+                    parsed.passports = [];
                 }
 
                 setUser(parsed);
@@ -77,16 +78,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
                     // Safely ensure passports is an array from API too
                     if (!refreshedUser.passports) {
-                        refreshedUser.passports = ['TR'];
+                        refreshedUser.passports = [];
                     } else if (typeof refreshedUser.passports === 'string') {
                         try {
-                            const innerParsed = JSON.parse(refreshedUser.passports);
-                            refreshedUser.passports = Array.isArray(innerParsed) ? innerParsed : ['TR'];
+                            const innerParsed = JSON.parse(refreshedUser.passports as any);
+                            refreshedUser.passports = Array.isArray(innerParsed) ? innerParsed : [refreshedUser.passports as any];
                         } catch {
-                            refreshedUser.passports = ['TR'];
+                            refreshedUser.passports = [refreshedUser.passports as any];
                         }
                     } else if (!Array.isArray(refreshedUser.passports)) {
-                        refreshedUser.passports = ['TR'];
+                        refreshedUser.passports = [];
                     }
 
                     setUser(refreshedUser);
@@ -104,16 +105,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Safely ensure passports is an array
         if (!newUser.passports) {
-            newUser.passports = ['TR'];
+            newUser.passports = [];
         } else if (typeof newUser.passports === 'string') {
             try {
-                const innerParsed = JSON.parse(newUser.passports);
-                newUser.passports = Array.isArray(innerParsed) ? innerParsed : ['TR'];
+                const innerParsed = JSON.parse(newUser.passports as any);
+                newUser.passports = Array.isArray(innerParsed) ? innerParsed : [newUser.passports as any];
             } catch {
-                newUser.passports = ['TR'];
+                newUser.passports = [newUser.passports as any];
             }
         } else if (!Array.isArray(newUser.passports)) {
-            newUser.passports = ['TR'];
+            newUser.passports = [];
         }
 
         setToken(newToken);
@@ -131,17 +132,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         delete routiqApi.defaults.headers.common['Authorization'];
     };
 
-    const updatePassports = async (passports: string[]) => {
+    const updateProfile = async (data: { passports: string[], origin?: string }) => {
         try {
-            await routiqApi.put('/auth/profile', { passports });
+            await routiqApi.put('/auth/profile', data);
             setUser(prev => {
                 if (!prev) return prev;
-                const updated = { ...prev, passports };
+                const updated = { ...prev, passports: data.passports, origin: data.origin };
                 localStorage.setItem('user', JSON.stringify(updated));
                 return updated;
             });
         } catch (err) {
-            console.error("Failed to update passports:", err);
+            console.error("Failed to update profile:", err);
         }
     };
 
@@ -155,7 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, updatePassports, setUserAvatar }}>
+        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, updateProfile, setUserAvatar }}>
             {children}
         </AuthContext.Provider>
     );

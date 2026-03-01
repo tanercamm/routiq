@@ -119,7 +119,7 @@ export const RegisterPage = () => {
         setError('');
         setLoading(true);
         try {
-            const response = await apiRegister({ email, password, firstName, lastName });
+            const response = await apiRegister({ email, password, firstName, lastName, passports });
             login(response.token, {
                 id: response.id,
                 email: response.email,

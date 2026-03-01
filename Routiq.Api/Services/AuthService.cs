@@ -54,7 +54,8 @@ public class AuthService : IAuthService
             UserId = user.Id,
             Username = string.IsNullOrWhiteSpace(request.FirstName) ? request.Email.Split('@')[0] : request.FirstName,
             Email = request.Email,
-            Passports = new List<string> { "TR" }
+            Passports = request.Passports != null && request.Passports.Any() ? request.Passports : new List<string> { "TR" },
+            Origin = string.IsNullOrWhiteSpace(request.Origin) ? "IST" : request.Origin
         };
 
         _context.UserProfiles.Add(profile);
@@ -100,13 +101,18 @@ public class AuthService : IAuthService
                 UserId = userId,
                 Username = string.IsNullOrWhiteSpace(user.FirstName) ? user.Email.Split('@')[0] : user.FirstName,
                 Email = user.Email,
-                Passports = request.Passports
+                Passports = request.Passports,
+                Origin = string.IsNullOrWhiteSpace(request.Origin) ? "IST" : request.Origin
             };
             _context.UserProfiles.Add(profile);
         }
         else
         {
             profile.Passports = request.Passports;
+            if (!string.IsNullOrWhiteSpace(request.Origin))
+            {
+                profile.Origin = request.Origin;
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -140,7 +146,8 @@ public class AuthService : IAuthService
             Name = $"{user.FirstName} {user.LastName}".Trim(),
             Role = user.Role,
             AvatarUrl = user.AvatarUrl,
-            Passports = profile?.Passports ?? new List<string> { "TR" }
+            Passports = profile?.Passports ?? new List<string> { "TR" },
+            Origin = profile?.Origin ?? ""
         };
     }
 }

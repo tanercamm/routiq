@@ -39,6 +39,9 @@ public class UserProfile
 
     public int? Age { get; set; }
 
+    [MaxLength(10)]
+    public string Origin { get; set; } = string.Empty;
+
     // Navigation
     public ICollection<SavedRoute> SavedRoutes { get; set; } = new List<SavedRoute>();
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from './ui/Card';
-import { MapPin, Calendar, Sun, CheckCircle } from 'lucide-react';
+
 import RouteDetailsModal from './RouteDetailsModal';
 interface V1RouteStop { city: string; country: string; days: number; climate: string; visaStatus: string; }
 interface V1RouteOption { routeType: string; description: string; totalEstimatedCost: number; stops: V1RouteStop[]; }
@@ -14,7 +14,7 @@ interface RouteCardProps {
     saved?: boolean;
 }
 
-export const RouteCard = ({ option, index, onViewItinerary, onSave, saved }: RouteCardProps) => {
+export const RouteCard = ({ option, index, onSave, saved }: RouteCardProps) => {
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const trip = { destination: option.stops.length > 0 ? option.stops[0].city : 'Tokyo', isSaved: saved };
 

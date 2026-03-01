@@ -18,10 +18,11 @@ const CURRENCIES = ['USD', 'EUR', 'GBP', 'TRY', 'JPY', 'THB', 'CAD', 'AUD', 'PLN
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export const ProfilePage = () => {
-    const { user, updatePassports, setUserAvatar } = useAuth();
+    const { user, updateProfile, setUserAvatar } = useAuth();
 
     // Citizenship is driven by AuthContext — this is the ONLY place to edit it
-    const [passports, setPassports] = useState<string[]>(Array.isArray(user?.passports) ? user.passports : ['TR']);
+    const [passports, setPassports] = useState<string[]>(Array.isArray(user?.passports) ? user.passports : []);
+    const [origin, setOrigin] = useState<string>(user?.origin || '');
     const [preferredCurrency, setPreferredCurrency] = useState('USD');
     const [prefsSaved, setPrefsSaved] = useState(false);
     const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
@@ -40,13 +41,14 @@ export const ProfilePage = () => {
         }
     }, [isAvatarModalOpen]);
 
-    // Keep local passport state in sync if context loads late
+    // Keep local state in sync if context loads late
     useEffect(() => {
         if (Array.isArray(user?.passports) && user.passports.length) setPassports(user.passports);
-    }, [user?.passports]);
+        if (user?.origin) setOrigin(user.origin);
+    }, [user?.passports, user?.origin]);
 
     const handleSavePrefs = () => {
-        updatePassports(passports);
+        updateProfile({ passports, origin });
         setPrefsSaved(true);
         setTimeout(() => setPrefsSaved(false), 2500);
     };
@@ -252,6 +254,19 @@ export const ProfilePage = () => {
                                                             <option key={o.code} value={o.code}>{o.code} — {o.label.replace(/^[^ ]+ /, '')}</option>
                                                         ))}
                                                     </select>
+                                                </div>
+
+                                                {/* Origin */}
+                                                <div>
+                                                    <label className="text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1 block uppercase tracking-wide">Origin (Home Airport)</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="e.g. SYD, MEL, BER, IST"
+                                                        value={origin}
+                                                        onChange={e => setOrigin(e.target.value.toUpperCase())}
+                                                        maxLength={3}
+                                                        className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500/40 transition-colors uppercase"
+                                                    />
                                                 </div>
 
                                                 {/* Currency */}
