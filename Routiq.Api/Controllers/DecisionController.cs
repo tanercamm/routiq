@@ -82,4 +82,16 @@ public class DecisionController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// The Agent endpoint for single-user discovery: POST /api/decision/discover
+    /// Takes simple inputs (Passport, Budget, Region) and returns orchestrated destination.
+    /// </summary>
+    [HttpPost("decision/discover")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Discover([FromBody] DecisionSolverService.DiscoverRequest request)
+    {
+        var result = await _solver.SolveDiscoverAsync(request);
+        return Ok(result);
+    }
 }

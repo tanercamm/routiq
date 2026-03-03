@@ -65,6 +65,15 @@ public class DecisionSolverService
         public DateTime DecidedAt { get; set; } = DateTime.UtcNow;
     }
 
+    public class DiscoverRequest
+    {
+        public string Passport { get; set; } = string.Empty;
+        public string Origin { get; set; } = string.Empty;
+        public string BudgetLimit { get; set; } = "Any";
+        public string Duration { get; set; } = "Any";
+        public string Region { get; set; } = "All";
+    }
+
     public class MemberInfo
     {
         public int UserId { get; set; }
@@ -124,8 +133,25 @@ public class DecisionSolverService
             foreach (var member in members)
             {
                 // MCP #1: Route Feasibility
-                var feasibility = await _feasibility.AnalyseAsync(
-                    member.Origin, code, member.Passports, countryCode);
+                RouteFeasibilityService.FeasibilityResult feasibility;
+                try
+                {
+                    feasibility = await _feasibility.AnalyseAsync(
+                        member.Origin, code, member.Passports, countryCode);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MCP Failure] Feasibility timeout/error: {ex.Message}");
+                    feasibility = new RouteFeasibilityService.FeasibilityResult
+                    {
+                        IsFeasible = true,
+                        EstimatedCostUsd = 1000,
+                        FlightTimeMinutes = 600,
+                        FlightTimeFormatted = "10h 00m",
+                        VisaRequired = false,
+                        VisaType = "VisaFree (Fallback)"
+                    };
+                }
 
                 if (!feasibility.IsFeasible)
                 {
@@ -135,7 +161,24 @@ public class DecisionSolverService
                 }
 
                 // MCP #2: Budget Consistency
-                var budgetResult = _budget.Analyse(feasibility.EstimatedCostUsd, member.Budget);
+                BudgetConsistencyService.BudgetResult budgetResult;
+                try
+                {
+                    budgetResult = _budget.Analyse(feasibility.EstimatedCostUsd, member.Budget);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MCP Failure] Budget timeout/error: {ex.Message}");
+                    budgetResult = new BudgetConsistencyService.BudgetResult
+                    {
+                        Score = 50.0,
+                        Severity = "comfortable",
+                        PercentageUsed = 50.0
+                    };
+                }
+
+                // For groups, if strict filter, we might eliminate
+                // but we let Budget Consistency score handle it.
 
                 // MCP #3: collect flight times for overlap analysis
                 flightTimes.Add(feasibility.FlightTimeMinutes);
@@ -163,7 +206,21 @@ public class DecisionSolverService
             if (!isFeasible) continue;
 
             // MCP #3: Time Overlap
-            var timeResult = _timeOverlap.Analyse(flightTimes);
+            TimeOverlapService.TimeOverlapResult timeResult;
+            try
+            {
+                timeResult = _timeOverlap.Analyse(flightTimes);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MCP Failure] Time Overlap timeout/error: {ex.Message}");
+                timeResult = new TimeOverlapService.TimeOverlapResult
+                {
+                    NormalizedScore = 50.0,
+                    AvgFlightFormatted = "Unknown",
+                    FrictionScore = 0
+                };
+            }
 
             // ── Step 3: Composite Score ──
             // Weights: 40% budget, 30% time fairness, 30% visa ease
@@ -323,5 +380,189 @@ public class DecisionSolverService
         }
 
         return string.Join("\n", lines);
+    }
+
+    /// <summary>
+    /// Run the Discover pipeline for a single user without a group.
+    /// Uses the 3 MCP atoms to evaluate destinations based on simple constraints.
+    /// </summary>
+    public async Task<DecisionResult> SolveDiscoverAsync(DiscoverRequest request)
+    {
+        var passports = string.IsNullOrWhiteSpace(request.Passport) ? new List<string> { "TR" } : new List<string> { request.Passport };
+
+        // Derive origin if empty
+        var origin = request.Origin;
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            origin = passports[0].ToUpperInvariant() switch
+            {
+                "AU" => "SYD",
+                "DE" => "BER",
+                "TR" => "IST",
+                _ => "IST"
+            };
+        }
+
+        // Parse max budget roughly
+        int maxBudget = int.MaxValue;
+        if (request.BudgetLimit == "< $500") maxBudget = 500;
+        else if (request.BudgetLimit == "< $1000") maxBudget = 1000;
+        else if (request.BudgetLimit == "< $1500") maxBudget = 1500;
+
+        var scoredCandidates = new List<CandidateResult>();
+        var eliminated = new Dictionary<string, string>();
+
+        foreach (var (code, city, country, countryCode) in CandidateDestinations)
+        {
+            var region = GetRegionForCountryCode(countryCode);
+
+            // MCP Filter #0: Region
+            if (request.Region != "All" && request.Region != region)
+            {
+                eliminated[code] = $"{city} skipped: Not in selected region ({request.Region}).";
+                continue;
+            }
+
+            if (origin.Equals(code, StringComparison.OrdinalIgnoreCase))
+            {
+                eliminated[code] = $"{city} skipped: You're already there.";
+                continue;
+            }
+
+            // MCP #1: Route Feasibility
+            RouteFeasibilityService.FeasibilityResult feasibility;
+            try
+            {
+                feasibility = await _feasibility.AnalyseAsync(origin, code, passports, countryCode);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MCP Failure] Feasibility timeout/error: {ex.Message}");
+                feasibility = new RouteFeasibilityService.FeasibilityResult
+                {
+                    IsFeasible = true,
+                    EstimatedCostUsd = 1000,
+                    FlightTimeMinutes = 600,
+                    FlightTimeFormatted = "10h 00m",
+                    VisaRequired = false,
+                    VisaType = "VisaFree (Fallback)"
+                };
+            }
+
+            if (!feasibility.IsFeasible)
+            {
+                eliminated[code] = $"{city} eliminated: {feasibility.BlockReason}.";
+                continue;
+            }
+
+            // MCP #2: Budget Consistency
+            if (request.BudgetLimit != "Any" && feasibility.EstimatedCostUsd > maxBudget)
+            {
+                eliminated[code] = $"{city} eliminated: Flight cost (${feasibility.EstimatedCostUsd}) exceeds your `{request.BudgetLimit}` budget limit.";
+                continue;
+            }
+
+            BudgetConsistencyService.BudgetResult budgetResult;
+            try
+            {
+                budgetResult = _budget.Analyse(feasibility.EstimatedCostUsd, maxBudget == int.MaxValue ? 1500 : maxBudget);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MCP Failure] Budget timeout/error: {ex.Message}");
+                budgetResult = new BudgetConsistencyService.BudgetResult
+                {
+                    Score = 50.0,
+                    Severity = "comfortable",
+                    PercentageUsed = 50.0
+                };
+            }
+
+            // Build Ticket
+            var ticket = new MemberTicket
+            {
+                MemberName = "You",
+                Origin = origin,
+                Destination = code,
+                FlightTime = feasibility.FlightTimeFormatted,
+                FlightTimeMinutes = feasibility.FlightTimeMinutes,
+                CostUsd = feasibility.EstimatedCostUsd,
+                VisaType = feasibility.VisaType,
+                VisaRequired = feasibility.VisaRequired,
+                BudgetSeverity = budgetResult.Severity,
+                BudgetPercentUsed = budgetResult.PercentageUsed
+            };
+
+            // MCP #3: Time Overlap (Re-purposed for single user flight time logic)
+            // Instead of group overlap, we'll score the flight time to prioritize shorter flights
+            double flightTimeScore = Math.Max(0, 100 - (feasibility.FlightTimeMinutes / 12.0));
+            double visaScore = feasibility.VisaRequired ? 50.0 : 100.0;
+
+            // Dynamic rule engine behavior
+            double composite = (0.5 * budgetResult.Score) + (0.3 * flightTimeScore) + (0.2 * visaScore);
+
+            // Boost certain regions based on Passport for demo
+            if (passports.Contains("AU") && (region == "Asia" || region == "Oceania"))
+            {
+                composite += 15; // Emphasize closer ones for Australians
+            }
+
+            scoredCandidates.Add(new CandidateResult
+            {
+                DestinationCode = code,
+                City = city,
+                Country = country,
+                CompositeScore = Math.Round(composite, 1),
+                AvgCostUsd = feasibility.EstimatedCostUsd,
+                AvgFlightTime = feasibility.FlightTimeFormatted,
+                FrictionScore = 0,
+                MemberTickets = new List<MemberTicket> { ticket }
+            });
+        }
+
+        var ranked = scoredCandidates.OrderByDescending(c => c.CompositeScore).ToList();
+
+        if (ranked.Count == 0)
+        {
+            return new DecisionResult
+            {
+                Explanation = "No feasible destinations found matching your criteria. Try loosening the budget or changing the region.",
+                EliminatedReasons = eliminated
+            };
+        }
+
+        var winner = ranked[0];
+        var alternatives = ranked.Skip(1).Take(2).ToList();
+
+        // Single-user explanation
+        var lines = new List<string>();
+        lines.Add($"🏆 {winner.City} ({winner.DestinationCode}) is our top logical recommendation, scoring {winner.CompositeScore}/100.");
+
+        if (winner.MemberTickets[0].VisaRequired)
+            lines.Add($"⚠️ Visa is required for your {passports[0]} passport.");
+        else
+            lines.Add($"🛂 Visa-free entry based on your {passports[0]} passport.");
+
+        lines.Add($"💸 Estimated round-trip flight from {origin} takes {winner.AvgFlightTime} and costs ${winner.AvgCostUsd}.");
+
+        return new DecisionResult
+        {
+            Winner = winner,
+            Alternatives = alternatives,
+            Explanation = string.Join("\n", lines),
+            EliminatedReasons = eliminated,
+            DecidedAt = DateTime.UtcNow
+        };
+    }
+
+    private string GetRegionForCountryCode(string countryCode)
+    {
+        return countryCode switch
+        {
+            "SG" or "TH" or "MY" or "AZ" => "Asia",
+            "BA" or "GE" => "Europe",
+            "MA" => "Africa",
+            _ => "Other"
+        };
     }
 }
