@@ -42,6 +42,9 @@ public class UserProfile
     [MaxLength(10)]
     public string Origin { get; set; } = string.Empty;
 
+    /// <summary>Flight budget in USD. 0 = not set (engine uses $1500 default).</summary>
+    public int Budget { get; set; } = 0;
+
     // Navigation
     public ICollection<SavedRoute> SavedRoutes { get; set; } = new List<SavedRoute>();
 }

@@ -1,6 +1,5 @@
-using System.Net.Http;
-using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Routiq.Api.Services;
 
 namespace Routiq.Api.Controllers;
 
@@ -8,59 +7,50 @@ namespace Routiq.Api.Controllers;
 [Route("api/flights")]
 public class FlightController : ControllerBase
 {
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IConfiguration _configuration;
+    private readonly RouteFeasibilityService _feasibility;
 
-    public FlightController(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+    public FlightController(RouteFeasibilityService feasibility)
     {
-        _httpClientFactory = httpClientFactory;
-        _configuration = configuration;
+        _feasibility = feasibility;
     }
 
+    /// <summary>
+    /// Returns flight data for a given origin → destination, using the RouteFeasibilityService.
+    /// If no origin is provided, returns an estimate from IST as a sensible default for browsing.
+    /// </summary>
     [HttpGet("live")]
-    public async Task<IActionResult> GetLiveFlight([FromQuery] string destination)
+    public async Task<IActionResult> GetLiveFlight(
+        [FromQuery] string destination,
+        [FromQuery] string? origin = null,
+        [FromQuery] string? passport = null)
     {
         if (string.IsNullOrWhiteSpace(destination))
             return BadRequest(new { message = "Destination is required" });
 
-        try
+        var effectiveOrigin = !string.IsNullOrWhiteSpace(origin) ? origin : "IST";
+        var passports = !string.IsNullOrWhiteSpace(passport)
+            ? new List<string> { passport }
+            : new List<string> { "TR" };
+
+        // Use the MCP Atom #1 for real flight estimation
+        var result = await _feasibility.AnalyseAsync(
+            effectiveOrigin,
+            destination.ToUpperInvariant(),
+            passports,
+            destination.ToUpperInvariant());
+
+        return Ok(new
         {
-            var apiKey = _configuration["FlightApi:ApiKey"] ?? "PLACEHOLDER_KEY";
-            var baseUrl = _configuration["FlightApi:BaseUrl"] ?? "https://api.external-flight-provider.com/v1";
-
-            var client = _httpClientFactory.CreateClient();
-            var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/flights/live?destination={Uri.EscapeDataString(destination)}");
-            request.Headers.Add("X-Api-Key", apiKey);
-            request.Headers.Add("Accept", "application/json");
-
-            var response = await client.SendAsync(request);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                return StatusCode((int)response.StatusCode, new { message = "External API failed to return live flight data for this route." });
-            }
-
-            var content = await response.Content.ReadAsStringAsync();
-
-            using var document = JsonDocument.Parse(content);
-            var root = document.RootElement;
-
-            var dto = new
-            {
-                flightNumber = root.TryGetProperty("flightNumber", out var fn) ? fn.GetString() : null,
-                duration = root.TryGetProperty("duration", out var d) ? d.GetString() : null,
-                price = root.TryGetProperty("price", out var p) ? p.GetString() : null
-            };
-
-            return Ok(dto);
-        }
-        catch (HttpRequestException ex)
-        {
-            return StatusCode(503, new { message = "External flight service is unreachable at this time.", error = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { message = "An internal error occurred while processing the live flight data.", error = ex.Message });
-        }
+            flightNumber = $"TK {effectiveOrigin}-{destination.ToUpperInvariant()}",
+            duration = result.FlightTimeFormatted,
+            costUsd = result.EstimatedCostUsd,
+            origin = effectiveOrigin,
+            destination = destination,
+            visaRequired = result.VisaRequired,
+            visaType = result.VisaType,
+            isFeasible = result.IsFeasible,
+            isEstimate = true,  // Always true until we have a live API integration
+            source = "RouteFeasibilityService"
+        });
     }
 }

@@ -16,6 +16,7 @@ interface TravelGroup {
     ownerId: number;
     isEngineReady: boolean;
     avatars: string[];
+    shortlist?: any[];
 }
 
 const CodeBadge = ({ code }: { code: string }) => {
@@ -53,7 +54,18 @@ export const TravelGroupsPage = () => {
     const [newGroupName, setNewGroupName] = useState('');
     const [joinCode, setJoinCode] = useState('');
 
-    const [groups, setGroups] = useState<TravelGroup[]>([]);
+    const [groups, setGroups] = useState<TravelGroup[]>(() => {
+        const saved = localStorage.getItem('workspaces');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                return [];
+            }
+        }
+        return [];
+    });
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -61,28 +73,42 @@ export const TravelGroupsPage = () => {
 
     const { user: currentUser } = useAuth();
 
+    // Persist groups to localStorage whenever they change
+    useEffect(() => {
+        if (Array.isArray(groups)) {
+            localStorage.setItem('workspaces', JSON.stringify(groups));
+        }
+    }, [groups]);
     const fetchGroups = async () => {
         try {
             setLoading(true);
             const response = await routiqApi.get('/groups');
-            setGroups(response.data);
+
+            if (response.data && Array.isArray(response.data)) {
+                setGroups(response.data);
+            }
             setError(null);
         } catch (err: any) {
             console.error('Failed to fetch groups', err);
-            if (err?.response?.status === 404) {
+            // If 401, the token is invalid — clear stale cache to prevent ghost groups
+            if (err?.response?.status === 401) {
                 setGroups([]);
-                setError(null);
-            } else {
-                setError('Failed to load workspaces.');
+                localStorage.removeItem('workspaces');
+                setError('Session expired. Please log in again.');
+            } else if (!Array.isArray(groups) || groups.length === 0) {
+                setError('Could not connect to server. Start backend: dotnet run');
             }
         } finally {
             setLoading(false);
         }
     };
 
+    // Re-fetch when auth state changes (ensures we fetch AFTER token is set)
     useEffect(() => {
-        fetchGroups();
-    }, []);
+        if (currentUser?.id) {
+            fetchGroups();
+        }
+    }, [currentUser?.id]);
 
     const handleJoinCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -123,12 +149,15 @@ export const TravelGroupsPage = () => {
     };
 
     const deleteGroup = async (groupId: string) => {
-        setGroups(prev => prev.filter(g => g.id !== groupId));
+        setGroups(prev => {
+            if (!Array.isArray(prev)) return [];
+            return prev.filter(g => g.id !== groupId);
+        });
         try {
             await routiqApi.delete(`/groups/${groupId}`);
         } catch (err) {
             console.error('Failed to delete group', err);
-            fetchGroups(); // Revert on failure
+            fetchGroups();
         }
     };
 
@@ -258,21 +287,21 @@ export const TravelGroupsPage = () => {
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {loading && groups.length === 0 ? (
+                    {loading && (!Array.isArray(groups) || groups.length === 0) ? (
                         <div className="col-span-full py-12 flex flex-col items-center justify-center text-gray-500">
                             <Loader2 size={32} className="animate-spin text-teal-500 mb-4" />
                             <p>Loading workspaces...</p>
                         </div>
-                    ) : error ? (
+                    ) : error && (!Array.isArray(groups) || groups.length === 0) ? (
                         <div className="col-span-full py-12 text-center text-red-500">
                             <p>{error}</p>
                         </div>
-                    ) : groups.length === 0 ? (
+                    ) : !Array.isArray(groups) || groups.length === 0 ? (
                         <div className="col-span-full py-12 text-center text-gray-500 dark:text-gray-400">
                             <p>You haven't joined any workspaces yet.</p>
                         </div>
                     ) : (
-                        groups.map((group: TravelGroup, idx: number) => (
+                        Array.isArray(groups) ? groups.map((group: TravelGroup, idx: number) => (
                             <motion.div
                                 key={group.id}
                                 initial={{ opacity: 0, y: 20 }}
@@ -340,7 +369,7 @@ export const TravelGroupsPage = () => {
                                     </Button>
                                 </Card>
                             </motion.div>
-                        ))
+                        )) : <p>No groups available</p>
                     )}
                 </div>
             </div>

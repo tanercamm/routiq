@@ -22,6 +22,8 @@ public class RoutiqDbContext : DbContext
     // ── Travel Groups ──
     public DbSet<TravelGroup> TravelGroups { get; set; }
     public DbSet<TravelGroupMember> TravelGroupMembers { get; set; }
+    public DbSet<GroupShortlistRoute> GroupShortlistRoutes { get; set; }
+    public DbSet<RouteVote> RouteVotes { get; set; }
 
     // ── Route Engine ──
     public DbSet<RouteQuery> RouteQueries { get; set; }
@@ -61,6 +63,24 @@ public class RoutiqDbContext : DbContext
             .HasForeignKey(tgm => tgm.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<GroupShortlistRoute>()
+            .HasOne(sr => sr.Group)
+            .WithMany()
+            .HasForeignKey(sr => sr.GroupId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RouteVote>()
+            .HasOne(rv => rv.ShortlistRoute)
+            .WithMany(sr => sr.Votes)
+            .HasForeignKey(rv => rv.GroupShortlistRouteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RouteVote>()
+            .HasOne(rv => rv.User)
+            .WithMany()
+            .HasForeignKey(rv => rv.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // ── List<string> ValueConverters ──
         // EF Core / Npgsql does not auto-map List<string> to text[].
         // Serialise as JSON array string so the column is a simple VARCHAR.
@@ -92,8 +112,8 @@ public class RoutiqDbContext : DbContext
 
         modelBuilder.Entity<UserProfile>()
             .HasOne(up => up.User)
-            .WithMany()
-            .HasForeignKey(up => up.UserId)
+            .WithOne(u => u.Profile)
+            .HasForeignKey<UserProfile>(up => up.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // ── RouteQuery ──

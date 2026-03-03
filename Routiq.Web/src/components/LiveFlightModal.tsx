@@ -1,72 +1,55 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import flightCache from '../data/mcpFlightCache.json';
+import { routiqApi } from '../api/routiqApi';
 
 interface LiveFlightModalProps {
     destination: string;
+    origin?: string;
     onClose: () => void;
 }
 
 interface FlightData {
-    flightNumber?: string | null;
-    duration?: string | null;
-    price?: string | null;
-    vibe?: string | null;
+    flightNumber?: string;
+    duration?: string;
+    costUsd?: number;
+    origin?: string;
+    destination?: string;
+    visaRequired?: boolean;
+    visaType?: string;
+    isFeasible?: boolean;
     isEstimate?: boolean;
+    source?: string;
 }
 
-export default function LiveFlightModal({ destination, onClose }: LiveFlightModalProps) {
+export default function LiveFlightModal({ destination, origin, onClose }: LiveFlightModalProps) {
     const [flightData, setFlightData] = useState<FlightData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [isRedirecting, setIsRedirecting] = useState(false);
 
     useEffect(() => {
         setIsLoading(true);
+        setError(null);
 
-        const getFlightData = (city: string): FlightData => {
-            const destKey = (city || "").toLowerCase().trim();
+        const fetchFlightData = async () => {
+            try {
+                const params = new URLSearchParams({ destination });
+                if (origin) params.set('origin', origin);
 
-            // 1. Check if we have real MCP cached data
-            const cacheKey = Object.keys(flightCache).find(key => destKey.includes(key));
-            if (cacheKey) {
-                return { ...(flightCache as Record<string, any>)[cacheKey], isEstimate: false };
+                const response = await routiqApi.get(`/flights/live?${params.toString()}`);
+                setFlightData(response.data);
+            } catch (err: any) {
+                console.error('Failed to fetch live flight data:', err);
+                setError('Could not connect to flight service. Start backend: dotnet run');
+            } finally {
+                setIsLoading(false);
             }
-
-            // 2. Algorithmic Fallback for unknown cities
-            let estimatedPrice, estimatedDuration, regionVibe;
-
-            if (destKey.match(/usa|canada|america|mexico|brazil/i)) {
-                estimatedPrice = "₺" + (Math.floor(Math.random() * 20) + 35) + ",000 TRY";
-                estimatedDuration = "~12h 30m";
-                regionVibe = "Long-haul transcontinental route.";
-            } else if (destKey.match(/japan|china|korea|asia|thailand|indonesia/i)) {
-                estimatedPrice = "₺" + (Math.floor(Math.random() * 15) + 30) + ",000 TRY";
-                estimatedDuration = "~10h 45m";
-                regionVibe = "Far East / Asian connection.";
-            } else {
-                // Default to European/Nearby logic
-                estimatedPrice = "₺" + (Math.floor(Math.random() * 8) + 5) + ",000 TRY";
-                estimatedDuration = "~3h 15m";
-                regionVibe = "Standard regional connection.";
-            }
-
-            return {
-                flightNumber: `TK ${Math.floor(Math.random() * 8000) + 1000} (Est.)`,
-                duration: estimatedDuration,
-                price: estimatedPrice,
-                vibe: regionVibe,
-                isEstimate: true
-            };
         };
 
-        // Simulate secure database connection for UX
-        const timer = setTimeout(() => {
-            setFlightData(getFlightData(destination));
-            setIsLoading(false);
-        }, 1200);
+        fetchFlightData();
+    }, [destination, origin]);
 
-        return () => clearTimeout(timer);
-    }, [destination]);
+    const displayOrigin = flightData?.origin || origin || 'IST';
 
     const modalContent = (
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-all duration-300" onClick={(e) => e.stopPropagation()}>
@@ -80,19 +63,29 @@ export default function LiveFlightModal({ destination, onClose }: LiveFlightModa
                 {/* Theme-Aware Header */}
                 <div className="mb-6">
                     <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white flex items-center gap-3">
-                        <span className="text-[#E60000]">Turkish Airlines</span> Live Data: {destination}
+                        <span className="text-[#E60000]">Turkish Airlines</span> Flight Data: {destination}
                     </h2>
+                    {flightData?.source && (
+                        <span className="text-[10px] text-gray-400 font-mono mt-1 inline-block">
+                            Source: {flightData.source}
+                        </span>
+                    )}
                 </div>
 
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center flex-1 space-y-6 animate-pulse py-20 min-h-[300px]">
                         <div className="w-16 h-16 border-4 border-[#E60000] border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-gray-500 dark:text-gray-300 text-xl tracking-wide">Connecting to THY secure database for {destination}...</p>
+                        <p className="text-gray-500 dark:text-gray-300 text-xl tracking-wide">Fetching flight data for {destination}...</p>
+                    </div>
+                ) : error ? (
+                    <div className="flex flex-col items-center justify-center flex-1 py-20 min-h-[300px]">
+                        <div className="text-4xl mb-4">⚠️</div>
+                        <p className="text-red-500 dark:text-red-400 text-sm font-medium text-center max-w-sm">{error}</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-hidden">
 
-                        {/* LEFT PANEL - NOW FULLY THEME-AWARE */}
+                        {/* LEFT PANEL - Flight Details */}
                         <div className="bg-gray-50 dark:bg-slate-900/50 p-6 rounded-xl border border-gray-200 dark:border-slate-700/50 flex flex-col justify-between transition-colors duration-300 shadow-inner">
                             <div>
                                 <div className="text-[10px] font-bold text-gray-500 dark:text-slate-400 tracking-widest uppercase mb-4">
@@ -101,38 +94,38 @@ export default function LiveFlightModal({ destination, onClose }: LiveFlightModa
                                 <div className="text-3xl font-black text-gray-900 dark:text-white mb-1">
                                     {flightData?.flightNumber || 'Flight TBD'}
                                 </div>
-                                <div className="text-sm text-gray-600 dark:text-slate-300 mb-6 pb-6 border-b border-gray-200 dark:border-slate-700 flex items-center flex-wrap gap-1">
-                                    <span className="font-bold text-gray-900 dark:text-white">IST</span> &rarr; {destination}
+                                <div className="text-sm text-gray-600 dark:text-slate-300 mb-4 pb-4 border-b border-gray-200 dark:border-slate-700 flex items-center flex-wrap gap-1">
+                                    <span className="font-bold text-gray-900 dark:text-white">{displayOrigin}</span> &rarr; {destination}
                                     {flightData?.duration ? <span className="opacity-70 ml-1">({flightData.duration})</span> : null}
                                 </div>
+
+                                {/* Visa Status */}
+                                {flightData?.visaRequired !== undefined && (
+                                    <div className={`p-2 rounded-lg text-xs font-medium mb-4 flex items-center gap-2 ${flightData.visaRequired
+                                            ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50'
+                                            : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50'
+                                        }`}>
+                                        <span>{flightData.visaRequired ? '🛂' : '✅'}</span>
+                                        <span>{flightData.visaRequired ? `Visa required (${flightData.visaType})` : `Visa-free (${flightData.visaType})`}</span>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* DYNAMIC CURRENCY CONVERSION & INTERACTIVE HANDOFF BUTTON */}
+                            {/* Price Display */}
                             <div>
-                                {/* Price Display */}
-                                {(() => {
-                                    const priceStr = flightData?.price || '₺45,000 TRY';
-                                    // Extract only numbers from the string (e.g., "₺45,000 TRY" -> 45000)
-                                    const tryValue = parseInt(priceStr.replace(/[^0-9]/g, ''), 10) || 0;
-                                    // Exchange rate: 1 USD = 44 TRY
-                                    const usdValue = Math.round(tryValue / 44);
-
-                                    return (
-                                        <div className="flex flex-col mb-6">
-                                            <div className="text-4xl font-black text-[#E60000] drop-shadow-sm flex items-end gap-2">
-                                                ${usdValue} <span className="text-2xl font-bold mb-1">USD</span>
-                                                {flightData?.isEstimate && (
-                                                    <span className="text-[10px] bg-yellow-100 dark:bg-yellow-600/20 text-yellow-700 dark:text-yellow-500 px-2 py-1 rounded ml-1 mb-1 border border-yellow-300 dark:border-yellow-600/50 tracking-wider uppercase font-bold">
-                                                        Estimate
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="text-sm font-medium text-gray-500 dark:text-slate-400 mt-1">
-                                                Billed as {priceStr} by Turkish Airlines
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
+                                <div className="flex flex-col mb-6">
+                                    <div className="text-4xl font-black text-[#E60000] drop-shadow-sm flex items-end gap-2">
+                                        ${flightData?.costUsd || '—'} <span className="text-2xl font-bold mb-1">USD</span>
+                                        {flightData?.isEstimate && (
+                                            <span className="text-[10px] bg-yellow-100 dark:bg-yellow-600/20 text-yellow-700 dark:text-yellow-500 px-2 py-1 rounded ml-1 mb-1 border border-yellow-300 dark:border-yellow-600/50 tracking-wider uppercase font-bold">
+                                                Estimate
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-500 dark:text-slate-400 mt-1">
+                                        Based on {displayOrigin} → {destination} route analysis
+                                    </div>
+                                </div>
 
                                 {/* Interactive Handoff Button */}
                                 <button
@@ -145,8 +138,8 @@ export default function LiveFlightModal({ destination, onClose }: LiveFlightModa
                                     }}
                                     disabled={isRedirecting}
                                     className={`w-full py-3 font-bold rounded-lg transition-all shadow-md text-sm flex items-center justify-center gap-2 ${isRedirecting
-                                            ? 'bg-red-800 text-white cursor-wait opacity-90'
-                                            : 'bg-[#E60000] hover:bg-[#CC0000] text-white'
+                                        ? 'bg-red-800 text-white cursor-wait opacity-90'
+                                        : 'bg-[#E60000] hover:bg-[#CC0000] text-white'
                                         }`}
                                 >
                                     {isRedirecting ? (
@@ -181,7 +174,6 @@ export default function LiveFlightModal({ destination, onClose }: LiveFlightModa
                                 .animate-fly-arc { 
                                   animation: smoothArcFly 8s cubic-bezier(0.4, 0, 0.2, 1) infinite; 
                                   offset-path: path('M10 80 C 40 10, 160 10, 190 80');
-                                  /* Critical Fix: Point the nose forward along the path */
                                   offset-rotate: auto 90deg;
                                 }
                                 .animate-sonar {
@@ -193,7 +185,7 @@ export default function LiveFlightModal({ destination, onClose }: LiveFlightModa
                             <div className="relative w-full h-32 flex items-center justify-center mb-6">
                                 <svg viewBox="0 0 200 100" className="w-full h-full drop-shadow-[0_2px_4px_rgba(0,0,0,0.1)] dark:drop-shadow-none">
 
-                                    {/* 1. Background Grid (Sleek, theme-aware) */}
+                                    {/* Background Grid */}
                                     <defs>
                                         <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
                                             <path d="M 20 0 L 0 0 0 20" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-gray-100 dark:text-slate-800" />
@@ -201,7 +193,7 @@ export default function LiveFlightModal({ destination, onClose }: LiveFlightModa
                                     </defs>
                                     <rect width="100%" height="100%" fill="url(#grid)" />
 
-                                    {/* 2. Static Smooth Arc Path (Sleek, theme-aware) */}
+                                    {/* Static Smooth Arc Path */}
                                     <path
                                         d="M10 80 C 40 10, 160 10, 190 80"
                                         fill="none"
@@ -211,18 +203,18 @@ export default function LiveFlightModal({ destination, onClose }: LiveFlightModa
                                         className="text-gray-200 dark:text-slate-600"
                                     />
 
-                                    {/* 3. Origin Point (Centered) */}
+                                    {/* Origin Point — Dynamic */}
                                     <circle cx="10" cy="80" r="4" className="fill-gray-600 dark:fill-slate-400" />
-                                    <text x="10" y="94" textAnchor="middle" className="text-[9px] font-bold fill-gray-600 dark:fill-slate-400">IST</text>
+                                    <text x="10" y="94" textAnchor="middle" className="text-[9px] font-bold fill-gray-600 dark:fill-slate-400">{displayOrigin}</text>
 
-                                    {/* Destination Point (Professional Sonar Pulse, perfectly centered) */}
+                                    {/* Destination Point */}
                                     <circle cx="190" cy="80" className="fill-transparent stroke-[#E60000] animate-sonar" />
                                     <circle cx="190" cy="80" r="5" className="fill-[#E60000]" />
                                     <text x="190" y="94" textAnchor="middle" className="text-[9px] font-bold fill-[#E60000]">
                                         {destination || 'DST'}
                                     </text>
 
-                                    {/* 4. The Animated Plane - x="-12" and y="-12" FORCE it to perfectly align to the path */}
+                                    {/* The Animated Plane */}
                                     <g className="animate-fly-arc fill-gray-900 dark:fill-white drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]">
                                         <svg x="-12" y="-12" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
@@ -235,10 +227,10 @@ export default function LiveFlightModal({ destination, onClose }: LiveFlightModa
                             <div className="text-center z-10 border-t border-gray-100 dark:border-slate-800 pt-4 mt-auto">
                                 <div className="font-bold text-gray-900 dark:text-white tracking-wide text-sm flex items-center justify-center gap-2">
                                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                    Dinamik Rota Takibi
+                                    Dynamic Route Tracking
                                 </div>
                                 <div className="text-xs text-gray-500 dark:text-slate-400 italic mt-1 px-2">
-                                    "Uçuş verileri canlı MCP API'den optimize edilmiştir."
+                                    Flight data from backend MCP pipeline
                                 </div>
                             </div>
                         </div>

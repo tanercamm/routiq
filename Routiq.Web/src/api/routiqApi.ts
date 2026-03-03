@@ -5,6 +5,14 @@ const api = axios.create({
     baseURL: 'http://localhost:5107/api',
 });
 
+// ── Critical: Set auth header at module load, BEFORE any component mounts ──
+// React useEffect order: children fire before parents.
+// Without this, TravelGroupsPage.fetchGroups() fires before AuthContext sets the token.
+const storedToken = localStorage.getItem('token');
+if (storedToken) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+}
+
 export const routiqApi = api;
 
 export const login = async (credentials: { email: string; password: string }) => {
@@ -58,4 +66,11 @@ export const saveRoute = async (payload: SaveRoutePayload): Promise<{ id: string
         );
         throw err;
     }
+};
+
+// ── Agent-as-Orchestrator: Decision Engine ──
+
+export const runDecisionEngine = async (groupId: string) => {
+    const response = await api.post('/decision/run', { groupId });
+    return response.data;
 };

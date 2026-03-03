@@ -22,6 +22,12 @@ builder.Services.AddDbContext<RoutiqDbContext>(options =>
 builder.Services.AddScoped<IRouteGenerator, RouteGenerator>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// ── MCP Decision Services (Agent-as-Orchestrator) ──
+builder.Services.AddScoped<RouteFeasibilityService>();
+builder.Services.AddScoped<BudgetConsistencyService>();
+builder.Services.AddScoped<TimeOverlapService>();
+builder.Services.AddScoped<DecisionSolverService>();
+
 // ── JWT Authentication ──
 var key = System.Text.Encoding.ASCII.GetBytes(
     builder.Configuration["Jwt:Key"] ?? "SuperSecretKeyForDevelopmentOnly123!");
