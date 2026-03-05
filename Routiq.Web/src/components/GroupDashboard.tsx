@@ -13,6 +13,8 @@ interface MemberTicket {
     flightTime: string;
     flightTimeMinutes: number;
     costUsd: number;
+    convertedCost: number;
+    currency: string;
     visaType: string;
     visaRequired: boolean;
     budgetSeverity: string;
@@ -25,6 +27,7 @@ interface CandidateResult {
     country: string;
     compositeScore: number;
     avgCostUsd: number;
+    avgConvertedCost: number;
     avgFlightTime: string;
     frictionScore: number;
     memberTickets: MemberTicket[];
@@ -230,7 +233,12 @@ const GroupDashboard = ({ allGroups, selectedGroupId, onBack, deleteGroup }: any
                                         </div>
                                         <div className="bg-white/60 dark:bg-slate-900/50 p-2 rounded-lg border border-indigo-100 dark:border-indigo-500/20">
                                             <div className="text-[9px] text-gray-500 uppercase tracking-wide">Avg Cost</div>
-                                            <div className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">${decisionResult.winner.avgCostUsd}</div>
+                                            <div className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                                                {decisionResult.winner.memberTickets[0]?.currency === 'USD' ? '$' :
+                                                    decisionResult.winner.memberTickets[0]?.currency === 'EUR' ? '€' :
+                                                        decisionResult.winner.memberTickets[0]?.currency === 'TRY' ? '₺' : ''}
+                                                {decisionResult.winner.avgConvertedCost}
+                                            </div>
                                         </div>
                                     </div>
 
@@ -247,7 +255,9 @@ const GroupDashboard = ({ allGroups, selectedGroupId, onBack, deleteGroup }: any
                                                     <span className="text-gray-900 dark:text-white">{ticket.origin}</span>
                                                     <span className="text-indigo-400">➔</span>
                                                     <span className="text-gray-900 dark:text-white">{ticket.destination}</span>
-                                                    <span className="text-emerald-600 dark:text-emerald-400 ml-1">${ticket.costUsd}</span>
+                                                    <span className="text-emerald-600 dark:text-emerald-400 ml-1">
+                                                        {ticket.currency === 'USD' ? '$' : ticket.currency === 'EUR' ? '€' : ticket.currency === 'TRY' ? '₺' : ''}{ticket.convertedCost}
+                                                    </span>
                                                 </div>
                                             </div>
                                         ))}
@@ -290,8 +300,9 @@ const GroupDashboard = ({ allGroups, selectedGroupId, onBack, deleteGroup }: any
                                                 <div className="space-y-1 mb-2">
                                                     {alt.memberTickets.map((md) => {
                                                         const winnerTicket = decisionResult.winner.memberTickets.find(t => t.memberName === md.memberName);
-                                                        const costDelta = winnerTicket ? winnerTicket.costUsd - md.costUsd : 0;
+                                                        const costDelta = winnerTicket ? winnerTicket.convertedCost - md.convertedCost : 0;
                                                         const timeDelta = winnerTicket ? md.flightTimeMinutes - winnerTicket.flightTimeMinutes : 0;
+                                                        const currencySymbol = md.currency === 'USD' ? '$' : md.currency === 'EUR' ? '€' : md.currency === 'TRY' ? '₺' : '';
                                                         return (
                                                             <div key={md.memberName} className="flex justify-between items-center bg-white/60 dark:bg-black/20 px-2 py-1 rounded border border-white dark:border-gray-700/50">
                                                                 <div className="flex flex-col">
@@ -301,9 +312,9 @@ const GroupDashboard = ({ allGroups, selectedGroupId, onBack, deleteGroup }: any
                                                                     </span>
                                                                 </div>
                                                                 <div className="flex flex-col text-right">
-                                                                    <span className="text-[10px] font-bold font-mono text-gray-700 dark:text-gray-300">${md.costUsd}</span>
+                                                                    <span className="text-[10px] font-bold font-mono text-gray-700 dark:text-gray-300">{currencySymbol}{md.convertedCost}</span>
                                                                     <span className={`text-[9px] font-medium ${costDelta > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                                                        {costDelta > 0 ? `-$${Math.round(costDelta)}` : `+$${Math.abs(Math.round(costDelta))}`}
+                                                                        {costDelta > 0 ? `-${currencySymbol}${Math.round(costDelta)}` : `+${currencySymbol}${Math.abs(Math.round(costDelta))}`}
                                                                     </span>
                                                                 </div>
                                                             </div>
@@ -311,7 +322,9 @@ const GroupDashboard = ({ allGroups, selectedGroupId, onBack, deleteGroup }: any
                                                     })}
                                                 </div>
                                                 <div className="flex justify-between items-center pt-2 border-t border-gray-200/50 dark:border-gray-700/50">
-                                                    <div><span className="text-[9px] text-gray-500 uppercase">Avg</span> <span className="text-[11px] font-bold font-mono text-gray-700 dark:text-gray-300">${alt.avgCostUsd}</span></div>
+                                                    <div><span className="text-[9px] text-gray-500 uppercase">Avg</span> <span className="text-[11px] font-bold font-mono text-gray-700 dark:text-gray-300">
+                                                        {alt.memberTickets[0]?.currency === 'USD' ? '$' : alt.memberTickets[0]?.currency === 'EUR' ? '€' : alt.memberTickets[0]?.currency === 'TRY' ? '₺' : ''}{alt.avgConvertedCost}
+                                                    </span></div>
                                                     <div><span className="text-[9px] text-gray-500 uppercase">Time</span> <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300">{alt.avgFlightTime}</span></div>
                                                 </div>
                                             </div>

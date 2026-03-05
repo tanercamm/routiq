@@ -75,7 +75,22 @@ export const runDecisionEngine = async (groupId: string) => {
     return response.data;
 };
 
-// ── Analytics ──
+// ── Settings ──
+
+export const updatePreferences = async (preferences: { preferredCurrency?: string, unitPreference?: string }) => {
+    const response = await api.patch('/user/preferences', preferences);
+    return response.data;
+};
+
+export const updateNotifications = async (notifications: { notificationsEnabled?: boolean, priceAlertsEnabled?: boolean }) => {
+    const response = await api.patch('/user/notifications', notifications);
+    return response.data;
+};
+
+export const changePassword = async (passwords: { currentPassword?: string, newPassword?: string }) => {
+    const response = await api.post('/user/change-password', passwords);
+    return response.data;
+};
 
 export const getAnalytics = async () => {
     const response = await api.get('/analytics');

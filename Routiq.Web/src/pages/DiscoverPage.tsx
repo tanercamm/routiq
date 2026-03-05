@@ -15,6 +15,8 @@ interface Ticket {
     destination: string;
     flightTime: string;
     costUsd: number;
+    convertedCost: number;
+    currency: string;
     visaType: string;
     visaRequired: boolean;
 }
@@ -25,6 +27,7 @@ interface CandidateResult {
     country: string;
     compositeScore: number;
     avgCostUsd: number;
+    avgConvertedCost: number;
     avgFlightTime: string;
     memberTickets: Ticket[];
 }
@@ -251,7 +254,9 @@ export const DiscoverPage = () => {
                                                 </h3>
                                                 <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-gray-600 dark:text-gray-300">
                                                     <span className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600/50">
-                                                        <DollarSign size={16} className="text-green-500" /> ${result.winner.avgCostUsd} round-trip
+                                                        <DollarSign size={16} className="text-green-500" />
+                                                        {result.winner.memberTickets[0]?.currency === 'USD' ? '$' : result.winner.memberTickets[0]?.currency === 'EUR' ? '€' : result.winner.memberTickets[0]?.currency === 'TRY' ? '₺' : ''}
+                                                        {result.winner.avgConvertedCost} round-trip
                                                     </span>
                                                     <span className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600/50">
                                                         <Plane size={16} className="text-blue-500" /> {result.winner.avgFlightTime} flight
@@ -299,7 +304,10 @@ export const DiscoverPage = () => {
                                                             <div>
                                                                 <h4 className="font-extrabold text-gray-900 dark:text-white text-lg">{alt.city}, {alt.country}</h4>
                                                                 <div className="text-sm text-gray-500 dark:text-gray-400 flex gap-3 mt-1.5 font-medium">
-                                                                    <span className="flex items-center gap-1"><DollarSign size={14} className="text-green-500" />{alt.avgCostUsd}</span>
+                                                                    <span className="flex items-center gap-1"><DollarSign size={14} className="text-green-500" />
+                                                                        {alt.memberTickets[0]?.currency === 'USD' ? '$' : alt.memberTickets[0]?.currency === 'EUR' ? '€' : alt.memberTickets[0]?.currency === 'TRY' ? '₺' : ''}
+                                                                        {alt.avgConvertedCost}
+                                                                    </span>
                                                                     <span className="text-gray-300 dark:text-gray-600">•</span>
                                                                     <span className="flex items-center gap-1"><Plane size={14} className="text-blue-500" />{alt.avgFlightTime}</span>
                                                                 </div>

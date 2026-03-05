@@ -12,6 +12,8 @@ interface AuthContextType {
     isAuthenticated: boolean;
     /** Update the user's preferences */
     updateProfile: (data: Partial<User>) => Promise<void>;
+    updatePreferences: (data: { preferredCurrency?: string, unitPreference?: string }) => Promise<void>;
+    updateNotifications: (data: { notificationsEnabled?: boolean, priceAlertsEnabled?: boolean }) => Promise<void>;
     /** Update the user's avatar URL dynamically */
     setUserAvatar: (url: string | null) => void;
 }
@@ -158,8 +160,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
     };
 
+    const updatePreferencesSettings = async (data: { preferredCurrency?: string, unitPreference?: string }) => {
+        try {
+            await routiqApi.patch('/user/preferences', data);
+            setUser(prev => {
+                if (!prev) return prev;
+                const updated = { ...prev, ...data };
+                localStorage.setItem('user', JSON.stringify(updated));
+                return updated;
+            });
+        } catch (err) {
+            console.error("Failed to update preferences:", err);
+            throw err;
+        }
+    };
+
+    const updateNotificationSettings = async (data: { notificationsEnabled?: boolean, priceAlertsEnabled?: boolean }) => {
+        try {
+            await routiqApi.patch('/user/notifications', data);
+            setUser(prev => {
+                if (!prev) return prev;
+                const updated = { ...prev, ...data };
+                localStorage.setItem('user', JSON.stringify(updated));
+                return updated;
+            });
+        } catch (err) {
+            console.error("Failed to update notifications:", err);
+            throw err;
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, updateProfile, setUserAvatar }}>
+        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, updateProfile, updatePreferences: updatePreferencesSettings, updateNotifications: updateNotificationSettings, setUserAvatar }}>
             {children}
         </AuthContext.Provider>
     );

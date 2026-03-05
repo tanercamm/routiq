@@ -26,24 +26,52 @@ public class AnalyticsController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!int.TryParse(userIdStr, out int userId)) return Unauthorized();
 
-            // 1. Calculate Total Group Savings
-            // We'll estimate this by finding all "Active" or "Traveled" routes where this user was a member,
-            // and comparing the actual route cost to the average cost of eliminated alternatives from the same query.
+            // Fetch user profile for preferences
+            var profile = await _context.UserProfiles
+                .FirstOrDefaultAsync(p => p.UserId == userId);
+
+            // 1. Total Group Savings (based on saved routes vs budget)
             var savings = await CalculateUserSavingsAsync(userId);
 
             // 2. Carbon Footprint Estimate
-            // Simplistic metric: Traveled routes count * average CO2 per flight + Active routes count * active CO2
             var carbonMetrics = await CalculateCarbonFootprintAsync(userId);
 
-            // 3. Popular Regions
-            // Aggregation of regions matching User's saved routes
+            // 3. Popular Regions (from saved route stops)
             var popularRegions = await CalculatePopularRegionsAsync(userId);
+
+            // 4. Travel Groups count
+            var travelGroupsCount = await _context.TravelGroupMembers
+                .Where(m => m.UserId == userId)
+                .CountAsync();
+
+            // 5. Total Trips (saved routes = travel frequency)
+            var totalTripsCount = await _context.SavedRoutes
+                .Where(sr => sr.UserId == userId)
+                .CountAsync();
+
+            // 6. Recent Activity — last 5 saved routes with dates
+            var recentActivity = await _context.SavedRoutes
+                .Where(sr => sr.UserId == userId)
+                .OrderByDescending(sr => sr.SavedAt)
+                .Take(5)
+                .Select(sr => new
+                {
+                    routeName = sr.RouteName,
+                    savedAt = sr.SavedAt,
+                    status = sr.Status.ToString()
+                })
+                .ToListAsync();
 
             return Ok(new
             {
                 totalGroupSavings = savings,
                 carbonFootprintEstimate = carbonMetrics,
-                popularRegions
+                popularRegions,
+                travelGroupsCount,
+                totalTripsCount,
+                recentActivity,
+                preferredCurrency = profile?.PreferredCurrency ?? "USD",
+                unitPreference = profile?.UnitPreference ?? "Metric"
             });
         }
         catch (Exception ex)

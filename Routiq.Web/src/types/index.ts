@@ -26,7 +26,7 @@ export interface User {
     passports: string[];
     origin: string;
     preferredCurrency: string;
-    unitPreference: UnitPreference;
+    unitPreference: string;
     travelStyle: TravelStyle;
     notificationsEnabled: boolean;
     priceAlertsEnabled: boolean;

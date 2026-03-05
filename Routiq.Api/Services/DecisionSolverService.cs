@@ -38,6 +38,8 @@ public class DecisionSolverService
         public string FlightTime { get; set; } = string.Empty;
         public int FlightTimeMinutes { get; set; }
         public int CostUsd { get; set; }
+        public int ConvertedCost { get; set; }
+        public string Currency { get; set; } = "USD";
         public string VisaType { get; set; } = "VisaFree";
         public bool VisaRequired { get; set; }
         public string BudgetSeverity { get; set; } = "comfortable";
@@ -51,6 +53,7 @@ public class DecisionSolverService
         public string Country { get; set; } = string.Empty;
         public double CompositeScore { get; set; }
         public int AvgCostUsd { get; set; }
+        public int AvgConvertedCost { get; set; }
         public string AvgFlightTime { get; set; } = string.Empty;
         public double FrictionScore { get; set; }
         public List<MemberTicket> MemberTickets { get; set; } = new();
@@ -81,6 +84,7 @@ public class DecisionSolverService
         public string Origin { get; set; } = string.Empty;
         public List<string> Passports { get; set; } = new();
         public int Budget { get; set; } = 0;
+        public string PreferredCurrency { get; set; } = "USD";
     }
 
     // ── Candidate destinations to evaluate ──
@@ -219,6 +223,12 @@ public class DecisionSolverService
                 if (feasibility.VisaRequired)
                     visaIssues.Add($"{member.Name} needs visa for {city}");
 
+                // Currency Conversion Heuristic based on Member's preference
+                var currency = member.PreferredCurrency;
+                var convertedCost = feasibility.EstimatedCostUsd;
+                if (currency == "EUR") convertedCost = (int)(feasibility.EstimatedCostUsd * 0.95);
+                else if (currency == "TRY") convertedCost = (int)(feasibility.EstimatedCostUsd * 36.5);
+
                 tickets.Add(new MemberTicket
                 {
                     MemberName = member.Name,
@@ -228,6 +238,8 @@ public class DecisionSolverService
                     FlightTime = feasibility.FlightTimeFormatted,
                     FlightTimeMinutes = feasibility.FlightTimeMinutes,
                     CostUsd = feasibility.EstimatedCostUsd,
+                    ConvertedCost = convertedCost,
+                    Currency = currency,
                     VisaType = feasibility.VisaType,
                     VisaRequired = feasibility.VisaRequired,
                     BudgetSeverity = budgetResult.Severity,
@@ -273,6 +285,7 @@ public class DecisionSolverService
                 Country = country,
                 CompositeScore = Math.Round(composite, 1),
                 AvgCostUsd = (int)tickets.Average(t => t.CostUsd),
+                AvgConvertedCost = (int)tickets.Average(t => t.ConvertedCost),
                 AvgFlightTime = timeResult.AvgFlightFormatted,
                 FrictionScore = timeResult.FrictionScore,
                 MemberTickets = tickets
@@ -344,7 +357,8 @@ public class DecisionSolverService
                 Name = name,
                 Origin = resolvedOrigin,
                 Passports = passports ?? new List<string>(),
-                Budget = budget > 0 ? budget : 1500 // Default $1500 only when user hasn't set budget
+                Budget = budget > 0 ? budget : 1500, // Default $1500 only when user hasn't set budget
+                PreferredCurrency = m.User.Profile?.PreferredCurrency ?? "USD"
             });
         }
 
@@ -396,7 +410,7 @@ public class DecisionSolverService
             foreach (var alt in alternatives)
             {
                 var diff = winner.CompositeScore - alt.CompositeScore;
-                lines.Add($"  • {alt.City} ({alt.DestinationCode}): scored {alt.CompositeScore}/100 (−{diff:F1} points). Avg cost ${alt.AvgCostUsd}, friction {alt.FrictionScore:F0}.");
+                lines.Add($"  • {alt.City} ({alt.DestinationCode}): scored {alt.CompositeScore}/100 (−{diff:F1} points). Avg base cost ${alt.AvgCostUsd}, friction {alt.FrictionScore:F0}.");
             }
         }
 
@@ -519,6 +533,16 @@ public class DecisionSolverService
                 };
             }
 
+            // Currency Conversion Heuristic based on single discoverer preference
+            var currency = origin == "SYD" ? "AUD" : origin == "BER" ? "EUR" : origin == "IST" ? "TRY" : "USD";
+            if (passports.Contains("TR") && request.Origin != "BER") currency = "TRY";
+            else if (passports.Contains("DE") || passports.Contains("BA")) currency = "EUR";
+
+            var convertedCost = feasibility.EstimatedCostUsd;
+            if (currency == "EUR") convertedCost = (int)(feasibility.EstimatedCostUsd * 0.95);
+            else if (currency == "TRY") convertedCost = (int)(feasibility.EstimatedCostUsd * 36.5);
+            else if (currency == "AUD") convertedCost = (int)(feasibility.EstimatedCostUsd * 1.5);
+
             // Build Ticket
             var ticket = new MemberTicket
             {
@@ -528,6 +552,8 @@ public class DecisionSolverService
                 FlightTime = feasibility.FlightTimeFormatted,
                 FlightTimeMinutes = feasibility.FlightTimeMinutes,
                 CostUsd = feasibility.EstimatedCostUsd,
+                ConvertedCost = convertedCost,
+                Currency = currency,
                 VisaType = feasibility.VisaType,
                 VisaRequired = feasibility.VisaRequired,
                 BudgetSeverity = budgetResult.Severity,
@@ -561,6 +587,7 @@ public class DecisionSolverService
                 Country = country,
                 CompositeScore = Math.Round(composite, 1),
                 AvgCostUsd = feasibility.EstimatedCostUsd,
+                AvgConvertedCost = convertedCost,
                 AvgFlightTime = feasibility.FlightTimeFormatted,
                 FrictionScore = 0,
                 MemberTickets = new List<MemberTicket> { ticket }

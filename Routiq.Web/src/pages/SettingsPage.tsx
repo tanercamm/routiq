@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, UserCircle, Sliders, Bell } from 'lucide-react';
+import { Settings, UserCircle, Sliders, Bell, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { changePassword } from '../api/routiqApi';
 
 export const SettingsPage = () => {
-    const { user, updateProfile } = useAuth();
+    const { user, updatePreferences, updateNotifications } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const [activeTab, setActiveTab] = useState<'account' | 'preferences' | 'notifications'>('preferences');
     const [isSaving, setIsSaving] = useState(false);
+
+    // UI Feedback State
+    const [toastMessage, setToastMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
     // Local state for preferences
     const [currency, setCurrency] = useState(user?.preferredCurrency || 'USD');
@@ -16,14 +20,27 @@ export const SettingsPage = () => {
     const [notificationsEnabled, setNotificationsEnabled] = useState(user?.notificationsEnabled ?? true);
     const [priceAlertsEnabled, setPriceAlertsEnabled] = useState(user?.priceAlertsEnabled ?? true);
 
+    // Local state for password
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+    const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+        setToastMessage({ text, type });
+        setTimeout(() => setToastMessage(null), 3000);
+    };
+
     const handleSavePreferences = async () => {
         setIsSaving(true);
         try {
-            await updateProfile({
+            await updatePreferences({
                 preferredCurrency: currency,
                 unitPreference: units,
             });
-            // Optional: Show success toast
+            showToast('Preferences saved successfully!');
+        } catch (error: any) {
+            showToast(error.response?.data?.message || 'Failed to save preferences', 'error');
         } finally {
             setIsSaving(false);
         }
@@ -32,12 +49,42 @@ export const SettingsPage = () => {
     const handleSaveNotifications = async () => {
         setIsSaving(true);
         try {
-            await updateProfile({
+            await updateNotifications({
                 notificationsEnabled,
                 priceAlertsEnabled
             });
+            showToast('Notification settings saved!');
+        } catch (error: any) {
+            showToast(error.response?.data?.message || 'Failed to save notifications', 'error');
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (newPassword !== confirmPassword) {
+            showToast('New passwords do not match', 'error');
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            showToast('Password must be at least 8 characters long', 'error');
+            return;
+        }
+
+        setIsChangingPassword(true);
+        try {
+            await changePassword({ currentPassword, newPassword });
+            showToast('Password changed successfully!');
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (error: any) {
+            showToast(error.response?.data?.message || 'Failed to change password', 'error');
+        } finally {
+            setIsChangingPassword(false);
         }
     };
 
@@ -56,6 +103,24 @@ export const SettingsPage = () => {
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 mt-2">Manage your account preferences and application settings.</p>
             </div>
+
+            {/* Global Toast */}
+            <AnimatePresence>
+                {toastMessage && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium border ${toastMessage.type === 'success'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
+                                : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20'
+                            }`}
+                    >
+                        {toastMessage.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                        {toastMessage.text}
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <div className="flex flex-col md:flex-row gap-8">
                 {/* Sidebar Navigation */}
@@ -107,12 +172,49 @@ export const SettingsPage = () => {
                                         <p className="text-xs text-gray-500 mt-2">Email address cannot be changed currently.</p>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Password</label>
-                                        <button className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                                            Change Password
-                                        </button>
-                                    </div>
+                                    <form onSubmit={handleChangePassword} className="space-y-4 bg-gray-50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
+                                        <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-2">Change Password</h3>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Password</label>
+                                            <input
+                                                type="password"
+                                                required
+                                                value={currentPassword}
+                                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                                className="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3 dark:bg-gray-800 dark:border-gray-700 dark:placeholder-gray-400 dark:text-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
+                                            <input
+                                                type="password"
+                                                required
+                                                value={newPassword}
+                                                onChange={(e) => setNewPassword(e.target.value)}
+                                                className="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3 dark:bg-gray-800 dark:border-gray-700 dark:placeholder-gray-400 dark:text-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New Password</label>
+                                            <input
+                                                type="password"
+                                                required
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                className="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3 dark:bg-gray-800 dark:border-gray-700 dark:placeholder-gray-400 dark:text-white"
+                                            />
+                                        </div>
+                                        <div className="pt-2">
+                                            <button
+                                                type="submit"
+                                                disabled={isChangingPassword}
+                                                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-70 flex items-center gap-2"
+                                            >
+                                                {isChangingPassword && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                                                Update Password
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
                             </motion.div>
                         )}
