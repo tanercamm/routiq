@@ -23,6 +23,8 @@ public static class DbInitializer
         await SeedDestinationsAsync(context);
         await SeedVisaRulesAsync(context);
         await SeedUsersAsync(context);
+        await SeedCityIntelligenceAsync(context);
+        await SeedVisaMatrixAsync(context);
     }
 
     // ─────────────────────────────────────────────
@@ -530,6 +532,149 @@ public static class DbInitializer
         context.SavedRoutes.Add(savedRoute);
         context.RouteStops.AddRange(stops);
         context.RouteEliminations.AddRange(eliminations);
+        await context.SaveChangesAsync();
+    }
+
+    // ─────────────────────────────────────────────
+    // NEW: CITY INTELLIGENCE (Safety, Cost, Climate)
+    // ─────────────────────────────────────────────
+    private static async Task SeedCityIntelligenceAsync(RoutiqDbContext context)
+    {
+        if (await context.CityIntelligences.AnyAsync()) return;
+
+        var intelligences = new List<CityIntelligence>
+        {
+            // Western Europe (High safety, High cost)
+            new() { CityName = "London", Country = "United Kingdom", SafetyIndex = 65.5, CostOfLivingIndex = 80.0, AverageMealCostUSD = 25.0, AverageTransportCostUSD = 5.0, BestMonthsToVisit = "5,6,7,8,9" },
+            new() { CityName = "Paris", Country = "France", SafetyIndex = 58.2, CostOfLivingIndex = 75.0, AverageMealCostUSD = 22.0, AverageTransportCostUSD = 2.5, BestMonthsToVisit = "5,6,7,8,9,10" },
+            new() { CityName = "Zurich", Country = "Switzerland", SafetyIndex = 82.3, CostOfLivingIndex = 120.0, AverageMealCostUSD = 40.0, AverageTransportCostUSD = 6.0, BestMonthsToVisit = "6,7,8,9" },
+            new() { CityName = "Geneva", Country = "Switzerland", SafetyIndex = 75.4, CostOfLivingIndex = 115.0, AverageMealCostUSD = 38.0, AverageTransportCostUSD = 5.0, BestMonthsToVisit = "6,7,8,9" },
+            new() { CityName = "Vienna", Country = "Austria", SafetyIndex = 80.1, CostOfLivingIndex = 65.0, AverageMealCostUSD = 20.0, AverageTransportCostUSD = 3.0, BestMonthsToVisit = "5,6,7,8,9" },
+            new() { CityName = "Amsterdam", Country = "Netherlands", SafetyIndex = 70.0, CostOfLivingIndex = 78.0, AverageMealCostUSD = 22.0, AverageTransportCostUSD = 4.0, BestMonthsToVisit = "5,6,7,8,9" },
+            new() { CityName = "Rome", Country = "Italy", SafetyIndex = 60.5, CostOfLivingIndex = 60.0, AverageMealCostUSD = 18.0, AverageTransportCostUSD = 2.0, BestMonthsToVisit = "4,5,6,9,10" },
+            new() { CityName = "Amalfi Coast", Country = "Italy", SafetyIndex = 75.0, CostOfLivingIndex = 85.0, AverageMealCostUSD = 30.0, AverageTransportCostUSD = 5.0, BestMonthsToVisit = "5,6,7,8,9" },
+            new() { CityName = "Barcelona", Country = "Spain", SafetyIndex = 55.4, CostOfLivingIndex = 55.0, AverageMealCostUSD = 15.0, AverageTransportCostUSD = 2.5, BestMonthsToVisit = "4,5,6,9,10" },
+
+            // Eastern Europe (Medium safety, Low cost)
+            new() { CityName = "Budapest", Country = "Hungary", SafetyIndex = 68.3, CostOfLivingIndex = 40.0, AverageMealCostUSD = 10.0, AverageTransportCostUSD = 1.2, BestMonthsToVisit = "5,6,9,10" },
+            new() { CityName = "Prague", Country = "Czech Republic", SafetyIndex = 75.8, CostOfLivingIndex = 45.0, AverageMealCostUSD = 12.0, AverageTransportCostUSD = 1.5, BestMonthsToVisit = "5,6,9,10" },
+            new() { CityName = "Krakow", Country = "Poland", SafetyIndex = 78.9, CostOfLivingIndex = 35.0, AverageMealCostUSD = 8.0, AverageTransportCostUSD = 1.0, BestMonthsToVisit = "5,6,7,8,9" },
+            new() { CityName = "Bucharest", Country = "Romania", SafetyIndex = 66.2, CostOfLivingIndex = 32.0, AverageMealCostUSD = 9.0, AverageTransportCostUSD = 0.8, BestMonthsToVisit = "5,6,9,10" },
+            new() { CityName = "Cluj-Napoca", Country = "Romania", SafetyIndex = 77.4, CostOfLivingIndex = 34.0, AverageMealCostUSD = 9.0, AverageTransportCostUSD = 0.8, BestMonthsToVisit = "5,6,9,10" },
+            new() { CityName = "Sofia", Country = "Bulgaria", SafetyIndex = 62.1, CostOfLivingIndex = 30.0, AverageMealCostUSD = 8.0, AverageTransportCostUSD = 1.0, BestMonthsToVisit = "5,6,9,10" },
+            new() { CityName = "Tbilisi", Country = "Georgia", SafetyIndex = 73.5, CostOfLivingIndex = 25.0, AverageMealCostUSD = 8.0, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "5,6,9,10" },
+
+            // Balkans (High safety, Low cost)
+            new() { CityName = "Belgrade", Country = "Serbia", SafetyIndex = 63.8, CostOfLivingIndex = 35.0, AverageMealCostUSD = 9.0, AverageTransportCostUSD = 1.0, BestMonthsToVisit = "5,6,9,10" },
+            new() { CityName = "Skopje", Country = "North Macedonia", SafetyIndex = 65.4, CostOfLivingIndex = 28.0, AverageMealCostUSD = 6.0, AverageTransportCostUSD = 0.7, BestMonthsToVisit = "5,6,9,10" },
+            new() { CityName = "Tirana", Country = "Albania", SafetyIndex = 64.9, CostOfLivingIndex = 30.0, AverageMealCostUSD = 7.0, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "5,6,9,10" },
+            new() { CityName = "Sarajevo", Country = "Bosnia", SafetyIndex = 67.2, CostOfLivingIndex = 29.0, AverageMealCostUSD = 6.0, AverageTransportCostUSD = 1.0, BestMonthsToVisit = "5,6,9,10" },
+            new() { CityName = "Kotor", Country = "Montenegro", SafetyIndex = 72.1, CostOfLivingIndex = 40.0, AverageMealCostUSD = 12.0, AverageTransportCostUSD = 1.5, BestMonthsToVisit = "5,6,9,10" },
+            new() { CityName = "Dubrovnik", Country = "Croatia", SafetyIndex = 79.5, CostOfLivingIndex = 60.0, AverageMealCostUSD = 20.0, AverageTransportCostUSD = 2.0, BestMonthsToVisit = "5,6,9,10" },
+            new() { CityName = "Ljubljana", Country = "Slovenia", SafetyIndex = 82.3, CostOfLivingIndex = 50.0, AverageMealCostUSD = 12.0, AverageTransportCostUSD = 1.5, BestMonthsToVisit = "5,6,7,8,9" },
+
+            // Southeast Asia (Medium safety, Low cost)
+            new() { CityName = "Bangkok", Country = "Thailand", SafetyIndex = 60.1, CostOfLivingIndex = 35.0, AverageMealCostUSD = 4.0, AverageTransportCostUSD = 1.0, BestMonthsToVisit = "11,12,1,2" },
+            new() { CityName = "Chiang Mai", Country = "Thailand", SafetyIndex = 75.8, CostOfLivingIndex = 30.0, AverageMealCostUSD = 3.0, AverageTransportCostUSD = 0.8, BestMonthsToVisit = "11,12,1,2" },
+            new() { CityName = "Hanoi", Country = "Vietnam", SafetyIndex = 63.4, CostOfLivingIndex = 28.0, AverageMealCostUSD = 3.0, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "10,11,12,3,4" },
+            new() { CityName = "Ho Chi Minh City", Country = "Vietnam", SafetyIndex = 58.9, CostOfLivingIndex = 30.0, AverageMealCostUSD = 3.5, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "12,1,2,3" },
+            new() { CityName = "Hoi An", Country = "Vietnam", SafetyIndex = 74.2, CostOfLivingIndex = 25.0, AverageMealCostUSD = 4.0, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "2,3,4,5" },
+            new() { CityName = "Siem Reap", Country = "Cambodia", SafetyIndex = 65.5, CostOfLivingIndex = 26.0, AverageMealCostUSD = 5.0, AverageTransportCostUSD = 1.5, BestMonthsToVisit = "11,12,1,2" },
+            new() { CityName = "Bali", Country = "Indonesia", SafetyIndex = 68.2, CostOfLivingIndex = 32.0, AverageMealCostUSD = 5.0, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "5,6,7,8,9,10" },
+            new() { CityName = "Kuala Lumpur", Country = "Malaysia", SafetyIndex = 48.7, CostOfLivingIndex = 32.0, AverageMealCostUSD = 4.0, AverageTransportCostUSD = 0.8, BestMonthsToVisit = "5,6,7" },
+
+            // LatAm (Low safety, Low cost)
+            new() { CityName = "Medellín", Country = "Colombia", SafetyIndex = 42.1, CostOfLivingIndex = 22.0, AverageMealCostUSD = 5.0, AverageTransportCostUSD = 0.8, BestMonthsToVisit = "1,2,3,12" },
+            new() { CityName = "Cartagena", Country = "Colombia", SafetyIndex = 46.5, CostOfLivingIndex = 28.0, AverageMealCostUSD = 8.0, AverageTransportCostUSD = 1.0, BestMonthsToVisit = "1,2,3,12" },
+            new() { CityName = "Lima", Country = "Peru", SafetyIndex = 33.8, CostOfLivingIndex = 30.0, AverageMealCostUSD = 6.0, AverageTransportCostUSD = 0.6, BestMonthsToVisit = "12,1,2,3,4" },
+            new() { CityName = "Cusco", Country = "Peru", SafetyIndex = 49.2, CostOfLivingIndex = 25.0, AverageMealCostUSD = 5.0, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "5,6,7,8,9,10" },
+            new() { CityName = "Buenos Aires", Country = "Argentina", SafetyIndex = 47.9, CostOfLivingIndex = 20.0, AverageMealCostUSD = 6.0, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "3,4,5,9,10,11" },
+            new() { CityName = "Mexico City", Country = "Mexico", SafetyIndex = 42.6, CostOfLivingIndex = 35.0, AverageMealCostUSD = 8.0, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "3,4,5,10,11" },
+
+            // North Africa (Medium safety, Low cost)
+            new() { CityName = "Marrakech", Country = "Morocco", SafetyIndex = 63.4, CostOfLivingIndex = 25.0, AverageMealCostUSD = 5.0, AverageTransportCostUSD = 0.4, BestMonthsToVisit = "3,4,5,9,10,11" },
+            new() { CityName = "Fez", Country = "Morocco", SafetyIndex = 60.1, CostOfLivingIndex = 22.0, AverageMealCostUSD = 4.0, AverageTransportCostUSD = 0.3, BestMonthsToVisit = "3,4,5,9,10,11" },
+            new() { CityName = "Tangier", Country = "Morocco", SafetyIndex = 65.5, CostOfLivingIndex = 24.0, AverageMealCostUSD = 5.0, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "4,5,6,9,10" },
+            new() { CityName = "Tunis", Country = "Tunisia", SafetyIndex = 58.2, CostOfLivingIndex = 20.0, AverageMealCostUSD = 4.0, AverageTransportCostUSD = 0.2, BestMonthsToVisit = "4,5,6,9,10" },
+            new() { CityName = "Cairo", Country = "Egypt", SafetyIndex = 54.3, CostOfLivingIndex = 18.0, AverageMealCostUSD = 3.0, AverageTransportCostUSD = 0.2, BestMonthsToVisit = "10,11,12,1,2,3,4" },
+
+            // Central America
+            new() { CityName = "Guatemala City", Country = "Guatemala", SafetyIndex = 38.5, CostOfLivingIndex = 35.0, AverageMealCostUSD = 6.0, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "11,12,1,2,3,4" },
+            new() { CityName = "Antigua", Country = "Guatemala", SafetyIndex = 52.4, CostOfLivingIndex = 40.0, AverageMealCostUSD = 8.0, AverageTransportCostUSD = 1.0, BestMonthsToVisit = "11,12,1,2,3,4" },
+            new() { CityName = "San José", Country = "Costa Rica", SafetyIndex = 44.1, CostOfLivingIndex = 50.0, AverageMealCostUSD = 10.0, AverageTransportCostUSD = 1.5, BestMonthsToVisit = "12,1,2,3,4" },
+            new() { CityName = "La Fortuna", Country = "Costa Rica", SafetyIndex = 65.5, CostOfLivingIndex = 45.0, AverageMealCostUSD = 12.0, AverageTransportCostUSD = 5.0, BestMonthsToVisit = "12,1,2,3,4" },
+            new() { CityName = "Panama City", Country = "Panama", SafetyIndex = 51.5, CostOfLivingIndex = 55.0, AverageMealCostUSD = 10.0, AverageTransportCostUSD = 1.5, BestMonthsToVisit = "1,2,3,4" },
+            new() { CityName = "Granada", Country = "Nicaragua", SafetyIndex = 55.0, CostOfLivingIndex = 25.0, AverageMealCostUSD = 5.0, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "12,1,2,3,4" },
+
+            // East Asia (Very High Safety, Medium/High Cost)
+            new() { CityName = "Tokyo", Country = "Japan", SafetyIndex = 82.5, CostOfLivingIndex = 60.0, AverageMealCostUSD = 8.0, AverageTransportCostUSD = 2.0, BestMonthsToVisit = "3,4,5,9,10,11" },
+            new() { CityName = "Kyoto", Country = "Japan", SafetyIndex = 85.2, CostOfLivingIndex = 55.0, AverageMealCostUSD = 7.0, AverageTransportCostUSD = 1.5, BestMonthsToVisit = "3,4,5,9,10,11" },
+            new() { CityName = "Osaka", Country = "Japan", SafetyIndex = 80.4, CostOfLivingIndex = 50.0, AverageMealCostUSD = 6.0, AverageTransportCostUSD = 1.5, BestMonthsToVisit = "3,4,5,9,10,11" },
+            new() { CityName = "Seoul", Country = "South Korea", SafetyIndex = 81.1, CostOfLivingIndex = 65.0, AverageMealCostUSD = 7.0, AverageTransportCostUSD = 1.2, BestMonthsToVisit = "4,5,9,10,11" },
+
+            // Indian Ocean
+            new() { CityName = "Malé Atolls", Country = "Maldives", SafetyIndex = 65.0, CostOfLivingIndex = 75.0, AverageMealCostUSD = 30.0, AverageTransportCostUSD = 25.0, BestMonthsToVisit = "11,12,1,2,3,4" },
+            new() { CityName = "Phuket", Country = "Thailand", SafetyIndex = 58.0, CostOfLivingIndex = 40.0, AverageMealCostUSD = 5.0, AverageTransportCostUSD = 2.0, BestMonthsToVisit = "11,12,1,2,3,4" },
+            new() { CityName = "Colombo", Country = "Sri Lanka", SafetyIndex = 60.5, CostOfLivingIndex = 30.0, AverageMealCostUSD = 4.0, AverageTransportCostUSD = 0.5, BestMonthsToVisit = "1,2,3,4" },
+        };
+
+        context.CityIntelligences.AddRange(intelligences);
+        await context.SaveChangesAsync();
+    }
+
+    // ─────────────────────────────────────────────
+    // NEW: VISA MATRIX (Passport Power Mapping)
+    // ─────────────────────────────────────────────
+    private static async Task SeedVisaMatrixAsync(RoutiqDbContext context)
+    {
+        if (await context.VisaMatrices.AnyAsync()) return;
+
+        var matrices = new List<VisaMatrix>
+        {
+            // AUSTRALIAN PASSPORT (AU)
+            new() { PassportCountry = "Australia", DestinationCountry = "United Kingdom", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "France", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Switzerland", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Austria", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Netherlands", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Italy", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Spain", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Japan", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "South Korea", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Thailand", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Vietnam", VisaStatus = "eVisa" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Cambodia", VisaStatus = "OnArrival" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Indonesia", VisaStatus = "OnArrival" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Malaysia", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Serbia", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "North Macedonia", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Albania", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Bosnia", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Montenegro", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Croatia", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Slovenia", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Hungary", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Czech Republic", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Poland", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Romania", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Bulgaria", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Georgia", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Colombia", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Peru", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Argentina", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Mexico", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Morocco", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Tunisia", VisaStatus = "Required" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Egypt", VisaStatus = "eVisa" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Guatemala", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Costa Rica", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Panama", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Nicaragua", VisaStatus = "VisaFree" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Maldives", VisaStatus = "OnArrival" },
+            new() { PassportCountry = "Australia", DestinationCountry = "Sri Lanka", VisaStatus = "eVisa" },
+        };
+
+        context.VisaMatrices.AddRange(matrices);
         await context.SaveChangesAsync();
     }
 }

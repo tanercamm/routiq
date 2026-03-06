@@ -34,6 +34,10 @@ public class RoutiqDbContext : DbContext
     // ── Community Loop ──
     public DbSet<TraveledRoute> TraveledRoutes { get; set; }
 
+    // ── City Intelligence ──
+    public DbSet<CityIntelligence> CityIntelligences { get; set; }
+    public DbSet<VisaMatrix> VisaMatrices { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

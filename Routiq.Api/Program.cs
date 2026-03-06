@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.SemanticKernel;
 using Routiq.Api.Data;
 using Routiq.Api.Services;
 
@@ -28,6 +29,12 @@ builder.Services.AddScoped<BudgetConsistencyService>();
 builder.Services.AddScoped<TimeOverlapService>();
 builder.Services.AddScoped<DecisionSolverService>();
 builder.Services.AddHttpClient<AgentInsightService>();
+
+// ── Semantic Kernel ──
+builder.Services.AddKernel()
+    .AddGoogleAIGeminiChatCompletion(
+        modelId: "gemini-2.5-flash",
+        apiKey: builder.Configuration["Gemini:ApiKey"] ?? "mock-key");
 
 // ── JWT Authentication ──
 var key = System.Text.Encoding.ASCII.GetBytes(

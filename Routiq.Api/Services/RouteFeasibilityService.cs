@@ -8,6 +8,7 @@ namespace Routiq.Api.Services;
 /// MCP Atom #1: Route Feasibility
 /// Stateless service. Input (Origin, Destination, Passports) → Output (FlightTime, Cost, VisaInfo).
 /// Uses DB VisaRules for visa checks and distance-based estimates for flight data.
+/// Now acts as a Semantic Kernel Plugin to feed facts to the Agent Orchestrator.
 /// </summary>
 public class RouteFeasibilityService
 {
@@ -27,14 +28,18 @@ public class RouteFeasibilityService
         public int EstimatedCostUsd { get; set; }
         public bool VisaRequired { get; set; }
         public string VisaType { get; set; } = "VisaFree";
-        public bool IsFeasible { get; set; } = true;
-        public string? BlockReason { get; set; }
     }
 
     /// <summary>
     /// Analyse feasibility of a single origin→destination route for a set of passports.
     /// </summary>
-    public async Task<FeasibilityResult> AnalyseAsync(string origin, string destination, List<string> passportCodes, string destinationCountryCode)
+    [Microsoft.SemanticKernel.KernelFunction("GetFlightAndVisaFacts")]
+    [System.ComponentModel.Description("Gets flight time, cost, and visa requirements for a given origin, destination, and passports.")]
+    public async Task<FeasibilityResult> AnalyseAsync(
+        [System.ComponentModel.Description("Origin airport code")] string origin,
+        [System.ComponentModel.Description("Destination airport code")] string destination,
+        [System.ComponentModel.Description("List of passport country codes")] List<string> passportCodes,
+        [System.ComponentModel.Description("Destination country code")] string destinationCountryCode)
     {
         var result = new FeasibilityResult
         {
@@ -49,8 +54,8 @@ public class RouteFeasibilityService
         result.EstimatedCostUsd = estimate.costUsd;
 
         // ── 2. Visa check from DB ──
-        var visaBlocked = false;
         var visaType = "VisaFree";
+        var isVisaRequired = false;
 
         foreach (var passport in passportCodes)
         {
@@ -60,28 +65,50 @@ public class RouteFeasibilityService
             if (rule != null)
             {
                 visaType = rule.Requirement.ToString();
-                if (rule.Requirement == VisaRequirement.Banned)
+                if (rule.Requirement == VisaRequirement.Banned || rule.Requirement == VisaRequirement.Required)
                 {
-                    visaBlocked = true;
-                    result.BlockReason = $"Entry banned for {passport} passport holders";
-                    break;
+                    isVisaRequired = true;
                 }
-                if (rule.Requirement == VisaRequirement.Required)
-                {
-                    result.VisaRequired = true;
-                    // Not blocked, but flagged — reduces score
-                }
+
                 if (rule.Requirement == VisaRequirement.VisaFree || rule.Requirement == VisaRequirement.OnArrival)
                 {
                     // Best case — no penalty
                     visaType = rule.Requirement.ToString();
+                    isVisaRequired = false;
                     break; // One good passport is enough
+                }
+            }
+            else if (passport == "TR") // Fallback internal knowledge base for TR Passport
+            {
+                // Schengen Area
+                if (new[] { "FR", "ES", "IT", "DE", "NL", "CH", "AT", "CZ", "PL", "HU" }.Contains(destinationCountryCode))
+                {
+                    isVisaRequired = true;
+                    visaType = "Schengen Visa Required";
+                }
+                // UK
+                else if (destinationCountryCode == "GB")
+                {
+                    isVisaRequired = true;
+                    visaType = "UK Visa Required";
+                }
+                // US
+                else if (destinationCountryCode == "US")
+                {
+                    isVisaRequired = true;
+                    visaType = "US Visa Required";
+                }
+                // AU/NZ etc
+                else if (new[] { "AU", "NZ", "CA" }.Contains(destinationCountryCode))
+                {
+                    isVisaRequired = true;
+                    visaType = "Visa Required";
                 }
             }
         }
 
+        result.VisaRequired = isVisaRequired;
         result.VisaType = visaType;
-        result.IsFeasible = !visaBlocked;
 
         return result;
     }
