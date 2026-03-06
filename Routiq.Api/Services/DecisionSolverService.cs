@@ -126,7 +126,10 @@ public class DecisionSolverService
     /// <summary>
     /// Run the full decision pipeline for a travel group utilizing the Gemini Agent Orchestrator.
     /// </summary>
-    public async Task<DecisionResult> SolveAsync(Guid groupId)
+    public async Task<DecisionResult> SolveAsync(
+        Guid groupId,
+        Func<string, Task>? onStatus = null,
+        CancellationToken ct = default)
     {
         // ── Phase 1: Search (Gather Constraints) ──
         var (members, skippedWarnings) = await FetchMembersAsync(groupId);
@@ -237,13 +240,14 @@ Respond STRICTLY with valid JSON matching this schema, with NO markdown formatti
     /// <summary>
     /// Discover route logic - Single User Agent orchestration
     /// </summary>
-    public async Task<DecisionResult> SolveDiscoverAsync(DiscoverRequest request)
+    public async Task<DecisionResult> SolveDiscoverAsync(
+        DiscoverRequest request,
+        Func<string, Task>? onStatus = null,
+        CancellationToken ct = default)
     {
-        "< $1000" => 1000,
-           
-        var passports = string
-           .IsNullOrWhiteSpace
-           (request.Passport) ? new List<string> { "TR" } : new List<string> { request.Passport };
+        var passports = string.IsNullOrWhiteSpace(request.Passport)
+            ? new List<string> { "TR" }
+            : new List<string> { request.Passport };
         var origin = request.Origin;
         if (string.IsNullOrWhiteSpace(origin))
             origin = passports[0].ToUpperInvariant() switch { "AU" => "SYD", "DE" => "BER", "TR" => "IST", _ => "IST" };
