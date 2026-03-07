@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import Globe, { type GlobeMethods } from 'react-globe.gl';
@@ -19,42 +19,103 @@ const BUMP_IMAGE = '//unpkg.com/three-globe/example/img/earth-topology.png';
 type ZoomTier = 'far' | 'mid' | 'close';
 
 const HUB_CITIES = [
-  { lat: 41.0082, lng: 28.9784 },  // Istanbul
-  { lat: 25.2048, lng: 55.2708 },  // Dubai
-  { lat: 1.3521, lng: 103.8198 },  // Singapore
-  { lat: 51.5074, lng: -0.1278 },  // London
+  { lat: 41.0082, lng: 28.9784 },
+  { lat: 25.2048, lng: 55.2708 },
+  { lat: 1.3521, lng: 103.8198 },
+  { lat: 51.5074, lng: -0.1278 },
 ];
 
-function buildMultiHubArcs() {
+const STATIC_ARCS = (() => {
   const tier1 = SUPPORTED_CITIES.filter(c => c.tier === 1);
   const arcs: { startLat: number; startLng: number; endLat: number; endLng: number; color: string[] }[] = [];
-
+  const seen = new Set<string>();
   for (const hub of HUB_CITIES) {
     const sorted = tier1
       .filter(c => Math.abs(c.lat - hub.lat) + Math.abs(c.lng - hub.lng) > 5)
-      .sort((a, b) => {
-        const dA = Math.abs(a.lat - hub.lat) + Math.abs(a.lng - hub.lng);
-        const dB = Math.abs(b.lat - hub.lat) + Math.abs(b.lng - hub.lng);
-        return dA - dB;
-      })
+      .sort((a, b) => (Math.abs(a.lat - hub.lat) + Math.abs(a.lng - hub.lng)) - (Math.abs(b.lat - hub.lat) + Math.abs(b.lng - hub.lng)))
       .slice(0, 8);
-
     for (const dest of sorted) {
-      const exists = arcs.some(
-        a => a.startLat === hub.lat && a.endLat === dest.lat && a.endLng === dest.lng
-      );
-      if (!exists) {
-        arcs.push({
-          startLat: hub.lat, startLng: hub.lng,
-          endLat: dest.lat, endLng: dest.lng,
-          color: ['rgba(94, 173, 184, 0.2)', 'rgba(100, 120, 160, 0.06)'],
-        });
+      const key = `${hub.lat},${hub.lng},${dest.lat},${dest.lng}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        arcs.push({ startLat: hub.lat, startLng: hub.lng, endLat: dest.lat, endLng: dest.lng, color: ['rgba(94, 173, 184, 0.2)', 'rgba(100, 120, 160, 0.06)'] });
       }
     }
   }
-
   return arcs.slice(0, 30);
+})();
+
+const STATIC_RINGS = SUPPORTED_CITIES
+  .filter(c => c.tier === 1)
+  .map(c => ({ ...c, maxR: 2.5, propagationSpeed: 1.5, repeatPeriod: 1800 }));
+
+const getPointColor = (d: object) => (d as CityPoint).isSupported ? '#5eadb8' : 'rgba(100, 130, 170, 0.3)';
+const getPointRadius = (d: object) => (d as CityPoint).isSupported ? 0.45 : 0.18;
+const getLabelColor = () => 'rgba(160, 170, 190, 0.18)';
+const getRingColor = () => (t: number) => `rgba(94, 173, 184, ${(1 - t) * 0.7})`;
+
+interface GlobeSceneProps {
+  width: number;
+  height: number;
+  labelsData: CityPoint[];
+  onPointClick: (point: object | null) => void;
+  globeRef: React.MutableRefObject<GlobeMethods | undefined>;
 }
+
+const GlobeScene = memo(function GlobeScene({ width, height, labelsData, onPointClick, globeRef }: GlobeSceneProps) {
+  return (
+    <Globe
+      ref={globeRef}
+      width={width}
+      height={height}
+      globeImageUrl={GLOBE_IMAGE}
+      bumpImageUrl={BUMP_IMAGE}
+      backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+      atmosphereColor="#4a7a9b"
+      atmosphereAltitude={0.16}
+
+      pointsData={ALL_CITIES}
+      pointLat="lat"
+      pointLng="lng"
+      pointColor={getPointColor}
+      pointAltitude={0.01}
+      pointRadius={getPointRadius}
+      pointsMerge={false}
+      onPointClick={onPointClick}
+
+      labelsData={labelsData}
+      labelLat="lat"
+      labelLng="lng"
+      labelText="name"
+      labelSize={0.4}
+      labelDotRadius={0.15}
+      labelColor={getLabelColor}
+      labelResolution={2}
+      labelAltitude={0.005}
+
+      ringsData={STATIC_RINGS}
+      ringLat="lat"
+      ringLng="lng"
+      ringColor={getRingColor}
+      ringMaxRadius="maxR"
+      ringPropagationSpeed="propagationSpeed"
+      ringRepeatPeriod="repeatPeriod"
+
+      arcsData={STATIC_ARCS}
+      arcStartLat="startLat"
+      arcStartLng="startLng"
+      arcEndLat="endLat"
+      arcEndLng="endLng"
+      arcColor="color"
+      arcDashLength={0.4}
+      arcDashGap={0.2}
+      arcDashAnimateTime={4500}
+      arcStroke={0.25}
+
+      animateIn={true}
+    />
+  );
+});
 
 export function HomePage() {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
@@ -75,8 +136,16 @@ export function HomePage() {
       }
     };
     update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    let timer: ReturnType<typeof setTimeout>;
+    const debouncedUpdate = () => {
+      clearTimeout(timer);
+      timer = setTimeout(update, 200);
+    };
+    window.addEventListener('resize', debouncedUpdate);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', debouncedUpdate);
+    };
   }, []);
 
   useEffect(() => {
@@ -110,7 +179,7 @@ export function HomePage() {
   const handlePointClick = useCallback((point: object | null) => {
     if (!point) return;
     const city = point as CityPoint;
-    requestAnimationFrame(() => setSelected(city));
+    setSelected(city);
   }, []);
 
   const handleDismiss = useCallback(() => {
@@ -119,89 +188,31 @@ export function HomePage() {
     if (controls) controls.autoRotate = true;
   }, []);
 
-  // All 350+ nodes visible at every zoom level — no filtering
-  const visiblePoints = ALL_CITIES;
-
   const visibleLabels = useMemo(() => {
     if (zoomTier === 'far') return ALL_CITIES.filter(c => c.tier === 1);
     if (zoomTier === 'mid') return ALL_CITIES.filter(c => c.tier === 1 || c.tier === 2);
     return ALL_CITIES;
   }, [zoomTier]);
 
-  // Only supported cities get the pulse ring (performance)
-  const visibleRings = useMemo(() =>
-    SUPPORTED_CITIES.filter(c => c.tier === 1).map(c => ({ ...c, maxR: 2.5, propagationSpeed: 1.5, repeatPeriod: 1800 })),
-    []
-  );
-
-  const supportedArcs = useMemo(() => buildMultiHubArcs(), []);
-
   return (
     <div ref={containerRef} className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-[#050a18]">
-      {/* Subtle ambient vignette */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="w-[700px] h-[700px] rounded-full bg-slate-500/[0.015]" />
       </div>
 
-      {/* Scan lines overlay */}
       <div className="absolute inset-0 pointer-events-none z-10 opacity-[0.02]"
         style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.04) 2px, rgba(255,255,255,0.04) 4px)' }}
       />
 
-      {/* Star dimmer overlay */}
       <div className="absolute inset-0 pointer-events-none z-[1] bg-[#050a18]/40" />
 
-      {/* Globe */}
       {dimensions.width > 0 && (
-        <Globe
-          ref={globeRef}
+        <GlobeScene
+          globeRef={globeRef}
           width={dimensions.width}
           height={dimensions.height}
-          globeImageUrl={GLOBE_IMAGE}
-          bumpImageUrl={BUMP_IMAGE}
-          backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-          atmosphereColor="#4a7a9b"
-          atmosphereAltitude={0.16}
-
-          pointsData={visiblePoints}
-          pointLat="lat"
-          pointLng="lng"
-          pointColor={(d: object) => (d as CityPoint).isSupported ? '#5eadb8' : 'rgba(100, 130, 170, 0.3)'}
-          pointAltitude={0.01}
-          pointRadius={(d: object) => (d as CityPoint).isSupported ? 0.45 : 0.18}
-          pointsMerge={false}
-          onPointClick={handlePointClick}
-
           labelsData={visibleLabels}
-          labelLat="lat"
-          labelLng="lng"
-          labelText="name"
-          labelSize={0.4}
-          labelDotRadius={0.15}
-          labelColor={() => 'rgba(160, 170, 190, 0.18)'}
-          labelResolution={2}
-          labelAltitude={0.005}
-
-          ringsData={visibleRings}
-          ringLat="lat"
-          ringLng="lng"
-          ringColor={() => (t: number) => `rgba(94, 173, 184, ${(1 - t) * 0.7})`}
-          ringMaxRadius="maxR"
-          ringPropagationSpeed="propagationSpeed"
-          ringRepeatPeriod="repeatPeriod"
-
-          arcsData={supportedArcs}
-          arcStartLat="startLat"
-          arcStartLng="startLng"
-          arcEndLat="endLat"
-          arcEndLng="endLng"
-          arcColor="color"
-          arcDashLength={0.4}
-          arcDashGap={0.2}
-          arcDashAnimateTime={4500}
-          arcStroke={0.25}
-
-          animateIn={true}
+          onPointClick={handlePointClick}
         />
       )}
 
@@ -285,7 +296,7 @@ export function HomePage() {
           onClick={() => navigate('/find-route')}
           className="group relative cursor-pointer"
         >
-          <div className="relative flex items-center gap-3 bg-[#0a1628] border border-slate-700 group-hover:border-slate-600 rounded-2xl px-8 py-4 transition-all duration-300">
+          <div className="relative flex items-center gap-3 bg-[#0a1628] border border-slate-700 group-hover:border-slate-600 rounded-2xl px-8 py-4 shadow-none transition-colors duration-300">
             <Zap size={20} className="text-slate-400 group-hover:text-slate-300" />
             <div className="text-left">
               <div className="text-sm font-black text-white tracking-wide group-hover:text-gray-200 transition-colors">

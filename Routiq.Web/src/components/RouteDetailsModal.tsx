@@ -166,7 +166,7 @@ export default function RouteDetailsModal({ trip, onClose, onSave }: any) {
               }
             }}
             disabled={isSavedLocal}
-            className={`px-6 py-2.5 font-bold rounded-lg transition-colors shadow-md text-sm ${isSavedLocal
+            className={`px-6 py-2.5 font-bold rounded-lg transition-colors shadow-none text-sm ${isSavedLocal
               ? 'bg-green-600 text-white cursor-not-allowed'
               : 'bg-blue-600 hover:bg-blue-700 text-white'
               }`}
@@ -180,7 +180,7 @@ export default function RouteDetailsModal({ trip, onClose, onSave }: any) {
               e.stopPropagation();
               setIsThyModalOpen(true);
             }}
-            className="px-5 py-2.5 bg-[#E60000] hover:bg-[#CC0000] text-white font-bold rounded-lg transition-colors shadow-md flex items-center gap-2 text-sm"
+            className="px-5 py-2.5 bg-[#E60000] hover:bg-[#CC0000] text-white font-bold rounded-lg transition-colors shadow-none flex items-center gap-2 text-sm"
           >
             ✈️ Check THY Flights
           </button>

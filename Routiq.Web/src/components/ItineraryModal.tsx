@@ -12,6 +12,7 @@ import { getCommunityTipsForCity, countryCodeToFlag } from '../utils/communityDa
 import { MessageCircle, ThumbsUp } from 'lucide-react';
 import { formatTimeAMPM, calculateFlightDuration, isNextDay } from '../utils/timeFormat';
 import { useAuth } from '../context/AuthContext';
+import { routiqApi } from '../api/routiqApi';
 import LiveFlightModal from './LiveFlightModal';
 
 // V1-compatible shape the modal was built against
@@ -67,23 +68,12 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
 
             const firstCity = route.stops.length > 0 ? route.stops[0].city : 'Unknown';
 
-            const response = await fetch('http://localhost:5001/api/routes/save', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    destinationCity: firstCity,
-                    totalBudget: route.totalEstimatedCost,
-                    durationDays: totalDays,
-                    itinerarySnapshotJson: JSON.stringify(route),
-                }),
+            await routiqApi.post('/routes/save', {
+                destinationCity: firstCity,
+                totalBudget: route.totalEstimatedCost,
+                durationDays: totalDays,
+                itinerarySnapshotJson: JSON.stringify(route),
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to save trip');
-            }
 
             setSaved(true);
             setShowToast(true);

@@ -154,9 +154,13 @@ export function FindRoutePage() {
         region: mapRegionToDiscover(form.regionPreference),
       });
       setResult(response.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError('Could not reach the orchestrator. Make sure the backend is running.');
+      const detail = err?.response?.data?.message
+        || err?.response?.data?.title
+        || err?.message
+        || 'Unknown error';
+      setError(`Orchestrator error: ${detail}`);
     } finally {
       setLoading(false);
     }
@@ -306,7 +310,7 @@ export function FindRoutePage() {
               id="generate-route-btn"
               onClick={handleGenerate}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-teal-700 hover:bg-teal-600 disabled:opacity-60 text-white font-semibold rounded-xl px-4 py-2 text-sm border border-teal-600/50 hover:border-teal-400/70 transition-all duration-200 mt-2"
+              className="w-full flex items-center justify-center gap-2 bg-teal-700 hover:bg-teal-600 disabled:opacity-60 text-white font-semibold rounded-xl px-4 py-2 text-sm border border-teal-600/50 hover:border-teal-400/70 shadow-none transition-colors duration-200 mt-2"
             >
               {loading ? (
                 <><Loader2 size={16} className="animate-spin" /> Generating Route...</>

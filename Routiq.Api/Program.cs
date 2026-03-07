@@ -1,4 +1,6 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
 using Routiq.Api.Data;
@@ -31,10 +33,15 @@ builder.Services.AddScoped<DecisionSolverService>();
 builder.Services.AddHttpClient<AgentInsightService>();
 
 // ── Semantic Kernel ──
+var geminiKey = builder.Configuration["Gemini:ApiKey"];
+if (string.IsNullOrWhiteSpace(geminiKey) || geminiKey == "mock-key")
+    throw new InvalidOperationException(
+        "FATAL: Gemini:ApiKey is not configured. Set the GEMINI_API_KEY environment variable or Gemini__ApiKey in your configuration.");
+
 builder.Services.AddKernel()
     .AddGoogleAIGeminiChatCompletion(
         modelId: "gemini-2.5-flash-lite",
-        apiKey: builder.Configuration["Gemini:ApiKey"] ?? "mock-key");
+        apiKey: geminiKey);
 
 // ── JWT Authentication ──
 var key = System.Text.Encoding.ASCII.GetBytes(
@@ -87,13 +94,36 @@ using (var scope = app.Services.CreateScope())
 }
 
 // ── Pipeline ──
+app.UseExceptionHandler(errApp =>
+{
+    errApp.Run(async ctx =>
+    {
+        ctx.Response.ContentType = "application/json";
+        ctx.Response.StatusCode = 500;
+        var feature = ctx.Features.Get<IExceptionHandlerFeature>();
+        var correlationId = Guid.NewGuid().ToString("N")[..12];
+        if (feature?.Error is not null)
+        {
+            var logger = ctx.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("GlobalExceptionHandler");
+            logger.LogError(feature.Error, "Unhandled exception [{CorrelationId}]", correlationId);
+        }
+        await ctx.Response.WriteAsync(JsonSerializer.Serialize(new
+        {
+            error = "Internal Server Error",
+            correlationId,
+            message = app.Environment.IsDevelopment() ? feature?.Error?.Message : "An unexpected error occurred."
+        }));
+    });
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseCors("AllowAll");
 app.UseAuthentication();

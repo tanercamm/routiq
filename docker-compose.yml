@@ -27,8 +27,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: >-
         Host=db;Port=5432;Database=routiq_db;Username=postgres;Password=SecurePass123!;Include Error Detail=true
-      Gemini__ApiKey: ${GEMINI_API_KEY:-mock-key}
+      Gemini__ApiKey: ${GEMINI_API_KEY:?GEMINI_API_KEY must be set in .env}
       Jwt__Key: ${JWT_KEY:-SuperSecretKeyForDevelopmentOnly123!}
+    volumes:
+      - avatar_data:/app/wwwroot/uploads
     ports:
       - "5107:8080"
     depends_on:
@@ -48,3 +50,4 @@ services:
 
 volumes:
   routiq_data:
+  avatar_data:

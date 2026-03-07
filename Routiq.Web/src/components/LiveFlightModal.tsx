@@ -166,7 +166,7 @@ export default function LiveFlightModal({ destination, origin, ticketData, onClo
                                         }, 1500);
                                     }}
                                     disabled={isRedirecting}
-                                    className={`w-full py-3 font-bold rounded-lg transition-all shadow-md text-sm flex items-center justify-center gap-2 ${isRedirecting
+                                    className={`w-full py-3 font-bold rounded-lg transition-colors shadow-none text-sm flex items-center justify-center gap-2 ${isRedirecting
                                         ? 'bg-red-800 text-white cursor-wait opacity-90'
                                         : 'bg-[#E60000] hover:bg-[#CC0000] text-white'
                                         }`}
