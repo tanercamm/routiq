@@ -198,7 +198,7 @@ export const TravelGroupsPage = () => {
 
                 <div className="flex items-center gap-3">
                     <Button
-                        variant="secondary"
+                        variant="outline"
                         onClick={() => { setShowJoin(!showJoin); setShowCreate(false); }}
                         className="flex items-center gap-2"
                     >

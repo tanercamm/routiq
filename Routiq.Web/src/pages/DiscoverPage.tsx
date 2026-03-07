@@ -168,7 +168,7 @@ export const DiscoverPage = () => {
                                 disabled={isGenerating}
                                 className={`w-full md:w-auto h-[42px] flex items-center justify-center gap-2 px-6 text-sm font-medium rounded-lg transition-colors ${isGenerating
                                     ? 'bg-blue-400 cursor-not-allowed text-white'
-                                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
+                                    : 'bg-blue-600 hover:bg-blue-700 text-white'
                                     }`}
                             >
                                 <Plane size={16} className={isGenerating ? "animate-pulse" : ""} />
@@ -241,8 +241,6 @@ export const DiscoverPage = () => {
                                         <span className="text-2xl">🏆</span> Logical Winner
                                     </h2>
                                     <Card hoverEffect className="border-2 border-green-500/30 dark:border-green-500/40 relative overflow-hidden bg-white dark:bg-gray-800">
-                                        {/* Subtle background glow */}
-                                        <div className="absolute -right-20 -top-20 w-64 h-64 bg-green-400/10 dark:bg-green-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
                                         <div className="flex flex-col md:flex-row justify-between gap-6 relative z-10">
                                             <div className="flex-1">

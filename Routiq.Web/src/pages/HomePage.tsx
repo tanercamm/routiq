@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Shield, DollarSign, Calendar, X } from 'lucide-react';
 import {
   SUPPORTED_CITIES,
-  WORLD_CAPITALS,
+  ALL_CITIES,
   formatBestMonths,
   getSafetyColor,
   getSafetyLabel,
@@ -16,12 +16,54 @@ import {
 const GLOBE_IMAGE = '//unpkg.com/three-globe/example/img/earth-night.jpg';
 const BUMP_IMAGE = '//unpkg.com/three-globe/example/img/earth-topology.png';
 
+type ZoomTier = 'far' | 'mid' | 'close';
+
+const HUB_CITIES = [
+  { lat: 41.0082, lng: 28.9784 },  // Istanbul
+  { lat: 25.2048, lng: 55.2708 },  // Dubai
+  { lat: 1.3521, lng: 103.8198 },  // Singapore
+  { lat: 51.5074, lng: -0.1278 },  // London
+];
+
+function buildMultiHubArcs() {
+  const tier1 = SUPPORTED_CITIES.filter(c => c.tier === 1);
+  const arcs: { startLat: number; startLng: number; endLat: number; endLng: number; color: string[] }[] = [];
+
+  for (const hub of HUB_CITIES) {
+    const sorted = tier1
+      .filter(c => Math.abs(c.lat - hub.lat) + Math.abs(c.lng - hub.lng) > 5)
+      .sort((a, b) => {
+        const dA = Math.abs(a.lat - hub.lat) + Math.abs(a.lng - hub.lng);
+        const dB = Math.abs(b.lat - hub.lat) + Math.abs(b.lng - hub.lng);
+        return dA - dB;
+      })
+      .slice(0, 8);
+
+    for (const dest of sorted) {
+      const exists = arcs.some(
+        a => a.startLat === hub.lat && a.endLat === dest.lat && a.endLng === dest.lng
+      );
+      if (!exists) {
+        arcs.push({
+          startLat: hub.lat, startLng: hub.lng,
+          endLat: dest.lat, endLng: dest.lng,
+          color: ['rgba(94, 173, 184, 0.2)', 'rgba(100, 120, 160, 0.06)'],
+        });
+      }
+    }
+  }
+
+  return arcs.slice(0, 30);
+}
+
 export function HomePage() {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const navigate = useNavigate();
   const [selected, setSelected] = useState<CityPoint | null>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const [zoomTier, setZoomTier] = useState<ZoomTier>('far');
+  const zoomTierRef = useRef<ZoomTier>('far');
 
   useEffect(() => {
     const update = () => {
@@ -46,6 +88,21 @@ export function HomePage() {
       controls.enableZoom = true;
       controls.minDistance = 180;
       controls.maxDistance = 600;
+
+      const handleChange = () => {
+        const cam = globeRef.current?.camera();
+        if (!cam) return;
+        const dist = cam.position.length();
+        let tier: ZoomTier = 'far';
+        if (dist < 280) tier = 'close';
+        else if (dist < 420) tier = 'mid';
+        if (tier !== zoomTierRef.current) {
+          zoomTierRef.current = tier;
+          setZoomTier(tier);
+        }
+      };
+      controls.addEventListener('change', handleChange);
+      return () => controls.removeEventListener('change', handleChange);
     }
     globeRef.current.pointOfView({ lat: 35, lng: 30, altitude: 2.2 }, 0);
   }, [dimensions]);
@@ -53,46 +110,46 @@ export function HomePage() {
   const handlePointClick = useCallback((point: object | null) => {
     if (!point) return;
     const city = point as CityPoint;
-    // Defer the state update so the Three.js render loop isn't interrupted
     requestAnimationFrame(() => setSelected(city));
   }, []);
 
   const handleDismiss = useCallback(() => {
     setSelected(null);
-    // Re-enable auto-rotate in case orbit controls paused it
     const controls = globeRef.current?.controls();
     if (controls) controls.autoRotate = true;
   }, []);
 
-  const supportedRings = useMemo(() =>
-    SUPPORTED_CITIES.map(c => ({ ...c, maxR: 3, propagationSpeed: 2, repeatPeriod: 1400 })),
+  // All 350+ nodes visible at every zoom level — no filtering
+  const visiblePoints = ALL_CITIES;
+
+  const visibleLabels = useMemo(() => {
+    if (zoomTier === 'far') return ALL_CITIES.filter(c => c.tier === 1);
+    if (zoomTier === 'mid') return ALL_CITIES.filter(c => c.tier === 1 || c.tier === 2);
+    return ALL_CITIES;
+  }, [zoomTier]);
+
+  // Only supported cities get the pulse ring (performance)
+  const visibleRings = useMemo(() =>
+    SUPPORTED_CITIES.filter(c => c.tier === 1).map(c => ({ ...c, maxR: 2.5, propagationSpeed: 1.5, repeatPeriod: 1800 })),
     []
   );
 
-  const supportedArcs = useMemo(() => {
-    const istanbul = { lat: 41.0082, lng: 28.9784 };
-    return SUPPORTED_CITIES
-      .filter((_, i) => i % 3 === 0)
-      .map(c => ({
-        startLat: istanbul.lat,
-        startLng: istanbul.lng,
-        endLat: c.lat,
-        endLng: c.lng,
-        color: ['rgba(0, 200, 255, 0.25)', 'rgba(100, 100, 255, 0.08)'],
-      }));
-  }, []);
+  const supportedArcs = useMemo(() => buildMultiHubArcs(), []);
 
   return (
     <div ref={containerRef} className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-[#050a18]">
-      {/* Ambient glow behind globe */}
+      {/* Subtle ambient vignette */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-[700px] h-[700px] rounded-full bg-blue-500/[0.04] blur-[100px]" />
+        <div className="w-[700px] h-[700px] rounded-full bg-slate-500/[0.015]" />
       </div>
 
       {/* Scan lines overlay */}
-      <div className="absolute inset-0 pointer-events-none z-10 opacity-[0.03]"
-        style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.05) 2px, rgba(255,255,255,0.05) 4px)' }}
+      <div className="absolute inset-0 pointer-events-none z-10 opacity-[0.02]"
+        style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.04) 2px, rgba(255,255,255,0.04) 4px)' }}
       />
+
+      {/* Star dimmer overlay */}
+      <div className="absolute inset-0 pointer-events-none z-[1] bg-[#050a18]/40" />
 
       {/* Globe */}
       {dimensions.width > 0 && (
@@ -103,40 +160,36 @@ export function HomePage() {
           globeImageUrl={GLOBE_IMAGE}
           bumpImageUrl={BUMP_IMAGE}
           backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-          atmosphereColor="#1e90ff"
-          atmosphereAltitude={0.18}
+          atmosphereColor="#4a7a9b"
+          atmosphereAltitude={0.16}
 
-          // Supported cities: bright cyan points
-          pointsData={SUPPORTED_CITIES}
+          pointsData={visiblePoints}
           pointLat="lat"
           pointLng="lng"
-          pointColor={() => '#00e5ff'}
+          pointColor={(d: object) => (d as CityPoint).isSupported ? '#5eadb8' : 'rgba(100, 130, 170, 0.3)'}
           pointAltitude={0.01}
-          pointRadius={0.45}
+          pointRadius={(d: object) => (d as CityPoint).isSupported ? 0.45 : 0.18}
           pointsMerge={false}
           onPointClick={handlePointClick}
 
-          // World capitals: dim small labels
-          labelsData={WORLD_CAPITALS}
+          labelsData={visibleLabels}
           labelLat="lat"
           labelLng="lng"
           labelText="name"
           labelSize={0.4}
           labelDotRadius={0.15}
-          labelColor={() => 'rgba(200, 200, 255, 0.2)'}
+          labelColor={() => 'rgba(160, 170, 190, 0.18)'}
           labelResolution={2}
           labelAltitude={0.005}
 
-          // Pulse rings on supported cities
-          ringsData={supportedRings}
+          ringsData={visibleRings}
           ringLat="lat"
           ringLng="lng"
-          ringColor={() => (t: number) => `rgba(0, 229, 255, ${1 - t})`}
+          ringColor={() => (t: number) => `rgba(94, 173, 184, ${(1 - t) * 0.7})`}
           ringMaxRadius="maxR"
           ringPropagationSpeed="propagationSpeed"
           ringRepeatPeriod="repeatPeriod"
 
-          // Arcs from Istanbul hub
           arcsData={supportedArcs}
           arcStartLat="startLat"
           arcStartLng="startLng"
@@ -145,8 +198,8 @@ export function HomePage() {
           arcColor="color"
           arcDashLength={0.4}
           arcDashGap={0.2}
-          arcDashAnimateTime={4000}
-          arcStroke={0.3}
+          arcDashAnimateTime={4500}
+          arcStroke={0.25}
 
           animateIn={true}
         />
@@ -156,20 +209,20 @@ export function HomePage() {
       <div className="absolute top-6 left-6 z-20 pointer-events-none">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="text-[10px] font-bold tracking-[0.25em] text-cyan-400/80 uppercase">
+            <div className="w-2 h-2 rounded-full bg-teal-500/70 animate-pulse" />
+            <span className="text-[10px] font-bold tracking-[0.25em] text-slate-400 uppercase">
               Routiq Mission Control
             </span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-none">
             Global Route
             <br />
-            <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-teal-400/80 to-slate-400 bg-clip-text text-transparent">
               Intelligence
             </span>
           </h1>
-          <p className="text-sm text-gray-400/80 mt-3 max-w-xs leading-relaxed">
-            Real-time agentic route analysis across {SUPPORTED_CITIES.length} destinations.
+          <p className="text-sm text-gray-500 mt-3 max-w-xs leading-relaxed">
+            Real-time agentic route analysis across {ALL_CITIES.length} global nodes.
             Click any node for live intel.
           </p>
         </motion.div>
@@ -184,13 +237,13 @@ export function HomePage() {
       >
         <div className="flex gap-4">
           {[
-            { label: 'ACTIVE NODES', value: SUPPORTED_CITIES.length.toString(), color: 'text-cyan-400' },
-            { label: 'COUNTRIES', value: new Set(SUPPORTED_CITIES.map(c => c.country)).size.toString(), color: 'text-blue-400' },
-            { label: 'REGIONS', value: '7', color: 'text-purple-400' },
+            { label: 'ACTIVE NODES', value: ALL_CITIES.length.toString(), color: 'text-teal-400/80' },
+            { label: 'COUNTRIES', value: new Set(ALL_CITIES.map(c => c.country)).size.toString(), color: 'text-slate-400' },
+            { label: 'REGIONS', value: '7', color: 'text-gray-400' },
           ].map(s => (
-            <div key={s.label} className="border border-white/[0.06] bg-black/40 backdrop-blur-sm rounded-lg px-4 py-2.5">
+            <div key={s.label} className="border border-slate-800 bg-[#0a1628]/90 rounded-lg px-4 py-2.5">
               <div className={`text-xl font-black ${s.color} tabular-nums`}>{s.value}</div>
-              <div className="text-[9px] font-bold tracking-[0.2em] text-gray-500 uppercase">{s.label}</div>
+              <div className="text-[9px] font-bold tracking-[0.2em] text-gray-600 uppercase">{s.label}</div>
             </div>
           ))}
         </div>
@@ -203,16 +256,16 @@ export function HomePage() {
         transition={{ delay: 0.5 }}
         className="absolute top-6 right-6 z-20 pointer-events-none"
       >
-        <div className="border border-white/[0.06] bg-black/40 backdrop-blur-sm rounded-lg px-4 py-3 min-w-[180px]">
+        <div className="border border-slate-800 bg-[#0a1628]/90 rounded-lg px-4 py-3 min-w-[180px]">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[10px] font-bold tracking-[0.2em] text-green-400/80 uppercase">System Online</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-green-400/80" />
+            <span className="text-[10px] font-bold tracking-[0.2em] text-green-400/70 uppercase">System Online</span>
           </div>
           <div className="space-y-1">
             {['Visa Engine', 'Cost Analyzer', 'Flight Scanner', 'Safety Monitor'].map((s, i) => (
               <div key={s} className="flex items-center justify-between">
                 <span className="text-[10px] text-gray-500">{s}</span>
-                <span className={`text-[10px] font-bold ${i < 3 ? 'text-green-500' : 'text-cyan-500'}`}>
+                <span className={`text-[10px] font-bold ${i < 3 ? 'text-green-500/60' : 'text-slate-400'}`}>
                   {i < 3 ? 'READY' : 'ACTIVE'}
                 </span>
               </div>
@@ -221,7 +274,7 @@ export function HomePage() {
         </div>
       </motion.div>
 
-      {/* Center CTA */}
+      {/* Center CTA — solid dark flat button */}
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -232,27 +285,26 @@ export function HomePage() {
           onClick={() => navigate('/find-route')}
           className="group relative cursor-pointer"
         >
-          <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 opacity-60 blur-lg group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="relative flex items-center gap-3 bg-[#0a1628]/90 border border-cyan-500/30 group-hover:border-cyan-400/60 rounded-2xl px-8 py-4 backdrop-blur-sm transition-all duration-300">
-            <Zap size={20} className="text-cyan-400 group-hover:text-cyan-300" />
+          <div className="relative flex items-center gap-3 bg-[#0a1628] border border-slate-700 group-hover:border-slate-600 rounded-2xl px-8 py-4 transition-all duration-300">
+            <Zap size={20} className="text-slate-400 group-hover:text-slate-300" />
             <div className="text-left">
-              <div className="text-sm font-black text-white tracking-wide group-hover:text-cyan-100 transition-colors">
+              <div className="text-sm font-black text-white tracking-wide group-hover:text-gray-200 transition-colors">
                 Initialize Agentic Search
               </div>
-              <div className="text-[10px] text-gray-400 tracking-wider uppercase">
+              <div className="text-[10px] text-gray-500 tracking-wider uppercase">
                 Launch Decision Engine
               </div>
             </div>
-            <div className="ml-2 w-px h-8 bg-white/10" />
-            <div className="text-cyan-400 group-hover:translate-x-1 transition-transform">→</div>
+            <div className="ml-2 w-px h-8 bg-slate-700" />
+            <div className="text-slate-400 group-hover:translate-x-1 transition-transform">→</div>
           </div>
         </button>
       </motion.div>
 
-      {/* Mobile bottom bar for very small screens */}
+      {/* Mobile bottom fade */}
       <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#050a18] to-transparent pointer-events-none z-10 sm:hidden" />
 
-      {/* Intelligence Card — rendered via portal so the Three.js canvas keeps running */}
+      {/* Intelligence Card — portal so Three.js canvas keeps running */}
       {createPortal(
         <AnimatePresence>
           {selected && (
@@ -264,15 +316,15 @@ export function HomePage() {
               transition={{ type: 'spring', stiffness: 350, damping: 28 }}
               className="fixed bottom-6 right-6 z-[9999] w-[320px]"
             >
-              <div className="bg-[#0c1a30]/95 border border-cyan-500/30 backdrop-blur-xl rounded-xl p-4 shadow-2xl shadow-cyan-500/10">
+              <div className="bg-[#0c1a30]/95 border border-slate-700/60 backdrop-blur-xl rounded-xl p-4">
                 {/* Header + Close */}
                 <div className="flex items-start justify-between mb-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shrink-0" />
+                      <div className="w-2 h-2 rounded-full bg-teal-400/70 animate-pulse shrink-0" />
                       <h3 className="text-sm font-black text-white tracking-tight truncate">{selected.name}</h3>
                       {selected.isSupported && (
-                        <span className="text-[9px] font-black tracking-widest bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded-md border border-cyan-500/30 uppercase shrink-0">
+                        <span className="text-[9px] font-black tracking-widest bg-teal-500/15 text-teal-300/80 px-2 py-0.5 rounded-md border border-teal-500/20 uppercase shrink-0">
                           Live
                         </span>
                       )}
@@ -290,7 +342,6 @@ export function HomePage() {
 
                 {selected.isSupported ? (
                   <div className="space-y-2">
-                    {/* Safety */}
                     <div className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2">
                       <div className="flex items-center gap-2">
                         <Shield size={13} className="text-gray-500" />
@@ -312,7 +363,6 @@ export function HomePage() {
                       </div>
                     </div>
 
-                    {/* Cost */}
                     <div className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2">
                       <div className="flex items-center gap-2">
                         <DollarSign size={13} className="text-gray-500" />
@@ -321,16 +371,14 @@ export function HomePage() {
                       <span className="text-[11px] font-bold text-green-400">${selected.avgMealCost}</span>
                     </div>
 
-                    {/* Best Months */}
                     <div className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2">
                       <div className="flex items-center gap-2">
                         <Calendar size={13} className="text-gray-500" />
                         <span className="text-[11px] text-gray-400">Best Months</span>
                       </div>
-                      <span className="text-[11px] font-bold text-blue-400">{formatBestMonths(selected.bestMonths)}</span>
+                      <span className="text-[11px] font-bold text-slate-400">{formatBestMonths(selected.bestMonths)}</span>
                     </div>
 
-                    {/* Cost of living bar */}
                     <div className="pt-1">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10px] text-gray-500 uppercase tracking-wider">Cost of Living Index</span>
@@ -351,13 +399,12 @@ export function HomePage() {
                   </div>
                 )}
 
-                {/* Footer */}
                 <div className="mt-3 pt-2 border-t border-white/[0.05]">
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] text-gray-600 tracking-wider">
                       {selected.lat.toFixed(2)}°{selected.lat >= 0 ? 'N' : 'S'}, {Math.abs(selected.lng).toFixed(2)}°{selected.lng >= 0 ? 'E' : 'W'}
                     </span>
-                    <span className="text-[9px] text-cyan-500/50 tracking-wider uppercase">Routiq Intel</span>
+                    <span className="text-[9px] text-teal-500/40 tracking-wider uppercase">Routiq Intel</span>
                   </div>
                 </div>
               </div>

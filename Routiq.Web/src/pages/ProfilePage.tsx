@@ -226,7 +226,7 @@ export const ProfilePage = () => {
                                         transition={{ duration: 0.25 }}
                                         className="overflow-hidden"
                                     >
-                                        <div className="pt-4 grid md:grid-cols-2 gap-4">
+                                        <div className="pt-5 grid md:grid-cols-2 gap-5">
                                             {/* Read-only identity */}
                                             <div className="space-y-3">
                                                 <div>
@@ -268,7 +268,7 @@ export const ProfilePage = () => {
                                                     <select
                                                         value=""
                                                         onChange={e => { const v = e.target.value; if (v && Array.isArray(passports) && !passports.includes(v)) setPassports(prev => [...prev, v]); }}
-                                                        className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500/40 transition-colors"
+                                                        className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-500/30 focus:border-gray-400 dark:focus:border-gray-500 transition-colors"
                                                     >
                                                         <option value="">+ Add citizenship...</option>
                                                         {Array.isArray(passports) && PASSPORT_CODES.filter(o => !passports.includes(o.code)).map(o => (
@@ -286,7 +286,7 @@ export const ProfilePage = () => {
                                                         value={origin}
                                                         onChange={e => setOrigin(e.target.value.toUpperCase())}
                                                         maxLength={3}
-                                                        className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500/40 transition-colors uppercase"
+                                                        className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-500/30 focus:border-gray-400 dark:focus:border-gray-500 transition-colors uppercase"
                                                     />
                                                 </div>
 
@@ -296,7 +296,7 @@ export const ProfilePage = () => {
                                                     <select
                                                         value={preferredCurrency}
                                                         onChange={e => setPreferredCurrency(e.target.value)}
-                                                        className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500/40 transition-colors"
+                                                        className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-500/30 focus:border-gray-400 dark:focus:border-gray-500 transition-colors"
                                                     >
                                                         {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                                                     </select>
@@ -308,7 +308,7 @@ export const ProfilePage = () => {
                                                     <select
                                                         value={travelStyle}
                                                         onChange={e => setTravelStyle(e.target.value as any)}
-                                                        className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500/40 transition-colors"
+                                                        className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-500/30 focus:border-gray-400 dark:focus:border-gray-500 transition-colors"
                                                     >
                                                         <option value="Shoestring">Shoestring (Hostels, strict budget)</option>
                                                         <option value="Budget">Budget (Economy, careful spending)</option>

@@ -33,7 +33,7 @@ builder.Services.AddHttpClient<AgentInsightService>();
 // ── Semantic Kernel ──
 builder.Services.AddKernel()
     .AddGoogleAIGeminiChatCompletion(
-        modelId: "gemini-2.5-flash",
+        modelId: "gemini-2.5-flash-lite",
         apiKey: builder.Configuration["Gemini:ApiKey"] ?? "mock-key");
 
 // ── JWT Authentication ──

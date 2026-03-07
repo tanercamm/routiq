@@ -290,7 +290,7 @@ export function FindRoutePage() {
                       type="checkbox"
                       checked={form[key]}
                       onChange={e => setField(key, e.target.checked)}
-                      className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      className="w-3.5 h-3.5 rounded text-teal-600 focus:ring-gray-400/50 cursor-pointer"
                     />
                     <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
                       <ReactCountryFlag countryCode={code} svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px' }} title={label} />
@@ -306,7 +306,7 @@ export function FindRoutePage() {
               id="generate-route-btn"
               onClick={handleGenerate}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl px-4 py-2 text-sm shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-200 mt-2"
+              className="w-full flex items-center justify-center gap-2 bg-teal-700 hover:bg-teal-600 disabled:opacity-60 text-white font-semibold rounded-xl px-4 py-2 text-sm border border-teal-600/50 hover:border-teal-400/70 transition-all duration-200 mt-2"
             >
               {loading ? (
                 <><Loader2 size={16} className="animate-spin" /> Generating Route...</>
@@ -397,7 +397,6 @@ export function FindRoutePage() {
                             <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Logical Winner</h2>
                           </div>
                           <div className="bg-white dark:bg-gray-800/60 border-2 border-green-500/30 dark:border-green-500/40 rounded-2xl overflow-hidden shadow-sm relative">
-                            <div className="absolute -right-16 -top-16 w-48 h-48 bg-green-400/10 dark:bg-green-500/10 rounded-full blur-3xl pointer-events-none" />
                             <div className="p-5 relative z-10">
                               <div className="flex flex-col md:flex-row justify-between gap-5">
                                 <div className="flex-1">

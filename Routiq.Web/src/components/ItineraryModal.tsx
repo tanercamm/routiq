@@ -210,7 +210,7 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
                                         >
                                             {/* ── City Header Node ── */}
                                             <div className="relative pl-8 pb-2">
-                                                <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 border-2 border-white dark:border-gray-900 shadow-lg shadow-teal-500/30" />
+                                                <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 border-2 border-white dark:border-gray-900 " />
                                                 <div className="flex items-baseline gap-3">
                                                     <h3 className="text-xl font-bold text-gray-900 dark:text-white">{stop.city}</h3>
                                                     <span className="text-gray-500 dark:text-gray-400 text-sm">{stop.country}</span>
@@ -429,7 +429,7 @@ export const ItineraryModal = ({ route, onClose }: ItineraryModalProps) => {
 
                                 {/* End marker */}
                                 <div className="relative pl-8 pt-4">
-                                    <div className="absolute -left-3 top-4 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 border-2 border-white dark:border-gray-900 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                                    <div className="absolute -left-3 top-4 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 border-2 border-white dark:border-gray-900 flex items-center justify-center ">
                                         <span className="text-[10px]">✓</span>
                                     </div>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 font-medium pt-0.5">Trip Complete 🎉</p>
