@@ -1,11 +1,11 @@
 using Npgsql;
 
-const string connStr = "Host=localhost;Port=5433;Database=routiq_db;Username=postgres;Password=SecurePass123!;Include Error Detail=true";
+const string connStr = "Host=localhost;Port=5433;Database=routsky_db;Username=postgres;Password=SecurePass123!;Include Error Detail=true";
 
 await using var conn = new NpgsqlConnection(connStr);
 await conn.OpenAsync();
 
-Console.WriteLine("Connected to routiq_db.");
+Console.WriteLine("Connected to routsky_db.");
 
 // 1) ALTER RouteQueries.Passports: text[] -> text
 await ExecAsync(conn,

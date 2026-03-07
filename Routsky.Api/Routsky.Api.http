@@ -1,0 +1,15 @@
+@Routsky.Api_HostAddress = http://localhost:5107
+
+GET {{Routsky.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+POST {{Routsky.Api_HostAddress}}/api/decision/discover
+Content-Type: application/json
+
+{
+  "passport": "TR",
+  "budgetLimit": "< $1500",
+  "duration": "5–7 days",
+  "region": "Europe"
+}

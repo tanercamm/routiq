@@ -1,0 +1,103 @@
+import axios from 'axios';
+import type { RouteRequest, RouteResponse } from '../types';
+
+const api = axios.create({
+    baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+});
+
+// ── Critical: Set auth header at module load, BEFORE any component mounts ──
+// React useEffect order: children fire before parents.
+// Without this, TravelGroupsPage.fetchGroups() fires before AuthContext sets the token.
+const storedToken = localStorage.getItem('token');
+if (storedToken) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+}
+
+export const routskyApi = api;
+
+export const login = async (credentials: { email: string; password: string }) => {
+    const response = await api.post('/auth/login', credentials);
+    return response.data;
+};
+
+export const register = async (userData: { email: string; password: string; firstName: string; lastName: string; passports?: string[] }) => {
+    const response = await api.post('/auth/register', userData);
+    return response.data;
+};
+
+export const generateRoutes = async (payload: RouteRequest): Promise<RouteResponse> => {
+    console.log('Payload being sent:', payload);
+    const response = await api.post<RouteResponse>('/routes/generate', payload);
+    return response.data;
+};
+
+export interface SaveRoutePayload {
+    userId: number;
+    routeName: string;
+    passports: string[];
+    budgetBracket: string;
+    totalBudgetUsd: number;
+    durationDays: number;
+    regionPreference: string;
+    hasSchengenVisa: boolean;
+    hasUsVisa: boolean;
+    hasUkVisa: boolean;
+    selectionReason: string;
+    stops: {
+        city: string;
+        countryCode: string;
+        recommendedDays: number;
+        stopOrder: number;
+        costLevel: string;
+        stopReason?: string;
+    }[];
+}
+
+export const saveRoute = async (payload: SaveRoutePayload): Promise<{ id: string }> => {
+    try {
+        console.log('[routsky] POST /routes/save payload:', JSON.stringify(payload, null, 2));
+        const response = await api.post('/routes/save', payload);
+        console.log('[routsky] Save route success:', response.data);
+        return response.data;
+    } catch (err: any) {
+        console.error('[routsky] Save route FAILED:',
+            err?.response?.status,
+            err?.response?.data ?? err?.message
+        );
+        throw err;
+    }
+};
+
+// ── Agent-as-Orchestrator: Decision Engine ──
+
+export const runDecisionEngine = async (groupId: string) => {
+    const response = await api.post('/decision/run', { groupId });
+    return response.data;
+};
+
+export const getAgentInsight = async (city: string) => {
+    const response = await api.get(`/agent/insight/${encodeURIComponent(city)}`);
+    return response.data;
+};
+
+// ── Settings ──
+
+export const updatePreferences = async (preferences: { preferredCurrency?: string, unitPreference?: string }) => {
+    const response = await api.patch('/user/preferences', preferences);
+    return response.data;
+};
+
+export const updateNotifications = async (notifications: { notificationsEnabled?: boolean, priceAlertsEnabled?: boolean }) => {
+    const response = await api.patch('/user/notifications', notifications);
+    return response.data;
+};
+
+export const changePassword = async (passwords: { currentPassword?: string, newPassword?: string }) => {
+    const response = await api.post('/user/change-password', passwords);
+    return response.data;
+};
+
+export const getAnalytics = async () => {
+    const response = await api.get('/analytics');
+    return response.data;
+};

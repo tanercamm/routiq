@@ -2,15 +2,15 @@ services:
   # ── PostgreSQL 17 ──
   db:
     image: postgres:17
-    container_name: navisio_db
+    container_name: routsky_db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: SecurePass123!
-      POSTGRES_DB: navisio_db
+      POSTGRES_DB: routsky_db
     ports:
       - "5433:5432"
     volumes:
-      - navisio-postgres-data:/var/lib/postgresql/data
+      - routsky-data:/var/lib/postgresql/data
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
@@ -20,17 +20,19 @@ services:
   # ── .NET API ──
   api:
     build:
-      context: ./Routiq.Api
+      context: ./Routsky.Api
       dockerfile: Dockerfile
-    container_name: navisio_api
+    image: routsky-api
+    container_name: routsky_api
+    env_file: .env
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: >-
-        Host=db;Port=5432;Database=navisio_db;Username=postgres;Password=SecurePass123!;Include Error Detail=true
+        Host=db;Port=5432;Database=routsky_db;Username=postgres;Password=SecurePass123!;Include Error Detail=true
       Gemini__ApiKey: ${GEMINI_API_KEY:?GEMINI_API_KEY must be set in .env}
       Jwt__Key: ${JWT_KEY:-SuperSecretKeyForDevelopmentOnly123!}
     volumes:
-      - navisio-uploads:/app/wwwroot/uploads
+      - routsky-uploads:/app/wwwroot/uploads
     ports:
       - "5107:8080"
     depends_on:
@@ -40,14 +42,15 @@ services:
   # ── React + Nginx ──
   web:
     build:
-      context: ./Routiq.Web
+      context: ./Routsky.Web
       dockerfile: Dockerfile
-    container_name: navisio_web
+    image: routsky-web
+    container_name: routsky_web
     ports:
       - "80:80"
     depends_on:
       - api
 
 volumes:
-  navisio-postgres-data:
-  navisio-uploads:
+  routsky-data:
+  routsky-uploads:
