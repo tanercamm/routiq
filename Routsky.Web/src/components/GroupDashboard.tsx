@@ -233,10 +233,14 @@ const GroupDashboard = ({ allGroups, selectedGroupId, onBack, deleteGroup }: any
                                         <div className="bg-white/60 dark:bg-slate-900/50 p-2 rounded-lg border border-indigo-100 dark:border-indigo-500/20">
                                             <div className="text-[9px] text-gray-500 uppercase tracking-wide">Avg Cost</div>
                                             <div className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                                                {decisionResult.winner.memberTickets[0]?.currency === 'USD' ? '$' :
-                                                    decisionResult.winner.memberTickets[0]?.currency === 'EUR' ? '€' :
-                                                        decisionResult.winner.memberTickets[0]?.currency === 'TRY' ? '₺' : ''}
-                                                {decisionResult.winner.avgConvertedCost}
+                                                {decisionResult.winner.avgConvertedCost > 0
+                                                    ? <>
+                                                        {decisionResult.winner.memberTickets[0]?.currency === 'USD' ? '$' :
+                                                            decisionResult.winner.memberTickets[0]?.currency === 'EUR' ? '€' :
+                                                                decisionResult.winner.memberTickets[0]?.currency === 'TRY' ? '₺' : ''}
+                                                        {decisionResult.winner.avgConvertedCost}
+                                                    </>
+                                                    : 'Estimating...'}
                                             </div>
                                         </div>
                                     </div>
@@ -322,7 +326,9 @@ const GroupDashboard = ({ allGroups, selectedGroupId, onBack, deleteGroup }: any
                                                 </div>
                                                 <div className="flex justify-between items-center pt-2 border-t border-gray-200/50 dark:border-gray-700/50">
                                                     <div><span className="text-[9px] text-gray-500 uppercase">Avg</span> <span className="text-[11px] font-bold font-mono text-gray-700 dark:text-gray-300">
-                                                        {alt.memberTickets[0]?.currency === 'USD' ? '$' : alt.memberTickets[0]?.currency === 'EUR' ? '€' : alt.memberTickets[0]?.currency === 'TRY' ? '₺' : ''}{alt.avgConvertedCost}
+                                                        {alt.avgConvertedCost > 0
+                                                            ? <>{alt.memberTickets[0]?.currency === 'USD' ? '$' : alt.memberTickets[0]?.currency === 'EUR' ? '€' : alt.memberTickets[0]?.currency === 'TRY' ? '₺' : ''}{alt.avgConvertedCost}</>
+                                                            : 'Est.'}
                                                     </span></div>
                                                     <div><span className="text-[9px] text-gray-500 uppercase">Time</span> <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300">{alt.avgFlightTime}</span></div>
                                                 </div>

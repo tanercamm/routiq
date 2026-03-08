@@ -261,7 +261,7 @@ export const DiscoverPage = () => {
                                                     <span className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600/50">
                                                         <DollarSign size={16} className="text-green-500" />
                                                         {result.winner.memberTickets[0]?.currency === 'USD' ? '$' : result.winner.memberTickets[0]?.currency === 'EUR' ? '€' : result.winner.memberTickets[0]?.currency === 'TRY' ? '₺' : ''}
-                                                        {result.winner.avgConvertedCost} round-trip
+                                                        {result.winner.avgConvertedCost > 0 ? `${result.winner.avgConvertedCost} round-trip` : 'Estimating...'}
                                                     </span>
                                                     <span className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600/50">
                                                         <Plane size={16} className="text-blue-500" /> {result.winner.avgFlightTime} flight
@@ -311,7 +311,7 @@ export const DiscoverPage = () => {
                                                                 <div className="text-sm text-gray-500 dark:text-gray-400 flex gap-3 mt-1.5 font-medium">
                                                                     <span className="flex items-center gap-1"><DollarSign size={14} className="text-green-500" />
                                                                         {alt.memberTickets[0]?.currency === 'USD' ? '$' : alt.memberTickets[0]?.currency === 'EUR' ? '€' : alt.memberTickets[0]?.currency === 'TRY' ? '₺' : ''}
-                                                                        {alt.avgConvertedCost}
+                                                                        {alt.avgConvertedCost > 0 ? alt.avgConvertedCost : 'Est.'}
                                                                     </span>
                                                                     <span className="text-gray-300 dark:text-gray-600">•</span>
                                                                     <span className="flex items-center gap-1"><Plane size={14} className="text-blue-500" />{alt.avgFlightTime}</span>

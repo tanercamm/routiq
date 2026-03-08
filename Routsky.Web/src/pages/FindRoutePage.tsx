@@ -416,7 +416,7 @@ export function FindRoutePage() {
                                   </h3>
                                   <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-gray-600 dark:text-gray-300">
                                     <span className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700/50 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-600/50">
-                                      <span className="text-green-500 font-bold">{currencySymbol}</span> {formatPx(result!.winner!.avgCostUsd)} round-trip
+                                      <span className="text-green-500 font-bold">{currencySymbol}</span> {result!.winner!.avgCostUsd > 0 ? `${formatPx(result!.winner!.avgCostUsd)} round-trip` : 'Estimating...'}
                                     </span>
                                     <span className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700/50 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-600/50">
                                       <Plane size={14} className="text-blue-500" /> {result!.winner!.avgFlightTime} flight
@@ -482,7 +482,7 @@ export function FindRoutePage() {
                                     <div>
                                       <h4 className="font-extrabold text-gray-900 dark:text-white text-base">{alt.city}, {alt.country}</h4>
                                       <div className="text-xs text-gray-500 dark:text-gray-400 flex gap-3 mt-1 font-medium">
-                                        <span className="flex items-center gap-1"><span className="text-green-500 font-bold">{currencySymbol}</span>{formatPx(alt.avgCostUsd)}</span>
+                                        <span className="flex items-center gap-1"><span className="text-green-500 font-bold">{currencySymbol}</span>{alt.avgCostUsd > 0 ? formatPx(alt.avgCostUsd) : 'Estimating...'}</span>
                                         <span className="text-gray-300 dark:text-gray-600">•</span>
                                         <span className="flex items-center gap-1"><Plane size={12} className="text-blue-500" />{alt.avgFlightTime}</span>
                                       </div>

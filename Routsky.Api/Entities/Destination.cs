@@ -45,6 +45,13 @@ public class Destination
     /// <summary>Admin-authored notes about this destination (quirks, best season, etc.).</summary>
     public string? Notes { get; set; }
 
+    /// <summary>IATA airport code for flight lookups. E.g. "IST", "JFK", "CDG".</summary>
+    [MaxLength(4)]
+    public string? IataCode { get; set; }
+
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+
     /// <summary>Soft-delete flag. Inactive destinations are excluded from route generation.</summary>
     public bool IsActive { get; set; } = true;
 

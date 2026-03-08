@@ -23,6 +23,19 @@ builder.Services.AddDbContext<RoutskyDbContext>(options =>
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// ── In-Memory Cache ──
+builder.Services.AddMemoryCache();
+
+// ── Travel Buddy API (Visa) ──
+builder.Services.AddHttpClient<TravelBuddyApiService>();
+builder.Services.AddSingleton<TravelBuddyApiService>();
+
+// ── Flight Price Providers (Hybrid: Turkish Airlines + Gemini) ──
+builder.Services.AddHttpClient<TurkishAirlinesFlightPriceProvider>();
+builder.Services.AddSingleton<TurkishAirlinesFlightPriceProvider>();
+builder.Services.AddScoped<GeminiFlightPriceProvider>();
+builder.Services.AddScoped<HybridFlightPriceService>();
+
 // ── MCP Decision Services (Agent-as-Orchestrator) ──
 builder.Services.AddScoped<RouteFeasibilityService>();
 builder.Services.AddScoped<BudgetConsistencyService>();

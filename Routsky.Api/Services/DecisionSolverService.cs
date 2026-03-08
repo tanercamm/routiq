@@ -100,36 +100,31 @@ public class DecisionSolverService
         public string PreferredCurrency { get; set; } = "USD";
     }
 
-    // ── Candidate destinations to evaluate ──
-    private static readonly List<(string Code, string City, string Country, string CountryCode, int PrestigeScore)> CandidateDestinations = new()
+    /// <summary>
+    /// Load candidate destinations from the database.
+    /// Only cities with an IATA code can be evaluated by the flight engine.
+    /// PopularityWeight is mapped to a 0-100 PrestigeScore.
+    /// </summary>
+    private async Task<List<(string Code, string City, string Country, string CountryCode, int PrestigeScore)>> LoadCandidatesAsync(string? regionFilter = null)
     {
-        ("TBS", "Tbilisi",       "Georgia",                 "GE", 40),
-        ("GYD", "Baku",          "Azerbaijan",              "AZ", 42),
-        ("SJJ", "Sarajevo",      "Bosnia & Herzegovina",    "BA", 45),
-        ("CMN", "Casablanca",    "Morocco",                 "MA", 50),
-        ("SOF", "Sofia",         "Bulgaria",                "BG", 43),
-        ("BEG", "Belgrade",      "Serbia",                  "RS", 46),
-        ("SIN", "Singapore",     "Singapore",               "SG", 75),
-        ("BKK", "Bangkok",       "Thailand",                "TH", 68),
-        ("KUL", "Kuala Lumpur",  "Malaysia",                "MY", 62),
-        ("HAN", "Hanoi",         "Vietnam",                 "VN", 60),
-        ("DPS", "Bali",          "Indonesia",               "ID", 72),
-        ("CEB", "Cebu",          "Philippines",             "PH", 55),
-        ("DXB", "Dubai",         "UAE",                     "AE", 82),
-        ("DOH", "Doha",          "Qatar",                   "QA", 78),
-        ("CDG", "Paris",         "France",                  "FR", 92),
-        ("BCN", "Barcelona",     "Spain",                   "ES", 85),
-        ("LHR", "London",        "United Kingdom",          "GB", 90),
-        ("FCO", "Rome",          "Italy",                   "IT", 88),
-        ("NRT", "Tokyo",         "Japan",                   "JP", 95),
-        ("ICN", "Seoul",         "South Korea",             "KR", 80),
-        ("JFK", "New York",      "United States",           "US", 93),
-        ("MEX", "Mexico City",   "Mexico",                  "MX", 65),
-        ("EZE", "Buenos Aires",  "Argentina",               "AR", 70),
-        ("BOG", "Bogotá",        "Colombia",                "CO", 58),
-        ("CPT", "Cape Town",     "South Africa",            "ZA", 74),
-        ("AKL", "Auckland",      "New Zealand",             "NZ", 76),
-    };
+        var query = _context.Destinations
+            .Where(d => d.IsActive && d.IataCode != null);
+
+        if (!string.IsNullOrEmpty(regionFilter) && regionFilter != "All")
+            query = query.Where(d => d.Region == regionFilter);
+
+        var destinations = await query
+            .Select(d => new { d.IataCode, d.City, d.Country, d.CountryCode, d.PopularityWeight })
+            .ToListAsync();
+
+        return destinations.Select(d => (
+            Code: d.IataCode!,
+            City: d.City,
+            Country: d.Country,
+            CountryCode: d.CountryCode,
+            PrestigeScore: (int)Math.Clamp(d.PopularityWeight * 50, 10, 100)
+        )).ToList();
+    }
 
     /// <summary>
     /// Run the full decision pipeline for a travel group utilizing the Gemini Agent Orchestrator.
@@ -149,23 +144,23 @@ public class DecisionSolverService
             return new DecisionResult { Explanation = reason };
         }
 
-        // ── Phase 2: Evaluation (Pre-fetch Facts from Gemini AI) ──
+        // ── Phase 2: Evaluation (Pre-fetch Facts from live APIs) ──
+        var candidateDestinations = await LoadCandidatesAsync();
         var factsList = new List<object>();
         var storedTickets = new Dictionary<string, List<MemberTicket>>();
 
-        // Batch-preload all flight estimates via a single Gemini API call
         var allRoutePairs = new List<(string Origin, string Destination)>();
-        foreach (var (code, _, _, _, _) in CandidateDestinations)
+        foreach (var (code, _, _, _, _) in candidateDestinations)
         {
             if (members.Any(m => m.Origin.Equals(code, StringComparison.OrdinalIgnoreCase)))
                 continue;
             foreach (var member in members)
                 allRoutePairs.Add((member.Origin, code));
         }
-        if (onStatus != null) await onStatus("Consulting Gemini AI for flight intelligence...");
+        if (onStatus != null) await onStatus("Consulting flight intelligence APIs...");
         await _feasibility.PreloadFlightEstimatesAsync(allRoutePairs);
 
-        foreach (var (code, city, country, countryCode, prestigeScore) in CandidateDestinations)
+        foreach (var (code, city, country, countryCode, prestigeScore) in candidateDestinations)
         {
             if (members.Any(m => m.Origin.Equals(code, StringComparison.OrdinalIgnoreCase)))
                 continue;
@@ -253,10 +248,8 @@ Respond STRICTLY with valid JSON, NO markdown. Do not wrap in ```json.
   ""EliminatedReasons"": {{ ""CDE"": ""Visa required for Member1"", ""FGH"": ""Over budget for Member2"" }}
 }}
 ";
-        return await ExecuteAgentPrompt(prompt, storedTickets);
+        return await ExecuteAgentPrompt(prompt, storedTickets, candidateDestinations);
     }
-
-
 
 
     /// <summary>
@@ -286,36 +279,23 @@ Respond STRICTLY with valid JSON, NO markdown. Do not wrap in ```json.
 
         var durationDays = request.Duration == "2-3 Days" ? 3 : request.Duration == "4-7 Days" ? 5 : request.Duration == "1-2 Weeks" ? 10 : 7;
 
+        var candidateDestinations = await LoadCandidatesAsync(request.Region);
         var factsList = new List<object>();
         var storedTickets = new Dictionary<string, List<MemberTicket>>();
 
-        // Batch-preload all flight estimates via a single Gemini API call
-        var discoverPairs = CandidateDestinations
+        var discoverPairs = candidateDestinations
             .Where(d => !origin.Equals(d.Code, StringComparison.OrdinalIgnoreCase))
-            .Where(d => request.Region == "All" || GetRegionForCountryCode(d.CountryCode) == request.Region)
             .Select(d => (Origin: origin, Destination: d.Code))
             .ToList();
-        if (onStatus != null) await onStatus("Consulting Gemini AI for flight intelligence...");
+        if (onStatus != null) await onStatus("Consulting flight intelligence APIs...");
         await _feasibility.PreloadFlightEstimatesAsync(discoverPairs);
 
-        foreach (var (code, city, country, countryCode, prestigeScore) in CandidateDestinations)
+        foreach (var (code, city, country, countryCode, prestigeScore) in candidateDestinations)
         {
-            var region = GetRegionForCountryCode(countryCode);
-            if (request.Region != "All" && request.Region != region) continue;
             if (origin.Equals(code, StringComparison.OrdinalIgnoreCase)) continue;
 
             var intelligence = await _context.CityIntelligences.FirstOrDefaultAsync(c => c.CityName == city);
             if (intelligence == null) continue;
-
-            var primaryPassport = passports[0].ToUpper();
-            var visaMatrixRow = await _context.VisaMatrices.FirstOrDefaultAsync(v =>
-                v.DestinationCountry == country &&
-                (v.PassportCountry == "Turkey" && primaryPassport == "TR" ||
-                 v.PassportCountry == "Australia" && primaryPassport == "AU" ||
-                 v.PassportCountry == "Germany" && primaryPassport == "DE" ||
-                 v.PassportCountry == "United Kingdom" && primaryPassport == "GB" ||
-                 v.PassportCountry == "United States" && primaryPassport == "US" ||
-                 v.PassportCountry == "India" && primaryPassport == "IN"));
 
             RouteFeasibilityService.FeasibilityResult feasibility;
             try { feasibility = await _feasibility.AnalyseAsync(origin, code, passports, countryCode); }
@@ -324,8 +304,8 @@ Respond STRICTLY with valid JSON, NO markdown. Do not wrap in ```json.
             double dailyCostUsd = 100 * (intelligence.CostOfLivingIndex / 100.0);
             double totalLandCost = dailyCostUsd * durationDays;
             double projectedTotalCost = feasibility.EstimatedCostUsd + totalLandCost;
-            bool isVisaRequired = visaMatrixRow?.VisaStatus == "Required" || feasibility.VisaRequired;
-            var visaType = visaMatrixRow?.VisaStatus ?? (isVisaRequired ? "Required" : "VisaFree");
+            bool isVisaRequired = feasibility.VisaRequired;
+            var visaType = feasibility.VisaType;
 
             var currency = origin == "SYD" ? "AUD" : origin == "BER" ? "EUR" : origin == "IST" ? "TRY" : "USD";
             var convertedCost = feasibility.EstimatedCostUsd;
@@ -387,10 +367,10 @@ Respond STRICTLY in JSON, NO markdown wrapping. Do not wrap in ```json.
   ""EliminatedReasons"": {{ ""DEF"": ""Over budget"", ""GHI"": ""Visa required"" }}
 }}
 ";
-        return await ExecuteAgentPrompt(prompt, storedTickets);
+        return await ExecuteAgentPrompt(prompt, storedTickets, candidateDestinations);
     }
 
-    private async Task<DecisionResult> ExecuteAgentPrompt(string prompt, Dictionary<string, List<MemberTicket>> storedTickets)
+    private async Task<DecisionResult> ExecuteAgentPrompt(string prompt, Dictionary<string, List<MemberTicket>> storedTickets, List<(string Code, string City, string Country, string CountryCode, int PrestigeScore)>? candidatesList = null)
     {
         try
         {
@@ -434,11 +414,14 @@ Respond STRICTLY in JSON, NO markdown wrapping. Do not wrap in ```json.
                     if (storedTickets.TryGetValue(result.Winner.DestinationCode, out var winnerTickets))
                         result.Winner.MemberTickets = winnerTickets;
 
-                    var knownWinner = CandidateDestinations.FirstOrDefault(c => c.Code == result.Winner.DestinationCode);
-                    if (knownWinner != default)
+                    if (candidatesList != null)
                     {
-                        if (string.IsNullOrEmpty(result.Winner.City)) result.Winner.City = knownWinner.City;
-                        if (string.IsNullOrEmpty(result.Winner.Country)) result.Winner.Country = knownWinner.Country;
+                        var knownWinner = candidatesList.FirstOrDefault(c => c.Code == result.Winner.DestinationCode);
+                        if (knownWinner != default)
+                        {
+                            if (string.IsNullOrEmpty(result.Winner.City)) result.Winner.City = knownWinner.City;
+                            if (string.IsNullOrEmpty(result.Winner.Country)) result.Winner.Country = knownWinner.Country;
+                        }
                     }
 
                     if (result.Winner.MemberTickets.Count > 0)
@@ -462,11 +445,14 @@ Respond STRICTLY in JSON, NO markdown wrapping. Do not wrap in ```json.
                     if (storedTickets.TryGetValue(alt.DestinationCode, out var altTickets))
                         alt.MemberTickets = altTickets;
 
-                    var known = CandidateDestinations.FirstOrDefault(c => c.Code == alt.DestinationCode);
-                    if (known != default)
+                    if (candidatesList != null)
                     {
-                        if (string.IsNullOrEmpty(alt.City)) alt.City = known.City;
-                        if (string.IsNullOrEmpty(alt.Country)) alt.Country = known.Country;
+                        var known = candidatesList.FirstOrDefault(c => c.Code == alt.DestinationCode);
+                        if (known != default)
+                        {
+                            if (string.IsNullOrEmpty(alt.City)) alt.City = known.City;
+                            if (string.IsNullOrEmpty(alt.Country)) alt.Country = known.Country;
+                        }
                     }
 
                     if (alt.MemberTickets.Count > 0)
@@ -483,8 +469,13 @@ Respond STRICTLY in JSON, NO markdown wrapping. Do not wrap in ```json.
                     }
                 }
 
+                // Remove alternatives that couldn't be hydrated from storedTickets
+                // This is the primary fix for the "$0" bug — alternatives returned
+                // by Gemini that aren't in our candidates can't be costed.
                 result.Alternatives.RemoveAll(a =>
-                    string.IsNullOrEmpty(a.City) || a.AvgCostUsd <= 0);
+                    string.IsNullOrEmpty(a.City) ||
+                    a.AvgCostUsd <= 0 ||
+                    !storedTickets.ContainsKey(a.DestinationCode));
 
                 if (!string.IsNullOrEmpty(result.Explanation))
                     result.Explanation = StripConversationalFiller(result.Explanation);
@@ -553,16 +544,12 @@ Respond STRICTLY in JSON, NO markdown wrapping. Do not wrap in ```json.
         return string.IsNullOrWhiteSpace(cleaned) ? text.Trim() : cleaned;
     }
 
-    private string GetRegionForCountryCode(string countryCode)
+    private async Task<string> GetRegionForCountryCodeAsync(string countryCode)
     {
-        return countryCode switch
-        {
-            "SG" or "TH" or "MY" or "VN" or "ID" or "PH" or "JP" or "KR" or "AZ" or "GE" or "AE" or "QA" => "Asia",
-            "BA" or "BG" or "RS" or "FR" or "ES" or "GB" or "IT" or "CH" or "AT" or "NL" or "HU" or "CZ" or "PL" or "RO" or "AL" or "ME" or "HR" or "SI" => "Europe",
-            "MA" or "ZA" or "EG" or "TN" => "Africa",
-            "US" or "MX" or "CO" or "AR" or "PE" or "GT" or "CR" => "Americas",
-            "NZ" or "AU" => "Oceania",
-            _ => "Other"
-        };
+        var destination = await _context.Destinations
+            .Where(d => d.CountryCode == countryCode)
+            .Select(d => d.Region)
+            .FirstOrDefaultAsync();
+        return destination ?? "Other";
     }
 }
