@@ -11,10 +11,21 @@ var builder = WebApplication.CreateBuilder(args);
 // ── CORS ──
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader());
+    if (builder.Environment.IsProduction())
+    {
+        options.AddPolicy("AllowAll", policy =>
+            policy.WithOrigins("https://routsky.com", "https://routsky.xyz")
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials());
+    }
+    else
+    {
+        options.AddPolicy("AllowAll", policy =>
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader());
+    }
 });
 
 // ── Database ──
@@ -136,8 +147,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-if (!app.Environment.IsDevelopment())
-    app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseCors("AllowAll");
 app.UseAuthentication();

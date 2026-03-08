@@ -1,0 +1,95 @@
+services:
+  # ── Edge Reverse Proxy (SSL termination + domain routing) ──
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: routsky_proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/proxy.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - certbot-webroot:/var/www/certbot:ro
+      - certbot-certs:/etc/letsencrypt:ro
+    environment:
+      - DOMAIN=${DOMAIN:?DOMAIN must be set}
+      - API_DOMAIN=${API_DOMAIN:?API_DOMAIN must be set}
+    depends_on:
+      web:
+        condition: service_started
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Let's Encrypt Certificate Manager ──
+  certbot:
+    image: certbot/certbot
+    container_name: routsky_certbot
+    volumes:
+      - certbot-webroot:/var/www/certbot
+      - certbot-certs:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done'"
+    restart: unless-stopped
+
+  # ── PostgreSQL 17 ──
+  db:
+    image: postgres:17
+    container_name: routsky_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: routsky_db
+    volumes:
+      - routsky-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── .NET API ──
+  api:
+    build:
+      context: ./Routsky.Api
+      dockerfile: Dockerfile
+    image: routsky-api
+    container_name: routsky_api
+    env_file: .env.production
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: >-
+        Host=db;Port=5432;Database=routsky_db;Username=postgres;Password=${POSTGRES_PASSWORD}
+      Gemini__ApiKey: ${GEMINI_API_KEY:?GEMINI_API_KEY must be set}
+      Jwt__Key: ${JWT_KEY:?JWT_KEY must be set}
+      TRAVELBUDDY_RAPIDAPI_KEY: ${TRAVELBUDDY_RAPIDAPI_KEY}
+      TURKISH_AIRLINES_PROXY_URL: ${TURKISH_AIRLINES_PROXY_URL}
+    volumes:
+      - routsky-uploads:/app/wwwroot/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    restart: unless-stopped
+
+  # ── React + Nginx (internal only — served via nginx-proxy) ──
+  web:
+    build:
+      context: ./Routsky.Web
+      dockerfile: Dockerfile
+    image: routsky-web
+    container_name: routsky_web
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  routsky-data:
+  routsky-uploads:
+  certbot-webroot:
+  certbot-certs:
