@@ -1,0 +1,106 @@
+name: routsky-staging
+
+services:
+  # ── Edge Reverse Proxy (SSL termination + domain routing) ──
+  # Listens on 8080/8443 to avoid clashing with the production proxy on 80/443.
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: routsky_staging_proxy
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./nginx/proxy-staging.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - staging-certbot-webroot:/var/www/certbot:ro
+      - staging-certbot-certs:/etc/letsencrypt:ro
+    environment:
+      - DOMAIN=${DOMAIN:?DOMAIN must be set}
+      - API_DOMAIN=${API_DOMAIN:?API_DOMAIN must be set}
+    depends_on:
+      web:
+        condition: service_started
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: [ssl]
+
+  # ── Let's Encrypt Certificate Manager ──
+  certbot:
+    image: certbot/certbot
+    container_name: routsky_staging_certbot
+    volumes:
+      - staging-certbot-webroot:/var/www/certbot
+      - staging-certbot-certs:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done'"
+    restart: unless-stopped
+    profiles: [ssl]
+
+  # ── PostgreSQL 17 ──
+  db:
+    image: postgres:17
+    container_name: routsky_staging_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: routsky_staging_db
+    volumes:
+      - staging-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── .NET API (exposed on host port 5002) ──
+  api:
+    build:
+      context: ./Routsky.Api
+      dockerfile: Dockerfile
+    image: routsky-staging-api
+    container_name: routsky_staging_api
+    env_file: .env.staging
+    environment:
+      ASPNETCORE_ENVIRONMENT: Staging
+      ConnectionStrings__DefaultConnection: >-
+        Host=db;Port=5432;Database=routsky_staging_db;Username=postgres;Password=${POSTGRES_PASSWORD}
+      Gemini__ApiKey: ${GEMINI_API_KEY:?GEMINI_API_KEY must be set}
+      Jwt__Key: ${JWT_KEY:?JWT_KEY must be set}
+      TRAVELBUDDY_RAPIDAPI_KEY: ${TRAVELBUDDY_RAPIDAPI_KEY}
+      TURKISH_AIRLINES_PROXY_URL: ${TURKISH_AIRLINES_PROXY_URL}
+    volumes:
+      - staging-uploads:/app/wwwroot/uploads
+    ports:
+      - "5002:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    restart: unless-stopped
+
+  # ── React + Nginx (exposed on host port 3001) ──
+  web:
+    build:
+      context: ./Routsky.Web
+      dockerfile: Dockerfile
+      args:
+        VITE_APP_ENV: staging
+    image: routsky-staging-web
+    container_name: routsky_staging_web
+    ports:
+      - "3001:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  staging-data:
+  staging-uploads:
+  staging-certbot-webroot:
+  staging-certbot-certs:

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AuthGlobeFlip } from './components/AuthGlobeFlip';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -19,8 +20,8 @@ function App() {
       <ThemeProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/login" element={import.meta.env.VITE_APP_ENV === 'staging' ? <AuthGlobeFlip /> : <LoginPage />} />
+            <Route path="/register" element={import.meta.env.VITE_APP_ENV === 'staging' ? <AuthGlobeFlip /> : <RegisterPage />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<HomePage />} />

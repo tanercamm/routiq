@@ -1,7 +1,10 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { GlobePathLogo } from './GlobePathLogo';
 import { User, LogOut, Zap } from 'lucide-react';
+
+const isStaging = import.meta.env.VITE_APP_ENV === 'staging';
 
 const NAV_LINKS = [
     { label: 'Routes', path: '/routes' },
@@ -28,6 +31,15 @@ export const Navbar = () => {
                 {/* Left: Logo */}
                 <div className="flex-1 flex items-center justify-start gap-3">
                     <button onClick={() => navigate('/')} className="flex items-center gap-3 group">
+                        {isStaging && (
+                            <GlobePathLogo
+                                size={28}
+                                className={`transition-colors ${isHome
+                                    ? 'text-cyan-400 group-hover:text-cyan-300'
+                                    : 'text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                                }`}
+                            />
+                        )}
                         <span className={`text-2xl font-extrabold tracking-tight transition-colors ${isHome
                                 ? 'text-cyan-400 group-hover:text-cyan-300'
                                 : 'text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300'
