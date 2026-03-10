@@ -1,10 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { GlobePathLogo } from './GlobePathLogo';
 import { User, LogOut, Zap } from 'lucide-react';
-
-const isStaging = import.meta.env.VITE_APP_ENV === 'staging';
 
 const NAV_LINKS = [
     { label: 'Routes', path: '/routes' },
@@ -23,30 +20,29 @@ export const Navbar = () => {
 
     return (
         <header className={`border-b sticky top-0 z-30 transition-colors duration-200 ${isHome
-                ? 'border-white/[0.06] bg-[#050a18]/80 backdrop-blur-xl'
-                : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950'
+            ? 'border-white/[0.06] bg-[#050a18]/80 backdrop-blur-xl'
+            : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950'
             }`}>
             <div className="max-w-[1600px] w-[96%] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
 
                 {/* Left: Logo */}
                 <div className="flex-1 flex items-center justify-start gap-3">
                     <button onClick={() => navigate('/')} className="flex items-center gap-3 group">
-                        {isStaging && (
-                            <GlobePathLogo
-                                size={28}
-                                className={`transition-colors ${isHome
-                                    ? 'text-cyan-400 group-hover:text-cyan-300'
-                                    : 'text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                        <img
+                            src="/assets/logo.png"
+                            alt="Routsky Logo"
+                            className={`h-9 w-auto object-contain transition-all duration-500 group-hover:scale-110 ${isHome
+                                ? 'drop-shadow-[0_0_12px_rgba(45,212,191,0.5)]'
+                                : 'drop-shadow-[0_0_12px_rgba(37,99,235,0.3)]'
                                 }`}
-                            />
-                        )}
-                        <span className={`text-2xl font-extrabold tracking-tight transition-colors ${isHome
-                                ? 'text-cyan-400 group-hover:text-cyan-300'
-                                : 'text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                        />
+                        <span className={`text-2xl font-extrabold tracking-tight transition-colors hidden sm:inline ${isHome
+                            ? 'text-teal-400 group-hover:text-teal-300'
+                            : 'text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300'
                             }`}>
                             Routsky
                         </span>
-                        <span className={`text-sm font-medium hidden sm:inline ${isHome ? 'text-gray-500' : 'text-gray-400 dark:text-gray-500'
+                        <span className={`text-sm font-medium hidden lg:inline ${isHome ? 'text-gray-500' : 'text-gray-400 dark:text-gray-500'
                             }`}>
                             Mission Control
                         </span>
@@ -58,12 +54,12 @@ export const Navbar = () => {
                     <button
                         onClick={() => navigate('/find-route')}
                         className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg transition-all ${location.pathname === '/find-route'
-                                ? isHome
-                                    ? 'text-cyan-300 bg-cyan-500/10'
-                                    : 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
-                                : isHome
-                                    ? 'text-cyan-400/80 hover:text-cyan-300 hover:bg-white/[0.04]'
-                                    : 'text-blue-600 dark:text-cyan-400 hover:text-blue-700 dark:hover:text-cyan-300 hover:bg-blue-50 dark:hover:bg-cyan-500/10'
+                            ? isHome
+                                ? 'text-cyan-300 bg-cyan-500/10'
+                                : 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
+                            : isHome
+                                ? 'text-cyan-400/80 hover:text-cyan-300 hover:bg-white/[0.04]'
+                                : 'text-blue-600 dark:text-cyan-400 hover:text-blue-700 dark:hover:text-cyan-300 hover:bg-blue-50 dark:hover:bg-cyan-500/10'
                             }`}
                     >
                         <Zap size={14} />
@@ -76,12 +72,12 @@ export const Navbar = () => {
                                 key={path}
                                 onClick={() => navigate(path)}
                                 className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors ${isActive
-                                        ? isHome
-                                            ? 'text-cyan-300 bg-white/[0.06]'
-                                            : 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
-                                        : isHome
-                                            ? 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
-                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
+                                    ? isHome
+                                        ? 'text-cyan-300 bg-white/[0.06]'
+                                        : 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
+                                    : isHome
+                                        ? 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
                                     }`}
                             >
                                 {label}
@@ -105,10 +101,10 @@ export const Navbar = () => {
                         <button
                             onClick={() => navigate('/profile')}
                             className={`w-9 h-9 rounded-full flex items-center justify-center transition-all overflow-hidden ${location.pathname === '/profile'
-                                    ? 'bg-blue-600 dark:bg-blue-500 ring-2 ring-blue-300 dark:ring-blue-500/40'
-                                    : isHome
-                                        ? 'bg-white/[0.08] hover:ring-2 hover:ring-cyan-500/40'
-                                        : 'bg-blue-100 dark:bg-blue-500/20 hover:ring-2 hover:ring-blue-300 dark:hover:ring-blue-500/40'
+                                ? 'bg-blue-600 dark:bg-blue-500 ring-2 ring-blue-300 dark:ring-blue-500/40'
+                                : isHome
+                                    ? 'bg-white/[0.08] hover:ring-2 hover:ring-cyan-500/40'
+                                    : 'bg-blue-100 dark:bg-blue-500/20 hover:ring-2 hover:ring-blue-300 dark:hover:ring-blue-500/40'
                                 }`}
                             title="Profile"
                         >
@@ -123,8 +119,8 @@ export const Navbar = () => {
                             )}
                         </button>
                         <span className={`text-sm font-medium hidden sm:inline cursor-pointer ${isHome
-                                ? 'text-gray-400 hover:text-gray-200'
-                                : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                            ? 'text-gray-400 hover:text-gray-200'
+                            : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                             }`} onClick={() => navigate('/profile')}>
                             {user?.name || user?.email || 'User'}
                         </span>
@@ -136,8 +132,8 @@ export const Navbar = () => {
                         onClick={logout}
                         title="Sign Out"
                         className={`p-2 rounded-full transition-colors flex items-center justify-center ${isHome
-                                ? 'text-gray-500 hover:text-red-400 hover:bg-red-500/10'
-                                : 'text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10'
+                            ? 'text-gray-500 hover:text-red-400 hover:bg-red-500/10'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10'
                             }`}
                     >
                         <LogOut size={18} />

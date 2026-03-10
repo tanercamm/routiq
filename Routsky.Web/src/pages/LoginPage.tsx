@@ -58,6 +58,13 @@ export const LoginPage = () => {
 
             {/* Left Column — Branding */}
             <div className="relative hidden lg:flex flex-col justify-end p-16 bg-gray-900 dark:bg-gray-950">
+                <div className="absolute top-12 left-16 z-20">
+                    <img
+                        src="/assets/logo.png"
+                        alt="Routsky"
+                        className="h-10 w-auto object-contain drop-shadow-[0_0_15px_rgba(16,185,129,0.5)] opacity-90"
+                    />
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-br from-teal-600/20 to-blue-600/10" />
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}

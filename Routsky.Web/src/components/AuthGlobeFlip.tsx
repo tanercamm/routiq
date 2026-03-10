@@ -1,119 +1,299 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { login as apiLogin, register as apiRegister } from '../api/routskyApi';
-import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogIn, UserPlus, AlertCircle, Sun, Moon, Globe, ChevronLeft } from 'lucide-react';
-import { GlobePathLogo } from './GlobePathLogo';
 import { PASSPORT_CODES } from '../constants/passports';
 
-// ── Account step for Register (step 1) ───────────────────────────────────────
+// Lazy-load the heavy Globe component
+const Globe = lazy(() => import('react-globe.gl').then(m => ({ default: m.default })));
+
+// ── Design Tokens ───────────────────────────────────────────────────────────
+const TRANSITION_DURATION = 1.2;
+const LUXURY_EASE = [0.4, 0, 0.2, 1] as any;
+
+const LOGIN_ACCENT = { primary: '#10b981', secondary: '#34d399', tertiary: '#6ee7b7' };
+const REGISTER_ACCENT = { primary: '#8b5cf6', secondary: '#a78bfa', tertiary: '#c4b5fd' };
+
+// Route arcs for the globe (emerald for login)
+const GENERATE_ARCS = () => [...Array(20).keys()].map(() => ({
+    startLat: (Math.random() - 0.5) * 160,
+    startLng: (Math.random() - 0.5) * 360,
+    endLat: (Math.random() - 0.5) * 160,
+    endLng: (Math.random() - 0.5) * 360,
+    color: ['#10b981', '#34d399'][Math.floor(Math.random() * 2)],
+}));
+
+// City points for the globe (purple for register)
+const GENERATE_POINTS = () => [...Array(60).keys()].map(() => ({
+    lat: (Math.random() - 0.5) * 180,
+    lng: (Math.random() - 0.5) * 360,
+    size: Math.random() * 0.4 + 0.1,
+    color: ['#8b5cf6', '#a78bfa'][Math.floor(Math.random() * 2)]
+}));
+
+// ── Sub-Components ──────────────────────────────────────────────────────────
+
+const FormInput = ({ label, accentColor, ...props }: any) => (
+    <div className="space-y-1.5 group">
+        <label className="text-[10px] uppercase tracking-[0.25em] font-semibold opacity-50 group-focus-within:opacity-80 transition-all"
+            style={{ color: accentColor }}>
+            {label}
+        </label>
+        <Input
+            {...props}
+            className="!bg-white/[0.04] border border-white/[0.08] rounded-lg h-12 px-4 focus:!border-white/20 transition-all text-sm tracking-wide placeholder:text-white/[0.15]"
+        />
+    </div>
+);
+
 function AccountStep({
     firstName, setFirstName, lastName, setLastName,
-    email, setEmail, password, setPassword, onNext,
-}: {
-    firstName: string; setFirstName: (v: string) => void;
-    lastName: string; setLastName: (v: string) => void;
-    email: string; setEmail: (v: string) => void;
-    password: string; setPassword: (v: string) => void;
-    onNext: () => void;
-}) {
+    email, setEmail, password, setPassword, onNext, accent
+}: any) {
     return (
-        <>
-            <div className="grid grid-cols-2 gap-3">
-                <Input label="First Name" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="John" />
-                <Input label="Last Name" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Doe" />
+        <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+                <FormInput label="First Name" value={firstName} onChange={(e: any) => setFirstName(e.target.value)} placeholder="Alex" accentColor={accent.secondary} />
+                <FormInput label="Last Name" value={lastName} onChange={(e: any) => setLastName(e.target.value)} placeholder="Smith" accentColor={accent.secondary} />
             </div>
-            <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" />
-            <Input label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Create a password" minLength={6} />
-            <Button
-                variant="primary"
-                className="w-full bg-purple-600 hover:bg-purple-500"
+            <FormInput label="Email" type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required placeholder="you@routsky.com" accentColor={accent.secondary} />
+            <FormInput label="Password" type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required placeholder="••••••••" accentColor={accent.secondary} />
+            <button
+                type="button"
+                className="w-full h-12 rounded-lg font-semibold tracking-wide text-sm uppercase transition-all duration-200 text-white mt-2"
+                style={{ background: accent.primary }}
                 onClick={e => { e.preventDefault(); if (firstName && email && password) onNext(); }}
             >
-                Continue →
-            </Button>
-        </>
+                Continue
+            </button>
+        </div>
     );
 }
 
-// ── Citizenship step for Register (step 2) ───────────────────────────────────
-function CitizenshipStep({
-    passports, setPassports,
-}: {
-    passports: string[];
-    setPassports: (v: string[]) => void;
-}) {
+function CitizenshipStep({ passports, setPassports, onBack, onSubmit, loading, accent }: any) {
     return (
-        <div className="space-y-4">
-            <div>
-                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 block">
-                    Your Passport(s)
+        <div className="space-y-5">
+            <div className="space-y-3">
+                <label className="text-[10px] uppercase tracking-[0.25em] font-semibold opacity-50 block" style={{ color: accent.secondary }}>
+                    Passports
                 </label>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mb-3 leading-relaxed">
-                    Select all citizenships you hold. The route engine will always evaluate your best-case visa outcome.
-                </p>
-                <div className="flex flex-wrap gap-1.5 mb-3 min-h-[2.25rem]">
-                    {passports.length === 0 && (
-                        <span className="text-xs text-gray-400 italic">No passports selected yet — add one below.</span>
-                    )}
-                    {Array.isArray(passports) && passports.map(code => {
-                        if (!code) return null;
+                <div className="flex flex-wrap gap-2 p-4 bg-white/[0.02] border border-white/[0.06] rounded-lg min-h-[4rem]">
+                    {passports.length === 0 && <span className="text-[11px] text-white/[0.15] m-auto italic">Select your nationalities…</span>}
+                    {passports.map((code: string) => {
                         const opt = PASSPORT_CODES.find(o => o.code === code);
                         return (
-                            <span key={code} className="inline-flex items-center gap-1 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-300 text-xs font-semibold px-2.5 py-1 rounded-full">
+                            <motion.span
+                                key={code}
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                className="px-3 py-1.5 bg-white/[0.05] border border-white/10 text-white/70 text-[11px] font-medium flex items-center gap-2 rounded-md"
+                            >
                                 {opt?.label ?? code}
-                                <button
-                                    type="button"
-                                    onClick={() => setPassports(passports.filter(p => p !== code))}
-                                    className="ml-0.5 hover:text-red-500 transition-colors"
-                                    aria-label={`Remove ${code}`}
-                                >
-                                    ×
-                                </button>
-                            </span>
+                                <button type="button" onClick={() => setPassports(passports.filter((p: string) => p !== code))} className="hover:text-white opacity-50 hover:opacity-100 transition-opacity">×</button>
+                            </motion.span>
                         );
                     })}
                 </div>
                 <select
                     value=""
-                    onChange={e => { const v = e.target.value; if (v && Array.isArray(passports) && !passports.includes(v)) setPassports([...passports, v]); }}
-                    className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/40 transition-colors"
+                    onChange={e => { const v = e.target.value; if (v && !passports.includes(v)) setPassports([...passports, v]); }}
+                    className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg py-3 px-4 text-[11px] text-white/50 font-medium focus:outline-none appearance-none cursor-pointer hover:text-white/70 transition-colors"
                 >
-                    <option value="">+ Add a passport country...</option>
-                    {Array.isArray(passports) && PASSPORT_CODES.filter(o => !passports.includes(o.code)).map(o => (
-                        <option key={o.code} value={o.code}>{o.label}</option>
+                    <option value="" className="bg-gray-950">+ Add passport…</option>
+                    {PASSPORT_CODES.filter(o => !passports.includes(o.code)).map(o => (
+                        <option key={o.code} value={o.code} className="bg-gray-950">{o.label}</option>
                     ))}
                 </select>
+            </div>
+            <div className="flex gap-3">
+                <button type="button" onClick={onBack} className="flex-1 h-12 border border-white/[0.08] rounded-lg text-sm font-medium text-white/40 hover:text-white hover:bg-white/[0.04] transition-all">Back</button>
+                <button
+                    type="button"
+                    className="flex-[2] h-12 rounded-lg font-semibold tracking-wide text-sm uppercase transition-all duration-200 text-white disabled:opacity-50"
+                    style={{ background: accent.primary }}
+                    disabled={loading}
+                    onClick={onSubmit}
+                >
+                    {loading ? 'Creating…' : 'Create Account'}
+                </button>
             </div>
         </div>
     );
 }
 
-// ── AuthGlobeFlip: 3D flip card — Login (green) front, Register (purple) back ───
-export const AuthGlobeFlip = () => {
-    const { login } = useAuth();
-    const { theme, toggleTheme } = useTheme();
-    const navigate = useNavigate();
-    const location = useLocation();
+// ── Globe Panel ─────────────────────────────────────────────────────────────
 
-    const isRegisterPath = location.pathname === '/register';
-    const [flipped, setFlipped] = useState(isRegisterPath);
+function GlobeSection({ isNightSide, globeRef }: { isNightSide: boolean; globeRef: React.RefObject<any> }) {
+    const arcsData = useMemo(() => GENERATE_ARCS(), []);
+    const pointsData = useMemo(() => GENERATE_POINTS(), []);
+    const accent = isNightSide ? REGISTER_ACCENT : LOGIN_ACCENT;
 
     useEffect(() => {
-        setFlipped(isRegisterPath);
-    }, [isRegisterPath]);
+        const timer = setTimeout(() => {
+            if (globeRef.current) {
+                globeRef.current.pointOfView({
+                    lat: 20,
+                    lng: isNightSide ? 180 : 0,
+                    altitude: 2.5
+                }, 1200);
 
-    // Login state
+                const controls = globeRef.current.controls();
+                if (controls) {
+                    controls.autoRotate = true;
+                    controls.autoRotateSpeed = 0.4;
+                    controls.enableZoom = false;
+                }
+            }
+        }, 150);
+        return () => clearTimeout(timer);
+    }, [isNightSide, globeRef]);
+
+    return (
+        <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-[#020308]">
+            {/* Globe — centered and scaled to fit within the container */}
+            <div className="relative flex items-center justify-center" style={{ width: '75%', height: '75%', maxWidth: '600px', maxHeight: '600px' }}>
+                <Suspense fallback={
+                    <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${accent.primary}30`, borderTopColor: 'transparent' }} />
+                    </div>
+                }>
+                    <Globe
+                        ref={globeRef}
+                        width={600}
+                        height={600}
+                        globeImageUrl={isNightSide
+                            ? '//unpkg.com/three-globe/example/img/earth-night.jpg'
+                            : '//unpkg.com/three-globe/example/img/earth-blue-marble.jpg'}
+                        bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+                        backgroundImageUrl=""
+                        atmosphereColor={accent.primary}
+                        atmosphereAltitude={0.18}
+                        arcsData={!isNightSide ? arcsData : []}
+                        arcColor="color"
+                        arcDashLength={0.5}
+                        arcDashGap={4}
+                        arcDashAnimateTime={2000}
+                        arcStroke={0.5}
+                        pointsData={isNightSide ? pointsData : []}
+                        pointColor="color"
+                        pointRadius="size"
+                        pointsMerge={true}
+                    />
+                </Suspense>
+            </div>
+
+            {/* Logo + Routsky branding */}
+            <div className="absolute bottom-8 left-8 z-20 pointer-events-none flex items-center gap-3">
+                <img src="/assets/logo.png" alt="Routsky" className="h-9 w-auto object-contain opacity-90" />
+                <span className="text-xl font-bold tracking-tight text-white/70">Routsky</span>
+            </div>
+        </div>
+    );
+}
+
+// ── Form Panel ──────────────────────────────────────────────────────────────
+
+function FormSection({ isRegister, accent, formProps, toggleFlip }: any) {
+    const {
+        email, setEmail, password, setPassword, loginError, loginLoading, handleLoginSubmit,
+        step, setStep, firstName, setFirstName, lastName, setLastName,
+        regEmail, setRegEmail, regPassword, setRegPassword,
+        passports, setPassports, regError, regLoading, handleRegisterSubmit
+    } = formProps;
+
+    return (
+        <div className="auth-passport relative z-10 flex flex-col h-full bg-[#060810] border-white/[0.04]"
+            style={{
+                borderLeft: isRegister ? 'none' : '1px solid rgba(255,255,255,0.04)',
+                borderRight: isRegister ? '1px solid rgba(255,255,255,0.04)' : 'none',
+            }}>
+
+            {/* Form Content */}
+            <div className="flex-1 flex flex-col max-w-md mx-auto w-full px-8 lg:px-14 justify-center py-12">
+                {/* Title */}
+                <div className="mb-10">
+                    <h1 className="text-3xl lg:text-4xl font-bold text-white tracking-tight mb-2">
+                        {isRegister ? 'Create Account' : 'Welcome Back'}
+                    </h1>
+                    <p className="text-sm text-white/30">
+                        {isRegister ? 'Start planning your next adventure.' : 'Sign in to continue your journey.'}
+                    </p>
+                </div>
+
+                {/* Form Fields */}
+                {isRegister ? (
+                    <div className="space-y-5">
+                        <AnimatePresence mode="wait">
+                            {step === 1 ? (
+                                <motion.div key="s1" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }}>
+                                    <AccountStep {...{ firstName, setFirstName, lastName, setLastName, email: regEmail, setEmail: setRegEmail, password: regPassword, setPassword: setRegPassword, onNext: () => setStep(2), accent }} />
+                                </motion.div>
+                            ) : (
+                                <motion.div key="s2" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }}>
+                                    <CitizenshipStep passports={passports} setPassports={setPassports} onBack={() => setStep(1)} onSubmit={handleRegisterSubmit} loading={regLoading} accent={accent} />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                        {regError && <p className="text-sm text-red-400 font-medium">{regError}</p>}
+                    </div>
+                ) : (
+                    <form onSubmit={handleLoginSubmit} className="space-y-5">
+                        <FormInput label="Email" type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} required placeholder="you@routsky.com" accentColor={accent.secondary} />
+                        <FormInput label="Password" type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} required placeholder="••••••••" accentColor={accent.secondary} />
+                        {loginError && <p className="text-sm text-red-400 font-medium">{loginError}</p>}
+                        <button
+                            type="submit"
+                            className="w-full h-12 rounded-lg font-semibold tracking-wide text-sm uppercase transition-all duration-200 text-white disabled:opacity-50"
+                            style={{ background: accent.primary }}
+                            disabled={loginLoading}
+                        >
+                            {loginLoading ? 'Signing in…' : 'Sign In'}
+                        </button>
+                    </form>
+                )}
+
+                {/* Toggle */}
+                <div className="mt-8 pt-6 border-t border-white/[0.04]">
+                    <button type="button" onClick={toggleFlip}
+                        className="text-sm font-medium transition-colors duration-200"
+                        style={{ color: `${accent.secondary}80` }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = accent.secondary)}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = `${accent.secondary}80`)}
+                    >
+                        {isRegister ? 'Already have an account? Sign In →' : "Don't have an account? Create one →"}
+                    </button>
+                </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-8 lg:px-14 pb-6 text-[10px] text-white/[0.1] flex justify-between">
+                <span>Routsky © 2026</span>
+                <span>Secure Connection</span>
+            </div>
+        </div>
+    );
+}
+
+// ── Main Component ──────────────────────────────────────────────────────────
+
+export const AuthGlobeFlip = () => {
+    const { login } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const globeRef = useRef<any>(null);
+
+    const isRegisterPath = location.pathname === '/register';
+    const accent = isRegisterPath ? REGISTER_ACCENT : LOGIN_ACCENT;
+
+    // ── Login State ──
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loginError, setLoginError] = useState('');
     const [loginLoading, setLoginLoading] = useState(false);
 
-    // Register state
+    // ── Register State ──
     const [step, setStep] = useState<1 | 2>(1);
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -129,235 +309,97 @@ export const AuthGlobeFlip = () => {
         setLoginLoading(true);
         try {
             const response = await apiLogin({ email, password });
-            login(response.token, {
-                id: response.id,
-                email: response.email,
-                name: response.name,
-                role: response.role,
-                passports: response.passports || [],
-                avatarUrl: response.avatarUrl || response.AvatarUrl,
-                origin: response.origin || "",
-                preferredCurrency: response.preferredCurrency || "USD",
-                unitPreference: response.unitPreference || "Metric",
-                travelStyle: response.travelStyle || "Comfort",
-                notificationsEnabled: response.notificationsEnabled ?? true,
-                priceAlertsEnabled: response.priceAlertsEnabled ?? true
-            });
+            login(response.token, response);
             navigate('/');
         } catch (err: any) {
-            setLoginError(err.response?.data?.message || 'Failed to login');
+            setLoginError(err.response?.data?.message || 'Invalid credentials. Please try again.');
         } finally {
             setLoginLoading(false);
         }
     };
 
-    const handleRegisterSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleRegisterSubmit = async (e: any) => {
+        if (e && e.preventDefault) e.preventDefault();
         if (step === 1) { setStep(2); return; }
-        if (passports.length === 0) { setRegError('Please add at least one passport.'); return; }
+        if (passports.length === 0) { setRegError('Please select at least one passport.'); return; }
 
         setRegError('');
         setRegLoading(true);
         try {
             const response = await apiRegister({ email: regEmail, password: regPassword, firstName, lastName, passports });
-            login(response.token, {
-                id: response.id,
-                email: response.email,
-                name: response.name,
-                role: response.role,
-                passports,
-                avatarUrl: response.avatarUrl || response.AvatarUrl,
-                origin: response.origin || "",
-                preferredCurrency: response.preferredCurrency || "USD",
-                unitPreference: response.unitPreference || "Metric",
-                travelStyle: response.travelStyle || "Comfort",
-                notificationsEnabled: response.notificationsEnabled ?? true,
-                priceAlertsEnabled: response.priceAlertsEnabled ?? true
-            });
+            login(response.token, response);
             navigate('/');
         } catch (err: any) {
-            setRegError(err.response?.data?.message || 'Failed to register');
+            setRegError(err.response?.data?.message || 'Registration failed. Please try again.');
         } finally {
             setRegLoading(false);
         }
     };
 
-    const goToRegister = () => {
-        setFlipped(true);
-        navigate('/register');
+    const toggleFlip = () => {
+        setStep(1);
+        navigate(isRegisterPath ? '/login' : '/register');
     };
 
-    const goToLogin = () => {
-        setFlipped(false);
-        navigate('/login');
+    const formProps = {
+        email, setEmail, password, setPassword, loginError, loginLoading, handleLoginSubmit,
+        step, setStep, firstName, setFirstName, lastName, setLastName,
+        regEmail, setRegEmail, regPassword, setRegPassword,
+        passports, setPassports, regError, regLoading, handleRegisterSubmit
     };
+
+    /*
+     * Layout:
+     *   Login:    [Form (LEFT)]  [Globe (RIGHT)] — Green theme
+     *   Register: [Globe (LEFT)] [Form (RIGHT)]  — Purple theme
+     *
+     * The globe slides from one side to the other with a 180° rotation.
+     */
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-gray-900 relative">
-            <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2">
-                <GlobePathLogo size={32} className="text-teal-600 dark:text-teal-400" />
-                <span className="text-xl font-bold text-gray-900 dark:text-white">Routsky</span>
-            </div>
-            <button
-                onClick={toggleTheme}
-                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 transition-all text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400"
-            >
-                {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-
-            <div className="w-full max-w-md perspective-1000">
+        <div className="auth-passport min-h-screen bg-[#020308] overflow-hidden">
+            <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2">
+                {/* Column 1 (LEFT) */}
                 <motion.div
-                    className="relative w-full h-[520px]"
-                    style={{ perspective: '1000px' }}
+                    className="relative h-[40vh] lg:h-screen"
+                    layout
+                    transition={{ duration: TRANSITION_DURATION, ease: LUXURY_EASE }}
+                    style={{ zIndex: isRegisterPath ? 10 : 5 }}
                 >
-                    <motion.div
-                        className="relative w-full h-full"
-                        style={{ transformStyle: 'preserve-3d' }}
-                        animate={{ rotateY: flipped ? 180 : 0 }}
-                        transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
-                    >
-                        {/* Front: Login (Green theme) */}
-                        <div
-                            className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden"
-                            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(0deg)' }}
-                        >
-                            <div className="h-full bg-white dark:bg-gray-900 rounded-2xl border border-teal-200/50 dark:border-teal-500/20 shadow-xl flex flex-col">
-                                <div className="flex-1 flex flex-col justify-center p-8">
-                                    <div className="mb-6">
-                                        <div className="w-10 h-10 bg-teal-50 dark:bg-teal-500/10 rounded-lg flex items-center justify-center mb-5">
-                                            <LogIn size={20} className="text-teal-600 dark:text-teal-400" />
-                                        </div>
-                                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Welcome back</h1>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">Enter your details to sign in.</p>
-                                    </div>
+                    {isRegisterPath ? (
+                        <GlobeSection isNightSide globeRef={globeRef} />
+                    ) : (
+                        <FormSection isRegister={false} accent={accent} formProps={formProps} toggleFlip={toggleFlip} />
+                    )}
+                </motion.div>
 
-                                    {loginError && (
-                                        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg p-3 mb-5 flex items-center gap-2.5 text-red-600 dark:text-red-400 text-sm">
-                                            <AlertCircle size={16} />
-                                            {loginError}
-                                        </div>
-                                    )}
-
-                                    <form onSubmit={handleLoginSubmit} className="space-y-4">
-                                        <Input
-                                            label="Email"
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            required
-                                            placeholder="you@example.com"
-                                        />
-                                        <div>
-                                            <Input
-                                                label="Password"
-                                                type="password"
-                                                value={password}
-                                                onChange={(e) => setPassword(e.target.value)}
-                                                required
-                                                placeholder="Enter your password"
-                                            />
-                                            <div className="flex justify-end mt-1.5">
-                                                <a href="#" className="text-xs text-teal-600 dark:text-teal-400 hover:underline">Forgot password?</a>
-                                            </div>
-                                        </div>
-
-                                        <Button
-                                            variant="primary"
-                                            className="w-full bg-teal-600 hover:bg-teal-500"
-                                            disabled={loginLoading}
-                                        >
-                                            {loginLoading ? 'Signing in...' : 'Sign in'}
-                                        </Button>
-                                    </form>
-
-                                    <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                                        Don't have an account?{' '}
-                                        <button type="button" onClick={goToRegister} className="text-teal-600 dark:text-teal-400 font-medium hover:underline">
-                                            Sign up
-                                        </button>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Back: Register (Purple theme) */}
-                        <div
-                            className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden"
-                            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-                        >
-                            <div className="h-full bg-white dark:bg-gray-900 rounded-2xl border border-purple-200/50 dark:border-purple-500/20 shadow-xl flex flex-col">
-                                <div className="flex-1 flex flex-col justify-center p-8 overflow-y-auto">
-                                    <div className="mb-5">
-                                        <div className="w-9 h-9 bg-purple-50 dark:bg-purple-500/10 rounded-lg flex items-center justify-center mb-4">
-                                            {step === 1
-                                                ? <UserPlus size={18} className="text-purple-600 dark:text-purple-400" />
-                                                : <Globe size={18} className="text-purple-600 dark:text-purple-400" />}
-                                        </div>
-                                        <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-0.5">
-                                            {step === 1 ? 'Create an account' : 'Set your citizenship'}
-                                        </h1>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                                            {step === 1 ? 'Step 1 of 2 — Account details' : 'Step 2 of 2 — Which passports do you hold?'}
-                                        </p>
-                                    </div>
-
-                                    <div className="flex gap-1.5 mb-4">
-                                        <div className="h-1 flex-1 rounded-full bg-purple-500" />
-                                        <div className={`h-1 flex-1 rounded-full transition-colors ${step === 2 ? 'bg-purple-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
-                                    </div>
-
-                                    {regError && (
-                                        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg p-3 mb-4 flex items-center gap-2 text-red-600 dark:text-red-400 text-xs">
-                                            <AlertCircle size={14} /> {regError}
-                                        </div>
-                                    )}
-
-                                    <form onSubmit={handleRegisterSubmit} className="space-y-3">
-                                        <AnimatePresence mode="wait">
-                                            {step === 1 ? (
-                                                <motion.div key="step1" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-3">
-                                                    <AccountStep
-                                                        firstName={firstName} setFirstName={setFirstName}
-                                                        lastName={lastName} setLastName={setLastName}
-                                                        email={regEmail} setEmail={setRegEmail}
-                                                        password={regPassword} setPassword={setRegPassword}
-                                                        onNext={() => setStep(2)}
-                                                    />
-                                                </motion.div>
-                                            ) : (
-                                                <motion.div key="step2" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-3">
-                                                    <CitizenshipStep passports={passports} setPassports={setPassports} />
-                                                    <div className="flex gap-2 pt-1">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setStep(1)}
-                                                            className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700"
-                                                        >
-                                                            <ChevronLeft size={13} /> Back
-                                                        </button>
-                                                        <Button
-                                                            variant="primary"
-                                                            className="flex-1 bg-purple-600 hover:bg-purple-500"
-                                                            disabled={regLoading || passports.length === 0}
-                                                        >
-                                                            {regLoading ? 'Creating account...' : 'Create account'}
-                                                        </Button>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </form>
-
-                                    <p className="mt-5 text-center text-xs text-gray-500 dark:text-gray-400">
-                                        Already have an account?{' '}
-                                        <button type="button" onClick={goToLogin} className="text-purple-600 dark:text-purple-400 font-medium hover:underline">Log in</button>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </motion.div>
+                {/* Column 2 (RIGHT) */}
+                <motion.div
+                    className="relative h-[40vh] lg:h-screen"
+                    layout
+                    transition={{ duration: TRANSITION_DURATION, ease: LUXURY_EASE }}
+                    style={{ zIndex: isRegisterPath ? 5 : 10 }}
+                >
+                    {isRegisterPath ? (
+                        <FormSection isRegister accent={accent} formProps={formProps} toggleFlip={toggleFlip} />
+                    ) : (
+                        <GlobeSection isNightSide={false} globeRef={globeRef} />
+                    )}
                 </motion.div>
             </div>
+
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+                .auth-passport { font-family: 'Inter', system-ui, sans-serif; }
+                body { background-color: #020308; overflow-x: hidden; }
+                input:-webkit-autofill,
+                input:-webkit-autofill:hover,
+                input:-webkit-autofill:focus {
+                    -webkit-text-fill-color: white;
+                    -webkit-box-shadow: 0 0 0px 1000px #0a0a12 inset;
+                    transition: background-color 5000s ease-in-out 0s;
+                }
+            `}</style>
         </div>
     );
 };

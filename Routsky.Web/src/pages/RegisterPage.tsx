@@ -228,6 +228,13 @@ export const RegisterPage = () => {
 
             {/* Right Column — Branding */}
             <div className="relative hidden lg:flex flex-col justify-end p-12 bg-gray-900 dark:bg-gray-950 order-1 lg:order-2">
+                <div className="absolute top-12 left-12 z-20">
+                    <img
+                        src="/assets/logo.png"
+                        alt="Routsky"
+                        className="h-10 w-auto object-contain drop-shadow-[0_0_15px_rgba(167,139,250,0.7)] opacity-90"
+                    />
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 to-pink-600/10" />
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="relative z-10">
                     <h2 className="text-3xl font-bold text-white mb-3 leading-tight">

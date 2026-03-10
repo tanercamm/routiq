@@ -87,12 +87,13 @@ html {
   scrollbar-color: #cbd5e1 transparent;
 }
 /* ── Zero-Glow Policy (Flat UI Aesthetic) ── */
-*:not(canvas) {
+/* Exempt canvas and .auth-passport elements so auth pages retain premium glows */
+*:not(canvas):not(.auth-passport):not(.auth-passport *) {
   box-shadow: none !important;
   text-shadow: none !important;
 }
 
-/* Ensure no glows on hovering cards or buttons */
-.card, button, .rounded-xl, .bg-white, .dark\:bg-gray-800 {
+/* Ensure no glows on hovering cards or buttons (except in auth) */
+.card:not(.auth-passport *), button:not(.auth-passport *), .rounded-xl:not(.auth-passport *), .bg-white:not(.auth-passport *), .dark\:bg-gray-800:not(.auth-passport *) {
   box-shadow: none !important;
 }

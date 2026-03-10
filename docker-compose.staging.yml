@@ -1,14 +1,12 @@
-name: routsky-staging
-
 services:
   # ── Edge Reverse Proxy (SSL termination + domain routing) ──
-  # Listens on 8080/8443 to avoid clashing with the production proxy on 80/443.
+  # Entry point for routsky.xyz
   nginx-proxy:
     image: nginx:alpine
     container_name: routsky_staging_proxy
     ports:
-      - "8080:80"
-      - "8443:443"
+      - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/proxy-staging.conf.template:/etc/nginx/templates/default.conf.template:ro
       - staging-certbot-webroot:/var/www/certbot:ro
@@ -22,7 +20,6 @@ services:
       api:
         condition: service_healthy
     restart: unless-stopped
-    profiles: [ssl]
 
   # ── Let's Encrypt Certificate Manager ──
   certbot:
@@ -33,7 +30,7 @@ services:
       - staging-certbot-certs:/etc/letsencrypt
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done'"
     restart: unless-stopped
-    profiles: [ssl]
+    profiles: [ ssl ]
 
   # ── PostgreSQL 17 ──
   db:
@@ -46,13 +43,13 @@ services:
     volumes:
       - staging-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
-  # ── .NET API (exposed on host port 5002) ──
+  # ── .NET API ──
   api:
     build:
       context: ./Routsky.Api
@@ -70,20 +67,21 @@ services:
       TURKISH_AIRLINES_PROXY_URL: ${TURKISH_AIRLINES_PROXY_URL}
     volumes:
       - staging-uploads:/app/wwwroot/uploads
-    ports:
-      - "5002:8080"
+    # Internal port only, accessed via proxy
+    expose:
+      - "8080"
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 20
       start_period: 120s
     restart: unless-stopped
 
-  # ── React + Nginx (exposed on host port 3001) ──
+  # ── React + Nginx ──
   web:
     build:
       context: ./Routsky.Web
@@ -92,8 +90,9 @@ services:
         VITE_APP_ENV: staging
     image: routsky-staging-web
     container_name: routsky_staging_web
-    ports:
-      - "3001:80"
+    # Internal port only, accessed via proxy
+    expose:
+      - "80"
     depends_on:
       api:
         condition: service_healthy
