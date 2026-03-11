@@ -6,8 +6,9 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserPlus, AlertCircle, Sun, Moon, Globe, ChevronLeft } from 'lucide-react';
+import { AlertCircle, Sun, Moon, ChevronLeft } from 'lucide-react';
 import { PASSPORT_CODES } from '../constants/passports';
+import { AuthGlobeFlip } from '../components/AuthGlobeFlip';
 
 // ── Step 1: Account details ──────────────────────────────────────────────────
 function AccountStep({
@@ -143,109 +144,98 @@ export const RegisterPage = () => {
     };
 
     return (
-        <div className="min-h-screen grid lg:grid-cols-2 bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen relative flex items-center justify-center bg-[#020308] overflow-hidden">
+            {/* Background Globe 20% Opacity + Blur */}
+            <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
+                 <AuthGlobeFlip />
+            </div>
+            <div className="absolute inset-0 z-0 pointer-events-none backdrop-blur-[8px]" />
+
             {/* Theme Toggle */}
             <button
                 onClick={toggleTheme}
-                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700   transition-all text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400"
+                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 transition-all text-white/50 hover:text-white"
             >
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
-            {/* Left Column — Form */}
-            <div className="flex items-center justify-center p-8 lg:p-12 order-2 lg:order-1">
-                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-sm">
-
-                    {/* Header */}
-                    <div className="mb-6">
-                        <div className="w-9 h-9 bg-purple-50 dark:bg-purple-500/10 rounded-lg flex items-center justify-center mb-4">
-                            {step === 1
-                                ? <UserPlus size={18} className="text-purple-600 dark:text-purple-400" />
-                                : <Globe size={18} className="text-purple-600 dark:text-purple-400" />}
-                        </div>
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-0.5">
-                            {step === 1 ? 'Create an account' : 'Set your citizenship'}
-                        </h1>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {step === 1 ? 'Step 1 of 2 — Account details' : 'Step 2 of 2 — Which passports do you hold?'}
-                        </p>
-                    </div>
-
-                    {/* Step indicator */}
-                    <div className="flex gap-1.5 mb-5">
-                        <div className="h-1 flex-1 rounded-full bg-purple-500" />
-                        <div className={`h-1 flex-1 rounded-full transition-colors ${step === 2 ? 'bg-purple-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
-                    </div>
-
-                    {error && (
-                        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg p-3 mb-4 flex items-center gap-2 text-red-600 dark:text-red-400 text-xs">
-                            <AlertCircle size={14} /> {error}
-                        </div>
-                    )}
-
-                    <form onSubmit={handleSubmit} className="space-y-3">
-                        <AnimatePresence mode="wait">
-                            {step === 1 ? (
-                                <motion.div key="step1" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-3">
-                                    <AccountStep
-                                        firstName={firstName} setFirstName={setFirstName}
-                                        lastName={lastName} setLastName={setLastName}
-                                        email={email} setEmail={setEmail}
-                                        password={password} setPassword={setPassword}
-                                        onNext={() => setStep(2)}
-                                    />
-                                </motion.div>
-                            ) : (
-                                <motion.div key="step2" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-3">
-                                    <CitizenshipStep passports={passports} setPassports={setPassports} />
-                                    <div className="flex gap-2 pt-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => setStep(1)}
-                                            className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700"
-                                        >
-                                            <ChevronLeft size={13} /> Back
-                                        </button>
-                                        <Button
-                                            variant="primary"
-                                            className="flex-1 bg-purple-600 hover:bg-purple-500"
-                                            disabled={loading || passports.length === 0}
-                                        >
-                                            {loading ? 'Creating account...' : 'Create account'}
-                                        </Button>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </form>
-
-                    <p className="mt-5 text-center text-xs text-gray-500 dark:text-gray-400">
-                        Already have an account?{' '}
-                        <Link to="/login" className="text-purple-600 dark:text-purple-400 font-medium hover:underline">Log in</Link>
-                    </p>
-                </motion.div>
-            </div>
-
-            {/* Right Column — Branding */}
-            <div className="relative hidden lg:flex flex-col justify-end p-12 bg-gray-900 dark:bg-gray-950 order-1 lg:order-2">
-                <div className="absolute top-12 left-12 z-20">
+            {/* Central Glassmorphism Card */}
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                className="relative z-10 w-full max-w-[450px] mx-4 p-8 sm:p-10 rounded-3xl bg-white/5 dark:bg-[#060810]/60 backdrop-blur-2xl border border-white/10 shadow-[0_0_40px_rgba(139,92,246,0.1)]"
+            >
+                <div className="flex flex-col items-center mb-8 text-center">
                     <img
                         src="/assets/logo.png"
                         alt="Routsky"
-                        className="h-10 w-auto object-contain drop-shadow-[0_0_15px_rgba(167,139,250,0.7)] opacity-90"
+                        className="h-12 w-auto object-contain drop-shadow-[0_0_15px_rgba(139,92,246,0.4)] mb-5"
                     />
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 to-pink-600/10" />
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="relative z-10">
-                    <h2 className="text-3xl font-bold text-white mb-3 leading-tight">
-                        Start Your Journey<br />
-                        <span className="text-purple-400">With Confidence.</span>
-                    </h2>
-                    <p className="text-sm text-gray-400 max-w-md">
-                        Set your citizenship once. The route engine evaluates your best-case visa outcome across all passports you hold — automatically.
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">
+                        {step === 1 ? 'Create an account' : 'Set your citizenship'}
+                    </h1>
+                     <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {step === 1 ? 'Step 1 of 2 — Account details' : 'Step 2 of 2 — Which passports do you hold?'}
                     </p>
-                </motion.div>
-            </div>
+                </div>
+
+                {/* Step indicator */}
+                <div className="flex gap-2 mb-6">
+                    <div className="h-1 flex-1 rounded-full bg-purple-500" />
+                    <div className={`h-1 flex-1 rounded-full transition-colors ${step === 2 ? 'bg-purple-500' : 'bg-white/10 dark:bg-gray-700'}`} />
+                </div>
+
+                {error && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-6 flex items-center gap-2.5 text-red-500 text-sm font-medium">
+                        <AlertCircle size={16} />
+                        {error}
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <AnimatePresence mode="wait">
+                        {step === 1 ? (
+                            <motion.div key="step1" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-4">
+                                <AccountStep
+                                    firstName={firstName} setFirstName={setFirstName}
+                                    lastName={lastName} setLastName={setLastName}
+                                    email={email} setEmail={setEmail}
+                                    password={password} setPassword={setPassword}
+                                    onNext={() => setStep(2)}
+                                />
+                            </motion.div>
+                        ) : (
+                            <motion.div key="step2" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-4">
+                                <CitizenshipStep passports={passports} setPassports={setPassports} />
+                                <div className="flex gap-2 pt-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setStep(1)}
+                                        className="flex items-center justify-center h-12 w-12 text-gray-500 dark:text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-xl border border-white/10"
+                                    >
+                                        <ChevronLeft size={18} />
+                                    </button>
+                                    <Button
+                                        variant="primary"
+                                        className="flex-1 h-12 rounded-xl bg-purple-600 hover:bg-purple-500 text-sm font-bold tracking-wide"
+                                        disabled={loading || passports.length === 0}
+                                    >
+                                        {loading ? 'Creating account...' : 'Create account'}
+                                    </Button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </form>
+
+                <p className="mt-8 text-center text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Already have an account?{' '}
+                    <Link to="/login" className="text-white hover:text-purple-400 transition-colors">
+                        Log in →
+                    </Link>
+                </p>
+            </motion.div>
         </div>
     );
 };

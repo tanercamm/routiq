@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { login as apiLogin } from '../api/routskyApi';
-import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogIn, AlertCircle, Sun, Moon } from 'lucide-react';
+import { AuthGlobeFlip } from '../components/AuthGlobeFlip';
 
 export const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -47,103 +47,91 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="min-h-screen grid lg:grid-cols-2 bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen relative flex items-center justify-center bg-[#020308] overflow-hidden">
+            {/* Background Globe 20% Opacity + Blur */}
+            <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
+                 <AuthGlobeFlip />
+            </div>
+            <div className="absolute inset-0 z-0 pointer-events-none backdrop-blur-[8px]" />
+
             {/* Theme Toggle */}
             <button
                 onClick={toggleTheme}
-                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700   transition-all text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 transition-all text-white/50 hover:text-white"
             >
                 {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
-            {/* Left Column — Branding */}
-            <div className="relative hidden lg:flex flex-col justify-end p-16 bg-gray-900 dark:bg-gray-950">
-                <div className="absolute top-12 left-16 z-20">
+            {/* Central Glassmorphism Card */}
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                className="relative z-10 w-full max-w-[450px] mx-4 p-8 sm:p-10 rounded-3xl bg-white/5 dark:bg-[#060810]/60 backdrop-blur-2xl border border-white/10 shadow-[0_0_40px_rgba(0,166,126,0.1)]"
+            >
+                <div className="flex flex-col items-center mb-10 text-center">
                     <img
                         src="/assets/logo.png"
                         alt="Routsky"
-                        className="h-10 w-auto object-contain drop-shadow-[0_0_15px_rgba(16,185,129,0.5)] opacity-90"
+                        className="h-12 w-auto object-contain drop-shadow-[0_0_15px_rgba(0,166,126,0.4)] mb-6"
                     />
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">
+                        Routsky <span className="text-[#00A67E]">STAGING - VERIFIED V2</span>
+                    </h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Sign in to continue your journey.</p>
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-br from-teal-600/20 to-blue-600/10" />
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="relative z-10"
-                >
-                    <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
-                        Discover the World,<br />
-                        <span className="text-teal-400">One Route at a Time.</span>
-                    </h2>
-                    <p className="text-lg text-gray-400 max-w-md">
-                        Join thousands of travelers planning precise adventures with real data — no AI hallucinations.
-                    </p>
-                </motion.div>
-            </div>
 
-            {/* Right Column — Form */}
-            <div className="flex items-center justify-center p-8 lg:p-16">
-                <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="w-full max-w-sm"
-                >
-                    <div className="mb-8">
-                        <div className="w-10 h-10 bg-teal-50 dark:bg-teal-500/10 rounded-lg flex items-center justify-center mb-5">
-                            <LogIn size={20} className="text-teal-600 dark:text-teal-400" />
-                        </div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Routsky STAGING - VERIFIED V2</h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Enter your details to sign in.</p>
+                {error && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-6 flex items-center gap-2.5 text-red-500 text-sm font-medium">
+                        <AlertCircle size={16} />
+                        {error}
                     </div>
+                )}
 
-                    {error && (
-                        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg p-3 mb-5 flex items-center gap-2.5 text-red-600 dark:text-red-400 text-sm">
-                            <AlertCircle size={16} />
-                            {error}
-                        </div>
-                    )}
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="space-y-1.5 group">
+                        <label className="text-[10px] uppercase tracking-[0.25em] font-medium text-gray-500 dark:text-gray-400">Email</label>
                         <Input
-                            label="Email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
                             placeholder="you@example.com"
+                            className="h-12 bg-white/50 dark:bg-white/5 border-gray-200 dark:border-white/10 focus:!border-[#00A67E]/50 rounded-xl"
                         />
-                        <div>
-                            <Input
-                                label="Password"
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                placeholder="Enter your password"
-                            />
-                            <div className="flex justify-end mt-1.5">
-                                <a href="#" className="text-xs text-teal-600 dark:text-teal-400 hover:underline">Forgot password?</a>
-                            </div>
+                    </div>
+                    <div className="space-y-1.5 group">
+                        <div className="flex justify-between items-center">
+                            <label className="text-[10px] uppercase tracking-[0.25em] font-medium text-gray-500 dark:text-gray-400">Password</label>
+                            <a href="#" className="text-[10px] uppercase font-semibold text-[#00A67E] hover:text-[#00A67E]/80 transition-colors">Forgot?</a>
                         </div>
+                        <Input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            placeholder="••••••••"
+                             className="h-12 bg-white/50 dark:bg-white/5 border-gray-200 dark:border-white/10 focus:!border-[#00A67E]/50 rounded-xl"
+                        />
+                    </div>
 
-                        <Button
-                            variant="primary"
-                            className="w-full"
-                            disabled={loading}
-                        >
-                            {loading ? 'Signing in...' : 'Sign in'}
-                        </Button>
-                    </form>
+                    <button
+                        type="submit"
+                        className="w-full h-12 mt-2 rounded-xl font-bold tracking-wide text-sm transition-all duration-300 text-white flex justify-center items-center gap-2 hover:shadow-[0_0_20px_rgba(0,166,126,0.3)] disabled:opacity-50 disabled:hover:shadow-none"
+                        style={{ backgroundColor: '#00A67E' }}
+                        disabled={loading}
+                    >
+                        {loading ? 'Signing in...' : 'Sign In'} <LogIn size={16}/>
+                    </button>
+                </form>
 
-                    <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                        Don't have an account?{' '}
-                        <Link to="/register" className="text-teal-600 dark:text-teal-400 font-medium hover:underline">
-                            Sign up
-                        </Link>
-                    </p>
-                </motion.div>
-            </div>
+                <p className="mt-8 text-center text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Don't have an account?{' '}
+                    <Link to="/register" className="text-white hover:text-[#00A67E] transition-colors">
+                        Create one →
+                    </Link>
+                </p>
+            </motion.div>
         </div>
     );
 };
