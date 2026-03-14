@@ -184,8 +184,8 @@ export const TravelGroupsPage = () => {
             >
                 <div>
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-500/10 flex items-center justify-center">
-                            <Users size={20} className="text-teal-600 dark:text-teal-400" />
+                        <div className="w-10 h-10 rounded-xl bg-[#007AFF]/10 flex items-center justify-center">
+                            <Users size={20} className="text-[#007AFF]" />
                         </div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
                             Travel Groups
@@ -226,7 +226,7 @@ export const TravelGroupsPage = () => {
                         exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                         className="overflow-hidden"
                     >
-                        <Card className="border-teal-100 dark:border-teal-900/30 bg-teal-50/30 dark:bg-teal-900/10 p-6 flex flex-col md:flex-row items-end gap-4 ">
+                        <Card className="border-[#007AFF]/20 bg-[#007AFF]/5 dark:bg-[#007AFF]/10 p-6 flex flex-col md:flex-row items-end gap-4 ">
                             <div className="flex-1 w-full">
                                 <Input
                                     label="Workspace Name"
@@ -289,7 +289,7 @@ export const TravelGroupsPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {loading && (!Array.isArray(groups) || groups.length === 0) ? (
                         <div className="col-span-full py-12 flex flex-col items-center justify-center text-gray-500">
-                            <Loader2 size={32} className="animate-spin text-teal-500 mb-4" />
+                            <Loader2 size={32} className="animate-spin text-[#007AFF] mb-4" />
                             <p>Loading workspaces...</p>
                         </div>
                     ) : error && (!Array.isArray(groups) || groups.length === 0) ? (
@@ -310,11 +310,11 @@ export const TravelGroupsPage = () => {
                                 className="h-full"
                             >
                                 <Card hoverEffect className="h-full flex flex-col relative overflow-hidden group">
-                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 to-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#007AFF] to-[#007AFF]/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                                     <div className="flex justify-between items-start mb-4">
                                         <div>
-                                            <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                                            <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-[#007AFF] transition-colors">
                                                 {group.name}
                                             </h3>
                                             {group.inviteCode && <CodeBadge code={group.inviteCode} />}

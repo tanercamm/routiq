@@ -98,7 +98,7 @@ export const SettingsPage = () => {
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
-                    <Settings className="text-indigo-600 dark:text-indigo-400" size={32} />
+                    <Settings className="text-[#007AFF]" size={32} />
                     Settings
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 mt-2">Manage your account preferences and application settings.</p>
@@ -135,11 +135,11 @@ export const SettingsPage = () => {
                                     onClick={() => setActiveTab(tab.id as any)}
                                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all whitespace-nowrap md:whitespace-normal
                                         ${isActive
-                                            ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 font-medium'
+                                            ? 'bg-[#007AFF]/10 text-[#007AFF] font-medium'
                                             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                                         }`}
                                 >
-                                    <Icon size={20} className={isActive ? 'text-indigo-600 dark:text-indigo-400' : ''} />
+                                    <Icon size={20} className={isActive ? 'text-[#007AFF]' : ''} />
                                     {tab.label}
                                 </button>
                             );
@@ -208,7 +208,7 @@ export const SettingsPage = () => {
                                             <button
                                                 type="submit"
                                                 disabled={isChangingPassword}
-                                                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-70 flex items-center gap-2"
+                                                className="px-6 py-2.5 bg-[#007AFF] hover:bg-[#0062cc] text-white font-medium rounded-xl transition-colors disabled:opacity-70 flex items-center gap-2"
                                             >
                                                 {isChangingPassword && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
                                                 Update Password
@@ -331,7 +331,7 @@ export const SettingsPage = () => {
                                                 checked={notificationsEnabled}
                                                 onChange={(e) => setNotificationsEnabled(e.target.checked)}
                                             />
-                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-[#007AFF]"></div>
                                         </label>
                                     </div>
                                     <hr className="border-gray-100 dark:border-gray-800" />
@@ -349,7 +349,7 @@ export const SettingsPage = () => {
                                                 checked={priceAlertsEnabled}
                                                 onChange={(e) => setPriceAlertsEnabled(e.target.checked)}
                                             />
-                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-[#007AFF]"></div>
                                         </label>
                                     </div>
 

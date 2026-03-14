@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { User, LogOut, Zap } from 'lucide-react';
+import { User, LogOut, Zap, Sun, Moon } from 'lucide-react';
 
 const NAV_LINKS = [
     { label: 'Routes', path: '/routes' },
@@ -16,13 +16,8 @@ export const Navbar = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const isHome = location.pathname === '/';
-
     return (
-        <header className={`border-b sticky top-0 z-30 transition-colors duration-200 ${isHome
-            ? 'border-white/[0.06] bg-[#050a18]/80 backdrop-blur-xl'
-            : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950'
-            }`}>
+        <header className="sticky top-0 z-30 transition-all duration-300 backdrop-blur-xl border-b light:border-gray-200 light:bg-[#F5F5F7]/80 dark:border-white/[0.06] dark:bg-[#050a18]/80">
             <div className="max-w-[1600px] w-[96%] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
 
                 {/* Left: Logo */}
@@ -31,20 +26,14 @@ export const Navbar = () => {
                         <img
                             src="/assets/logo.png"
                             alt="Routsky Logo"
-                            className={`h-9 w-auto object-contain transition-all duration-500 group-hover:scale-110 ${isHome
-                                ? 'drop-shadow-[0_0_12px_rgba(45,212,191,0.5)]'
-                                : 'drop-shadow-[0_0_12px_rgba(37,99,235,0.3)]'
+                            className={`h-9 w-auto object-contain transition-all duration-500 group-hover:scale-110 ${theme === 'light' ? 'drop-shadow-[0_4px_10px_rgba(0,122,255,0.2)]' : 'drop-shadow-[0_0_12px_rgba(0,122,255,0.5)]'
                                 }`}
                         />
-                        <span className={`text-2xl font-extrabold tracking-tight transition-colors hidden sm:inline ${isHome
-                            ? 'text-teal-400 group-hover:text-teal-300'
-                            : 'text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300'
-                            }`}>
+                        <span className="text-2xl font-extrabold tracking-tight transition-colors hidden sm:inline text-[#007AFF]">
                             Routsky
                         </span>
-                        <span className={`text-sm font-medium hidden lg:inline ${isHome ? 'text-gray-500' : 'text-gray-400 dark:text-gray-500'
-                            }`}>
-                            Mission Control
+                        <span className={`text-sm font-medium hidden lg:inline transition-colors ${theme === 'light' ? 'text-gray-500' : 'text-gray-400/60'}`}>
+                            - Orchestrating the World
                         </span>
                     </button>
                 </div>
@@ -54,12 +43,10 @@ export const Navbar = () => {
                     <button
                         onClick={() => navigate('/find-route')}
                         className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg transition-all ${location.pathname === '/find-route'
-                            ? isHome
-                                ? 'text-cyan-300 bg-cyan-500/10'
-                                : 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
-                            : isHome
-                                ? 'text-cyan-400/80 hover:text-cyan-300 hover:bg-white/[0.04]'
-                                : 'text-blue-600 dark:text-cyan-400 hover:text-blue-700 dark:hover:text-cyan-300 hover:bg-blue-50 dark:hover:bg-cyan-500/10'
+                            ? 'text-[#007AFF] bg-[#007AFF]/10'
+                            : (theme === 'light'
+                                ? 'text-[#007AFF]/80 hover:text-[#007AFF] hover:bg-[#007AFF]/5'
+                                : 'text-[#007AFF]/80 hover:text-blue-300 hover:bg-white/[0.04]')
                             }`}
                     >
                         <Zap size={14} />
@@ -72,12 +59,10 @@ export const Navbar = () => {
                                 key={path}
                                 onClick={() => navigate(path)}
                                 className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors ${isActive
-                                    ? isHome
-                                        ? 'text-cyan-300 bg-white/[0.06]'
-                                        : 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
-                                    : isHome
-                                        ? 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
-                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
+                                    ? (theme === 'light' ? 'text-[#007AFF] bg-[#007AFF]/5' : 'text-[#007AFF] bg-white/[0.06]')
+                                    : (theme === 'light'
+                                        ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                        : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]')
                                     }`}
                             >
                                 {label}
@@ -90,21 +75,23 @@ export const Navbar = () => {
                 <div className="flex-1 flex items-center justify-end gap-4">
                     <button
                         onClick={toggleTheme}
-                        className={`p-2 rounded-full transition-colors text-lg ${isHome ? 'hover:bg-white/[0.06]' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                        className={`p-2 rounded-full transition-all duration-300 ${theme === 'light'
+                            ? 'bg-black/5 hover:bg-black/10 text-[#007AFF]'
+                            : 'bg-white/5 hover:bg-white/10 text-white/50 hover:text-white'
                             }`}
                         title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
                     >
-                        {theme === 'dark' ? '☀️' : '🌙'}
+                        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                     </button>
 
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => navigate('/profile')}
                             className={`w-9 h-9 rounded-full flex items-center justify-center transition-all overflow-hidden ${location.pathname === '/profile'
-                                ? 'bg-blue-600 dark:bg-blue-500 ring-2 ring-blue-300 dark:ring-blue-500/40'
-                                : isHome
-                                    ? 'bg-white/[0.08] hover:ring-2 hover:ring-cyan-500/40'
-                                    : 'bg-blue-100 dark:bg-blue-500/20 hover:ring-2 hover:ring-blue-300 dark:hover:ring-blue-500/40'
+                                ? 'bg-[#007AFF] ring-2 ring-blue-300 shadow-md'
+                                : (theme === 'light'
+                                    ? 'bg-gray-100 hover:ring-2 hover:ring-[#007AFF]/40'
+                                    : 'bg-white/[0.08] hover:ring-2 hover:ring-[#007AFF]/40')
                                 }`}
                             title="Profile"
                         >
@@ -112,34 +99,27 @@ export const Navbar = () => {
                                 <img src={user.avatarUrl} alt="Navbar Avatar" className="w-full h-full object-cover" />
                             ) : (
                                 <User size={16} className={
-                                    location.pathname === '/profile'
-                                        ? 'text-white'
-                                        : isHome ? 'text-gray-400' : 'text-blue-600 dark:text-blue-400'
+                                    location.pathname === '/profile' ? 'text-white' : 'text-gray-400'
                                 } />
                             )}
                         </button>
-                        <span className={`text-sm font-medium hidden sm:inline cursor-pointer ${isHome
-                            ? 'text-gray-400 hover:text-gray-200'
-                            : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                            }`} onClick={() => navigate('/profile')}>
+                        <span className={`text-sm font-medium hidden sm:inline cursor-pointer transition-colors ${theme === 'light' ? 'text-gray-600 hover:text-gray-900' : 'text-gray-400 hover:text-gray-200'}`} onClick={() => navigate('/profile')}>
                             {user?.name || user?.email || 'User'}
                         </span>
                     </div>
 
-                    <div className={`h-5 w-px mx-1 ${isHome ? 'bg-white/10' : 'bg-gray-200 dark:bg-gray-700'}`}></div>
+                    <div className={`h-5 w-px mx-1 ${theme === 'light' ? 'bg-gray-200' : 'bg-white/10'}`}></div>
 
                     <button
                         onClick={logout}
                         title="Sign Out"
-                        className={`p-2 rounded-full transition-colors flex items-center justify-center ${isHome
-                            ? 'text-gray-500 hover:text-red-400 hover:bg-red-500/10'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10'
-                            }`}
+                        className="p-2 rounded-full transition-colors flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10"
                     >
                         <LogOut size={18} />
                     </button>
                 </div>
             </div>
         </header>
+
     );
 };

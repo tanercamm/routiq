@@ -11,6 +11,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { HomePage } from './pages/HomePage';
 import { FindRoutePage } from './pages/FindRoutePage';
 import { AppLayout } from './components/AppLayout';
+import { AuthCallbackPage } from './pages/AuthCallbackPage';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<AuthGlobeFlip />} />
             <Route path="/register" element={<AuthGlobeFlip />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<HomePage />} />

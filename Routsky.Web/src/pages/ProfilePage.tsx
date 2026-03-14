@@ -123,7 +123,7 @@ export const ProfilePage = () => {
     return (
         <div className="min-h-screen">
             <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
-                <div className="space-y-4">
+                <div className="space-y-8">
 
                     {/* ── Profile Header ─────────────────────────────────────── */}
                     <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
@@ -133,13 +133,13 @@ export const ProfilePage = () => {
                                 <div className="relative shrink-0">
                                     <button
                                         onClick={() => setIsAvatarModalOpen(true)}
-                                        className="w-14 h-14 rounded-full flex items-center justify-center overflow-hidden transition-all hover:ring-2 hover:ring-teal-500 focus:outline-none"
+                                        className="w-14 h-14 rounded-full flex items-center justify-center overflow-hidden transition-all hover:ring-2 hover:ring-[#007AFF] focus:outline-none"
                                         aria-label="Manage Avatar"
                                     >
                                         {user?.avatarUrl ? (
                                             <img src={user.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                                         ) : (
-                                            <div className="w-full h-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center">
+                                            <div className="w-full h-full bg-[#007AFF] flex items-center justify-center">
                                                 <User size={24} className="text-white" />
                                             </div>
                                         )}
@@ -152,7 +152,7 @@ export const ProfilePage = () => {
                                     {/* Citizenship + currency badges */}
                                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                                         <span className="inline-flex items-center gap-1.5 text-[11px] border border-gray-200 dark:border-gray-700 rounded-full px-2 py-0.5 text-gray-600 dark:text-gray-300">
-                                            <Globe size={10} className="text-teal-500" />
+                                            <Globe size={10} className="text-[#007AFF]" />
                                             {(!user || !user.passports) ? (
                                                 <span className="text-xs text-gray-400 italic">...</span>
                                             ) : Array.isArray(passports) && passports.map(c => {
@@ -255,7 +255,7 @@ export const ProfilePage = () => {
                                                             if (!code) return null;
                                                             const name = countryNames[code] || code;
                                                             return (
-                                                                <span key={code} className="inline-flex items-center justify-center gap-1.5 bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 text-teal-700 dark:text-teal-300 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                                                <span key={code} className="inline-flex items-center justify-center gap-1.5 bg-[#007AFF]/5 dark:bg-[#007AFF]/10 border border-[#007AFF]/20 dark:border-[#007AFF]/30 text-[#007AFF] text-xs font-semibold px-2 py-0.5 rounded-full">
                                                                     <ReactCountryFlag countryCode={code} svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px', display: 'flex', alignItems: 'center' }} title={name} />
                                                                     <span className="mt-0.5">{name}</span>
                                                                     {passports.length > 1 && (
@@ -320,7 +320,7 @@ export const ProfilePage = () => {
                                         </div>
 
                                         <div className="mt-4 flex justify-end">
-                                            <Button onClick={handleSavePrefs} className="text-sm px-4 py-2 flex items-center gap-2">
+                                            <Button onClick={handleSavePrefs} className="text-sm px-4 py-2 flex items-center gap-2 bg-[#007AFF] hover:bg-[#0062cc]">
                                                 {prefsSaved ? <><CheckCircle2 size={14} /> Saved!</> : 'Save Preferences'}
                                             </Button>
                                         </div>
@@ -334,7 +334,7 @@ export const ProfilePage = () => {
                     <motion.div initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }}>
                         <Card>
                             <div className="flex items-center gap-2 mb-3">
-                                <Plane size={15} className="text-blue-500" />
+                                <Plane size={15} className="text-[#007AFF]" />
                                 <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Saved Trips</h2>
                                 {savedTrips.length > 0 && (
                                     <span className="ml-auto text-[11px] text-gray-400">{savedTrips.length} saved</span>
@@ -443,7 +443,7 @@ export const ProfilePage = () => {
                                         {(previewUrl || user?.avatarUrl) ? (
                                             <img src={previewUrl || user?.avatarUrl || undefined} alt="Profile" className="w-full h-full object-cover" />
                                         ) : (
-                                            <div className="w-full h-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center">
+                                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-[#007AFF] flex items-center justify-center">
                                                 <User size={48} className="text-white" />
                                             </div>
                                         )}
@@ -482,7 +482,7 @@ export const ProfilePage = () => {
                                                 <button
                                                     onClick={handleSaveAvatar}
                                                     disabled={isUploading}
-                                                    className="flex-1 py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl  transition-colors flex justify-center items-center disabled:opacity-50"
+                                                    className="flex-1 py-2.5 px-4 bg-[#007AFF] hover:bg-[#0062cc] text-white font-medium rounded-xl  transition-colors flex justify-center items-center disabled:opacity-50"
                                                 >
                                                     {isUploading ? <Loader2 size={18} className="animate-spin" /> : "Save Picture"}
                                                 </button>

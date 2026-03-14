@@ -3,7 +3,7 @@ import { Navbar } from './Navbar';
 
 export const AppLayout = () => {
     return (
-        <div className="min-h-screen bg-white dark:bg-gray-950 transition-colors duration-200">
+        <div className="min-h-screen transition-colors duration-500 light:bg-[#F5F5F7] dark:bg-[#020308]">
             <Navbar />
             <Outlet />
         </div>

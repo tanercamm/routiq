@@ -29,7 +29,7 @@ export const AnalyticsPage = () => {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[50vh] text-teal-600 dark:text-teal-400">
+            <div className="flex items-center justify-center min-h-[50vh] text-[#007AFF]">
                 <Loader2 className="animate-spin" size={32} />
             </div>
         );

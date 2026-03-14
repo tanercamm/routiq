@@ -179,7 +179,7 @@ export function FindRoutePage() {
       {/* Page header */}
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
         <div className="flex items-center gap-3 mb-1">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-xl bg-[#007AFF] flex items-center justify-center">
             <Zap size={16} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
@@ -298,7 +298,7 @@ export function FindRoutePage() {
                       type="checkbox"
                       checked={form[key]}
                       onChange={e => setField(key, e.target.checked)}
-                      className="w-3.5 h-3.5 rounded text-teal-600 focus:ring-gray-400/50 cursor-pointer"
+                      className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-400/50 cursor-pointer"
                     />
                     <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
                       <ReactCountryFlag countryCode={code} svg style={{ width: '1.2em', height: '1.2em', borderRadius: '2px' }} title={label} />
@@ -314,7 +314,7 @@ export function FindRoutePage() {
               id="generate-route-btn"
               onClick={handleGenerate}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-teal-700 hover:bg-teal-600 disabled:opacity-60 text-white font-semibold rounded-xl px-4 py-2 text-sm border border-teal-600/50 hover:border-teal-400/70  transition-colors duration-200 mt-2"
+              className="w-full flex items-center justify-center gap-2 bg-[#007AFF] hover:bg-[#0062cc] disabled:opacity-60 text-white font-semibold rounded-xl px-4 py-2 text-sm border border-blue-600/50 hover:border-blue-400/70  transition-colors duration-200 mt-2"
             >
               {loading ? (
                 <><Loader2 size={16} className="animate-spin" /> Generating Route...</>

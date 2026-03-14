@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Globe, { type GlobeMethods } from 'react-globe.gl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Shield, DollarSign, Calendar, X } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 import {
   SUPPORTED_CITIES,
   ALL_CITIES,
@@ -22,10 +23,10 @@ const STATIC_RINGS = SUPPORTED_CITIES
   .filter(c => c.tier === 1)
   .map(c => ({ ...c, maxR: 2.5, propagationSpeed: 1.5, repeatPeriod: 1800 }));
 
-const getPointColor = (d: object) => (d as CityPoint).isSupported ? '#5eadb8' : 'rgba(100, 130, 170, 0.3)';
+const getPointColor = (d: object) => (d as CityPoint).isSupported ? '#007AFF' : 'rgba(100, 130, 170, 0.3)';
 const getPointRadius = (d: object) => (d as CityPoint).isSupported ? 0.45 : 0.18;
 const getLabelColor = () => 'rgba(160, 170, 190, 0.18)';
-const getRingColor = () => (t: number) => `rgba(94, 173, 184, ${(1 - t) * 0.7})`;
+const getRingColor = () => (t: number) => `rgba(0, 122, 255, ${(1 - t) * 0.7})`;
 
 interface GlobeSceneProps {
   width: number;
@@ -33,9 +34,10 @@ interface GlobeSceneProps {
   labelsData: CityPoint[];
   onPointClick: (point: object | null) => void;
   globeRef: React.MutableRefObject<GlobeMethods | undefined>;
+  isLight: boolean;
 }
 
-const GlobeScene = memo(function GlobeScene({ width, height, labelsData, onPointClick, globeRef }: GlobeSceneProps) {
+const GlobeScene = memo(function GlobeScene({ width, height, labelsData, onPointClick, globeRef, isLight }: GlobeSceneProps) {
   return (
     <div className="absolute inset-0 z-10" style={{ pointerEvents: 'auto' }}>
       <Globe
@@ -45,8 +47,9 @@ const GlobeScene = memo(function GlobeScene({ width, height, labelsData, onPoint
         globeImageUrl={GLOBE_IMAGE}
         bumpImageUrl={BUMP_IMAGE}
         backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-        atmosphereColor="#4a7a9b"
-        atmosphereAltitude={0.16}
+        atmosphereColor={isLight ? "#003399" : "#007AFF"}
+        atmosphereAltitude={isLight ? 0.28 : 0.16}
+        showAtmosphere={true}
 
         pointsData={ALL_CITIES}
         pointLat="lat"
@@ -88,6 +91,8 @@ export function HomePage() {
   const [selected, setSelected] = useState<CityPoint | null>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const [zoomTier, setZoomTier] = useState<ZoomTier>('far');
   const zoomTierRef = useRef<ZoomTier>('far');
 
@@ -168,18 +173,17 @@ export function HomePage() {
     if (zoomTier === 'mid') return ALL_CITIES.filter(c => c.tier === 1 || c.tier === 2);
     return ALL_CITIES;
   }, [zoomTier]);
-
   return (
-    <div ref={containerRef} className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-[#050a18]">
+    <div ref={containerRef} className={`relative w-full h-[calc(100vh-4rem)] overflow-hidden transition-colors duration-700 ${isLight ? 'bg-[#F5F5F7]' : 'bg-[#020308]'}`}>
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-[700px] h-[700px] rounded-full bg-slate-500/[0.015]" />
+        <div className={`w-[700px] h-[700px] rounded-full ${isLight ? 'bg-blue-500/[0.04]' : 'bg-slate-500/[0.015]'}`} />
       </div>
 
-      <div className="absolute inset-0 pointer-events-none z-[1] opacity-[0.02]"
-        style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.04) 2px, rgba(255,255,255,0.04) 4px)' }}
+      <div className={`absolute inset-0 pointer-events-none z-[1] ${isLight ? 'opacity-[0.1]' : 'opacity-[0.02]'}`}
+        style={{ backgroundImage: isLight ? 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,26,51,0.05) 2px, rgba(0,26,51,0.05) 4px)' : 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.04) 2px, rgba(255,255,255,0.04) 4px)' }}
       />
 
-      <div className="absolute inset-0 pointer-events-none z-[1] bg-[#050a18]/40" />
+      <div className={`absolute inset-0 pointer-events-none z-[1] ${isLight ? 'bg-[#F5F5F7]/20' : 'bg-[#050a18]/40'}`} />
 
       {dimensions.width > 0 && (
         <GlobeScene
@@ -188,26 +192,26 @@ export function HomePage() {
           height={dimensions.height}
           labelsData={visibleLabels}
           onPointClick={handlePointClick}
+          isLight={isLight}
         />
       )}
 
       {/* Top-left HUD */}
       <div className="absolute top-6 left-6 z-20 pointer-events-none">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-teal-500/70 animate-pulse" />
-            <span className="text-[10px] font-bold tracking-[0.25em] text-slate-400 uppercase">
-              Routsky Mission Control
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className={`w-1.5 h-1.5 rounded-full ${isLight ? 'bg-[#007AFF]' : 'bg-[#007AFF]/70'} animate-pulse`} />
+            <span className={`text-[9px] font-bold tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-slate-400'} uppercase transition-colors`}>
+              Routsky - Orchestrating the World
             </span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-none">
-            Global Route
-            <br />
-            <span className="bg-gradient-to-r from-teal-400/80 to-slate-400 bg-clip-text text-transparent">
+          <h1 className={`text-xl sm:text-2xl font-black tracking-tight leading-none transition-colors flex flex-wrap items-baseline gap-x-2`}>
+            <span className={isLight ? 'text-gray-400' : 'text-white/60'}>Global Route</span>
+            <span className="bg-gradient-to-r from-[#007AFF] to-[#007AFF]/80 bg-clip-text text-transparent">
               Intelligence
             </span>
           </h1>
-          <p className="text-sm text-gray-500 mt-3 max-w-xs leading-relaxed">
+          <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-500'} mt-2.5 max-w-[280px] leading-relaxed transition-colors`}>
             Real-time agentic route analysis across {ALL_CITIES.length} global nodes.
             Click any node for live intel.
           </p>
@@ -223,13 +227,15 @@ export function HomePage() {
       >
         <div className="flex gap-4">
           {[
-            { label: 'ACTIVE NODES', value: ALL_CITIES.length.toString(), color: 'text-teal-500/60' },
-            { label: 'COUNTRIES', value: new Set(ALL_CITIES.map(c => c.country)).size.toString(), color: 'text-slate-500' },
-            { label: 'REGIONS', value: '7', color: 'text-gray-500' },
+            { label: 'ACTIVE NODES', value: ALL_CITIES.length.toString(), color: 'light:text-[#007AFF] dark:text-[#007AFF]/60' },
+            { label: 'COUNTRIES', value: new Set(ALL_CITIES.map(c => c.country)).size.toString(), color: 'light:text-blue-950 dark:text-slate-500' },
+            { label: 'REGIONS', value: '7', color: 'light:text-blue-950/60 dark:text-gray-500' },
           ].map(s => (
-            <div key={s.label} className="border border-slate-800/80 bg-[#0a1628] rounded-lg px-4 py-2.5">
-              <div className={`text-xl font-black ${s.color} tabular-nums`}>{s.value}</div>
-              <div className="text-[9px] font-bold tracking-[0.2em] text-gray-600 uppercase">{s.label}</div>
+            <div key={s.label}
+              className="border transition-all duration-300 rounded-lg px-4 py-2.5 light:bg-white/70 light:backdrop-blur-md light:border-gray-200 light:shadow-sm dark:border-slate-800/80 dark:bg-[#0a1628]"
+            >
+              <div className={`text-xl font-black ${s.color} tabular-nums transition-colors`}>{s.value}</div>
+              <div className="text-[9px] font-bold tracking-[0.2em] light:text-gray-500 dark:text-gray-600 uppercase transition-colors">{s.label}</div>
             </div>
           ))}
         </div>
@@ -242,16 +248,20 @@ export function HomePage() {
         transition={{ delay: 0.5 }}
         className="absolute top-6 right-6 z-20 pointer-events-none"
       >
-        <div className="border border-slate-800/80 bg-[#0a1628] rounded-lg px-4 py-3 min-w-[180px]">
+        <div className="border transition-all duration-300 rounded-lg px-4 py-3 min-w-[180px] light:bg-white/70 light:backdrop-blur-md light:border-gray-200 light:shadow-sm dark:border-slate-800/80 dark:bg-[#0a1628]">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500/50" />
-            <span className="text-[10px] font-bold tracking-[0.2em] text-green-500/50 uppercase">System Online</span>
+            <div className="w-1.5 h-1.5 rounded-full light:bg-[#007AFF] dark:bg-[#007AFF]/50" />
+            <span className="text-[10px] font-bold tracking-[0.2em] light:text-[#007AFF] dark:text-[#007AFF]/50 uppercase transition-colors">System Online</span>
           </div>
           <div className="space-y-1">
             {['Visa Engine', 'Cost Analyzer', 'Flight Scanner', 'Safety Monitor'].map((s, i) => (
               <div key={s} className="flex items-center justify-between">
-                <span className="text-[10px] text-gray-600">{s}</span>
-                <span className={`text-[10px] font-bold ${i < 3 ? 'text-green-600/50' : 'text-slate-500'}`}>
+                <span className="text-[10px] light:text-gray-500 dark:text-gray-600 transition-colors">{s}</span>
+                <span className={`text-[10px] font-bold transition-colors ${
+                  isLight 
+                    ? 'text-[#001A33]' 
+                    : (i < 3 ? 'text-blue-100/90' : 'text-blue-200/70')
+                }`}>
                   {i < 3 ? 'READY' : 'ACTIVE'}
                 </span>
               </div>
@@ -271,18 +281,21 @@ export function HomePage() {
           onClick={() => navigate('/find-route')}
           className="group relative cursor-pointer pointer-events-auto"
         >
-          <div className="relative flex items-center gap-3 bg-[#0c1424] border border-slate-700/60 group-hover:border-slate-600/80 rounded-xl px-8 py-4 transition-colors duration-200">
-            <Zap size={20} className="text-slate-500 group-hover:text-slate-400" />
+          <div className={`relative flex items-center gap-3 transition-all duration-300 rounded-xl px-8 py-4 ${isLight
+            ? 'bg-[#007AFF] border-[#007AFF] shadow-lg shadow-blue-500/20'
+            : 'bg-[#0c1424] border-slate-700/60 group-hover:border-[#007AFF]/50 border'
+            }`}>
+            <Zap size={20} className={`${isLight ? 'text-white' : 'text-slate-500 group-hover:text-[#007AFF]'} transition-colors`} />
             <div className="text-left">
-              <div className="text-sm font-black text-gray-200 tracking-wide group-hover:text-white transition-colors">
+              <div className={`text-sm font-black tracking-wide transition-colors ${isLight ? 'text-white' : 'text-gray-200 group-hover:text-white'}`}>
                 Initialize Agentic Search
               </div>
-              <div className="text-[10px] text-gray-600 tracking-wider uppercase">
+              <div className={`text-[10px] tracking-wider uppercase transition-colors ${isLight ? 'text-white/70' : 'text-gray-600'}`}>
                 Launch Decision Engine
               </div>
             </div>
-            <div className="ml-2 w-px h-8 bg-slate-800" />
-            <div className="text-slate-500 group-hover:translate-x-1 transition-transform">→</div>
+            <div className={`ml-2 w-px h-8 ${isLight ? 'bg-white/20' : 'bg-slate-800'}`} />
+            <div className={`${isLight ? 'text-white' : 'text-slate-500'} group-hover:translate-x-1 transition-transform`}>→</div>
           </div>
         </button>
       </motion.div>
@@ -302,24 +315,24 @@ export function HomePage() {
               transition={{ type: 'spring', stiffness: 350, damping: 28 }}
               className="fixed bottom-6 right-6 z-[9999] w-[320px]"
             >
-              <div className="bg-[#0c1a30]/95 border border-slate-700/60 backdrop-blur-xl rounded-xl p-4">
+              <div className={`transition-all duration-300 rounded-xl p-4 border ${isLight ? 'bg-white/80 border-gray-200 backdrop-blur-xl shadow-xl' : 'bg-[#0c1a30]/95 border-slate-700/60 backdrop-blur-xl'}`}>
                 {/* Header + Close */}
                 <div className="flex items-start justify-between mb-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-teal-400/70 animate-pulse shrink-0" />
-                      <h3 className="text-sm font-black text-white tracking-tight truncate">{selected.name}</h3>
+                      <div className={`w-2 h-2 rounded-full ${isLight ? 'bg-[#007AFF]' : 'bg-blue-400/70'} animate-pulse shrink-0`} />
+                      <h3 className={`text-sm font-black ${isLight ? 'text-blue-950' : 'text-white'} tracking-tight truncate`}>{selected.name}</h3>
                       {selected.isSupported && (
-                        <span className="text-[9px] font-black tracking-widest bg-teal-500/15 text-teal-300/80 px-2 py-0.5 rounded-md border border-teal-500/20 uppercase shrink-0">
+                        <span className={`text-[9px] font-black tracking-widest ${isLight ? 'bg-blue-500/10 text-blue-600 border-blue-200' : 'bg-blue-500/15 text-blue-300/80 border-blue-500/20'} px-2 py-0.5 rounded-md border uppercase shrink-0`}>
                           Live
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-gray-400 ml-4 uppercase tracking-wider">{selected.country}</p>
+                    <p className={`text-[10px] ${isLight ? 'text-blue-900/40' : 'text-gray-400'} ml-4 uppercase tracking-wider`}>{selected.country}</p>
                   </div>
                   <button
                     onClick={handleDismiss}
-                    className="p-1 -m-1 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors shrink-0 ml-2"
+                    className={`p-1 -m-1 rounded-lg transition-colors shrink-0 ml-2 ${isLight ? 'text-blue-900/30 hover:text-blue-900 hover:bg-blue-500/10' : 'text-gray-500 hover:text-white hover:bg-white/10'}`}
                     aria-label="Close intelligence card"
                   >
                     <X size={16} />
@@ -328,13 +341,13 @@ export function HomePage() {
 
                 {selected.isSupported ? (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2">
+                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${isLight ? 'bg-blue-500/5' : 'bg-white/[0.03]'}`}>
                       <div className="flex items-center gap-2">
-                        <Shield size={13} className="text-gray-500" />
-                        <span className="text-[11px] text-gray-400">Safety</span>
+                        <Shield size={13} className={isLight ? 'text-[#007AFF]/60' : 'text-gray-500'} />
+                        <span className={`text-[11px] ${isLight ? 'text-blue-900/60' : 'text-gray-400'}`}>Safety</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="h-1 w-16 bg-gray-800 rounded-full overflow-hidden">
+                        <div className={`h-1 w-16 rounded-full overflow-hidden ${isLight ? 'bg-gray-200' : 'bg-gray-800'}`}>
                           <div
                             className="h-full rounded-full transition-all"
                             style={{
@@ -349,28 +362,28 @@ export function HomePage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2">
+                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${isLight ? 'bg-blue-500/5' : 'bg-white/[0.03]'}`}>
                       <div className="flex items-center gap-2">
-                        <DollarSign size={13} className="text-gray-500" />
-                        <span className="text-[11px] text-gray-400">Avg Meal</span>
+                        <DollarSign size={13} className={isLight ? 'text-[#007AFF]/60' : 'text-gray-500'} />
+                        <span className={`text-[11px] ${isLight ? 'text-blue-900/60' : 'text-gray-400'}`}>Avg Meal</span>
                       </div>
-                      <span className="text-[11px] font-bold text-green-400">${selected.avgMealCost}</span>
+                      <span className="text-[11px] font-bold text-green-500">${selected.avgMealCost}</span>
                     </div>
 
-                    <div className="flex items-center justify-between bg-white/[0.03] rounded-lg px-3 py-2">
+                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${isLight ? 'bg-blue-500/5' : 'bg-white/[0.03]'}`}>
                       <div className="flex items-center gap-2">
-                        <Calendar size={13} className="text-gray-500" />
-                        <span className="text-[11px] text-gray-400">Best Months</span>
+                        <Calendar size={13} className={isLight ? 'text-[#007AFF]/60' : 'text-gray-500'} />
+                        <span className={`text-[11px] ${isLight ? 'text-blue-900/60' : 'text-gray-400'}`}>Best Months</span>
                       </div>
-                      <span className="text-[11px] font-bold text-slate-400">{formatBestMonths(selected.bestMonths)}</span>
+                      <span className={`text-[11px] font-bold ${isLight ? 'text-blue-900/80' : 'text-slate-400'}`}>{formatBestMonths(selected.bestMonths)}</span>
                     </div>
 
                     <div className="pt-1">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-wider">Cost of Living Index</span>
-                        <span className="text-[11px] font-bold text-gray-300">{selected.costOfLivingIndex}/120</span>
+                        <span className={`text-[10px] uppercase tracking-wider ${isLight ? 'text-blue-900/40' : 'text-gray-500'}`}>Cost of Living Index</span>
+                        <span className={`text-[11px] font-bold ${isLight ? 'text-blue-900/80' : 'text-gray-300'}`}>{selected.costOfLivingIndex}/120</span>
                       </div>
-                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                      <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-gray-200' : 'bg-gray-800'}`}>
                         <div
                           className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 rounded-full transition-all"
                           style={{ width: `${Math.min((selected.costOfLivingIndex || 0) / 1.2, 100)}%` }}
@@ -380,17 +393,17 @@ export function HomePage() {
                   </div>
                 ) : (
                   <div className="text-center py-2">
-                    <p className="text-[11px] text-gray-500">Capital city — not yet in Routsky network</p>
-                    <p className="text-[10px] text-gray-600 mt-1">Coming soon to Mission Control</p>
+                    <p className={`text-[11px] ${isLight ? 'text-blue-900/60' : 'text-gray-500'}`}>Capital city — not yet in Routsky network</p>
+                    <p className={`text-[10px] mt-1 ${isLight ? 'text-blue-900/30' : 'text-gray-600'}`}>Coming soon to Mission Control</p>
                   </div>
                 )}
 
-                <div className="mt-3 pt-2 border-t border-white/[0.05]">
+                <div className={`mt-3 pt-2 border-t ${isLight ? 'border-blue-500/10' : 'border-white/[0.05]'}`}>
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] text-gray-600 tracking-wider">
+                    <span className={`text-[9px] tracking-wider ${isLight ? 'text-blue-900/30' : 'text-gray-600'}`}>
                       {selected.lat.toFixed(2)}°{selected.lat >= 0 ? 'N' : 'S'}, {Math.abs(selected.lng).toFixed(2)}°{selected.lng >= 0 ? 'E' : 'W'}
                     </span>
-                    <span className="text-[9px] text-teal-500/40 tracking-wider uppercase">Routsky Intel</span>
+                    <span className={`text-[9px] tracking-wider uppercase ${isLight ? 'text-[#007AFF]' : 'text-blue-500/40'}`}>Routsky Intel</span>
                   </div>
                 </div>
               </div>

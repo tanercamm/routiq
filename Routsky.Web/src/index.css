@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
+/* ── Theme Variants ── */
 /* Enable dark: variant via .dark class on <html> */
 @custom-variant dark (&:where(.dark, .dark *));
+/* Enable light: variant when .dark class is NOT present */
+@custom-variant light (&:not(.dark, .dark *));
 
 /* ── Base Styles ── */
 
@@ -18,25 +21,21 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #f9fafb;
-  /* gray-50 */
+  transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+/* Light mode is default */
+body {
+  background-color: #f5f5f7;
   color: #111827;
-  /* gray-900 */
 }
 
 .dark body {
-  background-color: #111827;
-  /* gray-900 */
+  background-color: #020308;
   color: #f3f4f6;
-  /* gray-100 */
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
 }
 
@@ -81,19 +80,22 @@ h6 {
   background-color: #4b5563; /* gray-600 */
 }
 
-/* Firefox thin scrollbars globally */
-html {
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
-}
-/* ── Zero-Glow Policy (Flat UI Aesthetic) ── */
-/* Exempt canvas and .auth-passport elements so auth pages retain premium glows */
+/* ── Zero-Glow Policy (Refined for Premium Glassmorphism) ── */
+/* We keep the policy but allow box-shadow for light-mode elevation which provides depth */
 *:not(canvas):not(.auth-passport):not(.auth-passport *) {
-  box-shadow: none !important;
   text-shadow: none !important;
 }
 
-/* Ensure no glows on hovering cards or buttons (except in auth) */
-.card:not(.auth-passport *), button:not(.auth-passport *), .rounded-xl:not(.auth-passport *), .bg-white:not(.auth-passport *), .dark\:bg-gray-800:not(.auth-passport *) {
+/* Allow shadows selectively in light mode for the promised premium experience */
+.dark *:not(canvas):not(.auth-passport):not(.auth-passport *) {
   box-shadow: none !important;
+}
+
+/* Ensure branding colors remain consistent */
+.text-brand-blue {
+  color: #007AFF !important;
+}
+
+.bg-brand-blue {
+  background-color: #007AFF !important;
 }

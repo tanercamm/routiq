@@ -9,7 +9,7 @@ interface CostVsDurationChartProps {
     data: V1RouteOption[];
 }
 
-const COLORS = ['#2dd4bf', '#3b82f6', '#a78bfa', '#f472b6', '#fbbf24'];
+const COLORS = ['#007AFF', '#3b82f6', '#a78bfa', '#f472b6', '#fbbf24'];
 
 export const CostVsDurationChart = ({ data }: CostVsDurationChartProps) => {
     const chartData = data.map((route) => ({
@@ -24,7 +24,7 @@ export const CostVsDurationChart = ({ data }: CostVsDurationChartProps) => {
             return (
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3 rounded-lg ">
                     <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{label}</p>
-                    <p className="text-teal-600 dark:text-teal-400 font-medium text-sm mt-1">
+                    <p className="text-blue-600 dark:text-blue-400 font-medium text-sm mt-1">
                         Cost: ${payload[0].value.toLocaleString()}
                     </p>
                     <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">

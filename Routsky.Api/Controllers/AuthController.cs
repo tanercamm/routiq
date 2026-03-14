@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +48,36 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             return Unauthorized(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("social/{provider}")]
+    public IActionResult SocialLogin(string provider)
+    {
+        var redirectUrl = Url.Action(nameof(SocialCallback), "Auth", new { provider });
+        var properties = _authService.GetSocialAuthProperties(provider, redirectUrl!);
+        return Challenge(properties, provider);
+    }
+
+    [HttpGet("callback/{provider}")]
+    public async Task<IActionResult> SocialCallback(string provider)
+    {
+        try
+        {
+            var result = await HttpContext.AuthenticateAsync(provider);
+            if (!result.Succeeded)
+                return BadRequest(new { message = $"External authentication failed: {result.Failure?.Message}" });
+
+            var response = await _authService.HandleSocialAuthAsync(result.Principal);
+            
+            // Redirect to frontend with token in URL (temporary) or via a bridge page
+            // For now, let's redirect to dashboard with the token as a fragment
+            var frontendUrl = _authService.GetFrontendRedirectUrl();
+            return Redirect($"{frontendUrl}/auth/callback?token={response.Token}&user={System.Web.HttpUtility.UrlEncode(System.Text.Json.JsonSerializer.Serialize(response))}");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
     }
 

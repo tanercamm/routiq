@@ -41,7 +41,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: routsky_staging_db
     volumes:
-      - staging-data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
@@ -65,6 +65,15 @@ services:
       Jwt__Key: ${JWT_KEY:?JWT_KEY must be set}
       TRAVELBUDDY_RAPIDAPI_KEY: ${TRAVELBUDDY_RAPIDAPI_KEY}
       TURKISH_AIRLINES_PROXY_URL: ${TURKISH_AIRLINES_PROXY_URL}
+      # OAuth
+      Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID}
+      Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET}
+      Authentication__Github__ClientId: ${GITHUB_CLIENT_ID}
+      Authentication__Github__ClientSecret: ${GITHUB_CLIENT_SECRET}
+      Authentication__Apple__ClientId: ${APPLE_CLIENT_ID}
+      Authentication__Apple__TeamId: ${APPLE_TEAM_ID}
+      Authentication__Apple__KeyId: ${APPLE_KEY_ID}
+      Authentication__Apple__PrivateKey: ${APPLE_PRIVATE_KEY}
     volumes:
       - staging-uploads:/app/wwwroot/uploads
     # Internal port only, accessed via proxy
@@ -99,7 +108,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  staging-data:
   staging-uploads:
   staging-certbot-webroot:
   staging-certbot-certs:

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Diagnostics;
@@ -5,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
 using Routsky.Api.Data;
 using Routsky.Api.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -73,7 +78,9 @@ builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultSignInScheme = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
 })
+.AddCookie() // Required for temporary social auth storage
 .AddJwtBearer(options =>
 {
     options.RequireHttpsMetadata = false;
@@ -85,7 +92,28 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuer = false,
         ValidateAudience = false
     };
+})
+.AddGoogle(options =>
+{
+    options.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? "";
+    options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "";
+})
+.AddGitHub(options =>
+{
+    options.ClientId = builder.Configuration["Authentication:Github:ClientId"] ?? "";
+    options.ClientSecret = builder.Configuration["Authentication:Github:ClientSecret"] ?? "";
 });
+// .AddApple(options =>
+// {
+//     options.ClientId = builder.Configuration["Authentication:Apple:ClientId"] ?? "";
+//     options.TeamId = builder.Configuration["Authentication:Apple:TeamId"] ?? "";
+//     options.KeyId = builder.Configuration["Authentication:Apple:KeyId"] ?? "";
+//     options.PrivateKey = async (keyId, cancellationToken) =>
+//     {
+//         var privateKeyPath = builder.Configuration["Authentication:Apple:PrivateKey"] ?? "";
+//         return await System.IO.File.ReadAllTextAsync(privateKeyPath, cancellationToken);
+//     };
+// });
 
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>

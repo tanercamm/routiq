@@ -16,6 +16,9 @@ public interface IAuthService
     Task<AuthResponseDto> LoginAsync(LoginRequestDto request);
     Task<AuthResponseDto> GetMeAsync(int userId);
     Task<AuthResponseDto> UpdateProfileAsync(int userId, UpdateProfileRequestDto request);
+    Microsoft.AspNetCore.Authentication.AuthenticationProperties GetSocialAuthProperties(string provider, string redirectUrl);
+    Task<AuthResponseDto> HandleSocialAuthAsync(ClaimsPrincipal principal);
+    string GetFrontendRedirectUrl();
 }
 
 public class AuthService : IAuthService
@@ -142,6 +145,60 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
 
         return GenerateAuthResponse(user, profile);
+    }
+
+    public Microsoft.AspNetCore.Authentication.AuthenticationProperties GetSocialAuthProperties(string provider, string redirectUrl)
+    {
+        return new Microsoft.AspNetCore.Authentication.AuthenticationProperties { RedirectUri = redirectUrl };
+    }
+
+    public async Task<AuthResponseDto> HandleSocialAuthAsync(ClaimsPrincipal principal)
+    {
+        var email = principal.FindFirstValue(ClaimTypes.Email);
+        if (string.IsNullOrEmpty(email))
+            throw new Exception("Email not provided by social provider.");
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        bool isNewUser = user == null;
+
+        if (isNewUser)
+        {
+            var name = principal.FindFirstValue(ClaimTypes.Name) ?? principal.FindFirstValue(ClaimTypes.GivenName);
+            var parts = name?.Split(' ', 2);
+            
+            user = new User
+            {
+                Email = email,
+                FirstName = parts?.Length > 0 ? parts[0] : "",
+                LastName = parts?.Length > 1 ? parts[1] : "",
+                PasswordHash = "OAUTH_LOGIN", // Placeholder for external users
+                Role = "User",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            var profile = new UserProfile
+            {
+                UserId = user.Id,
+                Username = email.Split('@')[0],
+                Email = email,
+                Passports = new List<string> { "TR" },
+                Origin = "IST" // Default for Routsky
+            };
+
+            _context.UserProfiles.Add(profile);
+            await _context.SaveChangesAsync();
+        }
+
+        var userProfile = await _context.UserProfiles.FirstAsync(p => p.UserId == user!.Id);
+        return GenerateAuthResponse(user!, userProfile);
+    }
+
+    public string GetFrontendRedirectUrl()
+    {
+        return _configuration["FrontendUrl"] ?? "https://routsky.xyz";
     }
 
     private AuthResponseDto GenerateAuthResponse(User user, UserProfile? profile)

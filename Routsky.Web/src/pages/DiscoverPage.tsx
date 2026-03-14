@@ -108,7 +108,7 @@ export const DiscoverPage = () => {
                             <select
                                 value={passport}
                                 onChange={(e) => setPassport(e.target.value)}
-                                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-colors"
+                                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 focus:border-[#007AFF] transition-colors"
                             >
                                 {PASSPORTS.map((p) => (
                                     <option key={p} value={p}>{p}</option>
@@ -140,7 +140,7 @@ export const DiscoverPage = () => {
                             <select
                                 value={region}
                                 onChange={(e) => setRegion(e.target.value)}
-                                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-colors"
+                                className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 focus:border-[#007AFF] transition-colors"
                             >
                                 {REGIONS.map((r) => (
                                     <option key={r} value={r}>{r}</option>
@@ -170,8 +170,8 @@ export const DiscoverPage = () => {
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
                                 className={`w-full md:w-auto h-[42px] flex items-center justify-center gap-2 px-6 text-sm font-medium rounded-lg transition-colors ${isGenerating
-                                    ? 'bg-blue-400 cursor-not-allowed text-white'
-                                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                    ? 'bg-[#007AFF]/60 cursor-not-allowed text-white'
+                                    : 'bg-[#007AFF] hover:bg-[#0062cc] text-white'
                                     }`}
                             >
                                 <Plane size={16} className={isGenerating ? "animate-pulse" : ""} />
@@ -227,7 +227,7 @@ export const DiscoverPage = () => {
                         <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-500/10 border-blue-100 dark:border-blue-500/20">
                             <div className="flex flex-col sm:flex-row gap-5 items-start">
                                 <div className="mt-1 flex-shrink-0">
-                                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center ">
+                                    <div className="w-12 h-12 bg-[#007AFF]/10 text-[#007AFF] rounded-xl flex items-center justify-center ">
                                         <Globe2 size={24} />
                                     </div>
                                 </div>
@@ -304,7 +304,7 @@ export const DiscoverPage = () => {
                                             <div className="space-y-4">
                                                 {validAlternatives.map((alt, idx) => (
                                                     <Card key={idx} hoverEffect className="p-5 border border-gray-100 dark:border-gray-700/50  relative overflow-hidden group">
-                                                        <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/50 group-hover:bg-blue-500 transition-colors"></div>
+                                                        <div className="absolute top-0 left-0 w-1 h-full bg-[#007AFF]/50 group-hover:bg-[#007AFF] transition-colors"></div>
                                                         <div className="flex justify-between items-center pl-2">
                                                             <div>
                                                                 <h4 className="font-extrabold text-gray-900 dark:text-white text-lg">{alt.city}, {alt.country}</h4>
