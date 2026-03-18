@@ -23,6 +23,7 @@ export interface User {
     name: string;
     role: string;
     avatarUrl?: string | null;
+    avatarBase64?: string | null;
     passports: string[];
     origin: string;
     preferredCurrency: string;

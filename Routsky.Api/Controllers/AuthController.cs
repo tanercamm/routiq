@@ -97,7 +97,9 @@ public class AuthController : ControllerBase
             var user = await dbContext.Users.FindAsync(userId);
             if (user != null)
             {
-                response.AvatarUrl = user.AvatarUrl;
+                 // Prefer embedded Base64, but keep URL for backwards compatibility
+                 response.AvatarBase64 = user.AvatarBase64;
+                 response.AvatarUrl = user.AvatarUrl;
             }
 
             return Ok(response);
@@ -148,10 +150,7 @@ public class AuthController : ControllerBase
             if (!AllowedExtensions.Contains(ext))
                 return BadRequest(new { message = $"Unsupported format. Allowed: {string.Join(", ", AllowedExtensions)}" });
 
-            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "avatars");
-            if (!Directory.Exists(uploadsFolder))
-                Directory.CreateDirectory(uploadsFolder);
-
+            // Read image into memory, resize and convert to WebP, then store as Base64 data URI
             using var inputStream = file.OpenReadStream();
 
             Image image;
@@ -172,17 +171,17 @@ public class AuthController : ControllerBase
                     Mode = ResizeMode.Crop
                 }));
 
-                var outputFileName = $"{Guid.NewGuid()}.webp";
-                var outputPath = Path.Combine(uploadsFolder, outputFileName);
-                await image.SaveAsWebpAsync(outputPath, new WebpEncoder { Quality = 80 });
-
-                var avatarUrl = $"/uploads/avatars/{outputFileName}";
+                await using var ms = new MemoryStream();
+                await image.SaveAsWebpAsync(ms, new WebpEncoder { Quality = 80 });
+                ms.Seek(0, SeekOrigin.Begin);
+                var base64 = Convert.ToBase64String(ms.ToArray());
+                var dataUri = $"data:image/webp;base64,{base64}";
 
                 var dbContext = HttpContext.RequestServices.GetRequiredService<Routsky.Api.Data.RoutskyDbContext>();
                 var user = await dbContext.Users.FindAsync(userId);
                 if (user == null) return NotFound("User not found");
 
-                // Delete old avatar file if it exists
+                // Clear any old physical avatar file (if present) to avoid orphaned files
                 if (!string.IsNullOrEmpty(user.AvatarUrl))
                 {
                     var oldFile = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", user.AvatarUrl.TrimStart('/'));
@@ -190,20 +189,23 @@ public class AuthController : ControllerBase
                         System.IO.File.Delete(oldFile);
                 }
 
-                user.AvatarUrl = avatarUrl;
+                // Persist Base64 into the user/profile records
+                user.AvatarBase64 = dataUri;
+                // Keep AvatarUrl null to indicate we are using embedded images now
+                user.AvatarUrl = null;
                 dbContext.Users.Update(user);
 
-                // Dual persistence: Update UserProfile as well
                 var profile = await dbContext.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
                 if (profile != null)
                 {
-                    profile.ProfilePictureUrl = avatarUrl;
+                    profile.ProfilePictureBase64 = dataUri;
+                    profile.ProfilePictureUrl = null;
                     dbContext.UserProfiles.Update(profile);
                 }
 
                 await dbContext.SaveChangesAsync();
 
-                return Ok(new { avatarUrl = user.AvatarUrl });
+                return Ok(new { avatarBase64 = user.AvatarBase64 });
             }
         }
         catch (IOException ioEx)
@@ -232,9 +234,9 @@ public class AuthController : ControllerBase
             var user = await dbContext.Users.FindAsync(userId);
             if (user == null) return NotFound("User not found");
 
+            // Delete any existing physical avatar file (if still present)
             if (!string.IsNullOrEmpty(user.AvatarUrl))
             {
-                // Physical file deletion
                 var fileName = Path.GetFileName(user.AvatarUrl);
                 var physicalPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "avatars", fileName);
 
@@ -242,11 +244,23 @@ public class AuthController : ControllerBase
                 {
                     System.IO.File.Delete(physicalPath);
                 }
-
-                user.AvatarUrl = null;
-                dbContext.Users.Update(user);
-                await dbContext.SaveChangesAsync();
             }
+
+            // Clear both URL and embedded Base64 fields
+            user.AvatarUrl = null;
+            user.AvatarBase64 = null;
+            dbContext.Users.Update(user);
+
+            // Also clear profile's stored avatar (if present)
+            var profile = await dbContext.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+            if (profile != null)
+            {
+                profile.ProfilePictureUrl = null;
+                profile.ProfilePictureBase64 = null;
+                dbContext.UserProfiles.Update(profile);
+            }
+
+            await dbContext.SaveChangesAsync();
 
             return Ok(new { avatarUrl = user.AvatarUrl });
         }

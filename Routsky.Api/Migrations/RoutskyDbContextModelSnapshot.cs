@@ -478,6 +478,9 @@ namespace Routsky.Api.Migrations
                     b.Property<string>("AvatarUrl")
                         .HasColumnType("text");
 
+                    b.Property<string>("AvatarBase64")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -551,6 +554,10 @@ namespace Routsky.Api.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<string>("ProfilePictureUrl")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("ProfilePictureBase64")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 

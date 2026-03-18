@@ -1,0 +1,30 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MigrationHelper", "MigrationHelper\MigrationHelper.csproj", "{41FC3A8C-EA0A-E41A-7C27-B24B0DE2E734}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Routsky.Api", "Routsky.Api\Routsky.Api.csproj", "{D65F5E1F-EC10-450D-6446-7A163EDCE8AA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{41FC3A8C-EA0A-E41A-7C27-B24B0DE2E734}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41FC3A8C-EA0A-E41A-7C27-B24B0DE2E734}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41FC3A8C-EA0A-E41A-7C27-B24B0DE2E734}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41FC3A8C-EA0A-E41A-7C27-B24B0DE2E734}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D65F5E1F-EC10-450D-6446-7A163EDCE8AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D65F5E1F-EC10-450D-6446-7A163EDCE8AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D65F5E1F-EC10-450D-6446-7A163EDCE8AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D65F5E1F-EC10-450D-6446-7A163EDCE8AA}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {71154636-9FA7-4300-8D16-A24D1F12A96D}
+	EndGlobalSection
+EndGlobal

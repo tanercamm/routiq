@@ -33,8 +33,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             try {
                 const parsed = JSON.parse(storedUser);
 
-                // Explicitly map the URL
-                parsed.avatarUrl = parsed.avatarUrl || parsed.AvatarUrl;
+                // Map avatar from multiple possible keys (embedded Base64 takes precedence)
+                parsed.avatarUrl = parsed.avatarUrl || parsed.avatarBase64 || parsed.AvatarBase64 || parsed.AvatarUrl;
 
                 // Safely ensure passports is an array
                 if (!parsed.passports) {
@@ -66,8 +66,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 if (res.data) {
                     const refreshedUser = res.data;
 
-                    // EXACT MAPPING: Read from data.avatarUrl or data.AvatarUrl
-                    refreshedUser.avatarUrl = refreshedUser.avatarUrl || refreshedUser.AvatarUrl;
+                    // EXACT MAPPING: prefer embedded base64, then URL
+                    refreshedUser.avatarUrl = refreshedUser.avatarUrl || refreshedUser.avatarBase64 || refreshedUser.AvatarBase64 || refreshedUser.AvatarUrl;
 
                     // Safely ensure passports is an array from API too
                     if (!refreshedUser.passports) {
@@ -93,8 +93,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const login = (newToken: string, newUser: User) => {
-        // Explicitly map the URL
-        newUser.avatarUrl = newUser.avatarUrl || (newUser as any).AvatarUrl;
+        // Explicitly map the URL / embedded base64
+        newUser.avatarUrl = newUser.avatarUrl || (newUser as any).avatarBase64 || (newUser as any).AvatarBase64 || (newUser as any).AvatarUrl;
 
         // Safely ensure passports is an array
         if (!newUser.passports) {

@@ -36,6 +36,8 @@ public class AuthResponseDto
     public string Name { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
+    // Embedded Base64 avatar (data URI). Prefer this if present.
+    public string? AvatarBase64 { get; set; }
     public List<string> Passports { get; set; } = new();
     public string Origin { get; set; } = string.Empty;
     public string PreferredCurrency { get; set; } = string.Empty;

@@ -22,6 +22,9 @@ public class User
 
     public string? AvatarUrl { get; set; }
 
+    // Base64 data URI for embedded avatars (e.g. "data:image/webp;base64,...")
+    public string? AvatarBase64 { get; set; }
+
     // Navigation
     public UserProfile? Profile { get; set; }
     public ICollection<TravelGroupMember> GroupMemberships { get; set; } = new List<TravelGroupMember>();

@@ -58,6 +58,9 @@ public class UserProfile
     [MaxLength(255)]
     public string? ProfilePictureUrl { get; set; }
 
+    // Base64 data URI for embedded profile pictures (e.g. "data:image/webp;base64,...")
+    public string? ProfilePictureBase64 { get; set; }
+
     // Navigation
     public ICollection<SavedRoute> SavedRoutes { get; set; } = new List<SavedRoute>();
 }
