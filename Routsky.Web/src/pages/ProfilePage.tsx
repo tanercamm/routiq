@@ -140,7 +140,7 @@ export const ProfilePage = () => {
                                         aria-label="Manage Avatar"
                                     >
                                         {(user?.avatarBase64 || user?.avatarUrl) ? (
-                                            <img src={previewUrl || user?.avatarBase64 || user?.avatarUrl || undefined} alt="Profile" className="w-full h-full object-cover" />
+                                            <img src={previewUrl ?? user?.avatarBase64 ?? user?.avatarUrl ?? undefined} alt="Profile" className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full bg-[#007AFF] flex items-center justify-center">
                                                 <User size={24} className="text-white" />
@@ -444,7 +444,7 @@ export const ProfilePage = () => {
                                         )}
 
                                         {(previewUrl || user?.avatarBase64 || user?.avatarUrl) ? (
-                                            <img src={previewUrl || user?.avatarBase64 || user?.avatarUrl || undefined} alt="Profile" className="w-full h-full object-cover" />
+                                            <img src={previewUrl ?? user?.avatarBase64 ?? user?.avatarUrl ?? undefined} alt="Profile" className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full bg-gradient-to-br from-blue-400 to-[#007AFF] flex items-center justify-center">
                                                 <User size={48} className="text-white" />
