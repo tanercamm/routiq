@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { User, LogOut, Zap, Sun, Moon } from 'lucide-react';
+import { RoutskyLogo } from '../components/RoutskyLogo';
 
 const NAV_LINKS = [
     { label: 'Routes', path: '/routes' },
@@ -22,19 +23,8 @@ export const Navbar = () => {
 
                 {/* Left: Logo */}
                 <div className="flex-1 flex items-center justify-start gap-3">
-                    <button onClick={() => navigate('/')} className="flex items-center gap-3 group">
-                        <img
-                            src="/assets/logo.png"
-                            alt="Routsky Logo"
-                            className={`h-9 w-auto object-contain transition-all duration-500 group-hover:scale-110 ${theme === 'light' ? 'drop-shadow-[0_4px_10px_rgba(0,122,255,0.2)]' : 'drop-shadow-[0_0_12px_rgba(0,122,255,0.5)]'
-                                }`}
-                        />
-                        <span className="text-2xl font-extrabold tracking-tight transition-colors hidden sm:inline text-[#007AFF]">
-                            Routsky
-                        </span>
-                        <span className={`text-sm font-medium hidden lg:inline transition-colors ${theme === 'light' ? 'text-gray-500' : 'text-gray-400/60'}`}>
-                            - Orchestrating the World
-                        </span>
+                    <button onClick={() => navigate('/')} className="flex items-center group">
+                        <RoutskyLogo size="sm" />
                     </button>
                 </div>
 
@@ -120,6 +110,5 @@ export const Navbar = () => {
                 </div>
             </div>
         </header>
-
     );
 };

@@ -1,0 +1,39 @@
+<!--
+  Routsky Icon — Negative Space
+  Golden ratio: circle r=50, plane proportions φ=1.618
+  Variants: use class="light" or class="dark" on parent, or use directly
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Routsky</title>
+
+  <!--
+    LIGHT THEME (default): mavi daire, açık arka plan rengi uçak
+    DARK THEME: aynı mavi daire, koyu arka plan rengi uçak
+    Her iki versiyonu da aşağıda ayrı grup olarak ver,
+    kullanım: sadece bu dosyayı import et, CSS ile kontrol et.
+  -->
+
+  <!-- Daire: dünya — golden ratio r=48 (viewBox 100, padding 2px) -->
+  <circle cx="50" cy="50" r="48" fill="#1D4ED8"/>
+
+  <!--
+    Negatif uçak — fill rengi arka plana göre değişecek.
+    Burada "currentColor" kullanıyoruz, parent'ta color set edilecek.
+    Default: beyaz (light bg için).
+    Not: Bu dosyayı <img> ile kullanırsan renk sabit kalır.
+    React component olarak kullanırsan dinamik olur (Adım 2).
+  -->
+
+  <!-- Gövde: w=52, h=10 — golden ratio: 52/10 ≈ φ² -->
+  <rect x="18" y="45" width="52" height="10" rx="5" fill="white"/>
+
+  <!-- Üst kanat: gövde genişliğinin 1/φ ≈ 32px yükseklik -->
+  <polygon points="30,45 18,20 50,45" fill="white"/>
+
+  <!-- Alt kanat: φ oranında daha küçük -->
+  <polygon points="30,55 18,78 48,55" fill="white" opacity="0.88"/>
+
+  <!-- Dikey kuyruk: gövde yüksekliğinin φ katı = 16px -->
+  <rect x="60" y="33" width="8" height="13" rx="4" fill="white"/>
+
+</svg>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import { RoutskyLogo } from './RoutskyLogo';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { login as apiLogin, register as apiRegister, BASE_URL } from '../api/routskyApi';
@@ -330,14 +331,7 @@ export const AuthGlobeFlip = () => {
                 {/* Logo and Staging Text (Outside and Above the Card) */}
                 <div className="w-full max-w-[460px] relative flex flex-col items-start mb-8 pl-1">
                     <div className="flex items-center gap-4 opacity-100">
-                        <img src="/assets/logo.png" alt="Routsky" className="h-[42px] w-auto object-contain transition-transform group-hover:scale-105" />
-                        <div className="flex flex-col justify-center translate-y-[1px] text-left">
-                            <div className={`text-[32px] tracking-tighter leading-none pb-[2px] transition-colors duration-[1200ms] ${isLight ? 'text-[#001A33]' : 'text-[#007AFF]'}`}>
-                                <span className="font-bold">Rout</span>
-                                <span className="font-light">sky</span>
-                            </div>
-                            <span className={`text-[10px] font-bold leading-none tracking-widest uppercase transition-colors duration-[1200ms] ${isLight ? 'text-gray-400' : 'text-white/40'}`}>Orchestrating the World</span>
-                        </div>
+                        <RoutskyLogo size="lg" />
                     </div>
                 </div>
 
@@ -486,4 +480,3 @@ export const AuthGlobeFlip = () => {
     );
 
 };
-
