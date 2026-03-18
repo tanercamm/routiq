@@ -3,8 +3,7 @@ import type { RouteRequest, RouteResponse } from '../types';
 
 export const BASE_URL = 'https://routsky-api-prod.onrender.com/api';
 
-console.log("INITIALIZING ROUTSKY API (HARDCODED)");
-console.log("BASE_URL is:", BASE_URL);
+// Initialization log statements removed for production cleanup.
 
 /**
  * Robustly constructs the API URL.
