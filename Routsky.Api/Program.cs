@@ -1,16 +1,16 @@
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.SemanticKernel;
-using Routsky.Api.Data;
-using Routsky.Api.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.SemanticKernel;
+using Routsky.Api.Data;
+using Routsky.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -128,13 +128,13 @@ builder.Services.AddAuthentication(options =>
     options.CorrelationCookie.HttpOnly = true;
 
     options.Scope.Add("user:email");
-    
+
     // ── Manual email fetch if claim is missing ──
     options.Events.OnCreatingTicket = async context =>
     {
         var email = context.Principal?.FindFirstValue(ClaimTypes.Email)
                  ?? context.Principal?.FindFirstValue("urn:github:email");
-        
+
         if (string.IsNullOrEmpty(email) && context.AccessToken is not null)
         {
             try
@@ -142,7 +142,7 @@ builder.Services.AddAuthentication(options =>
                 using var httpClient = new System.Net.Http.HttpClient();
                 httpClient.DefaultRequestHeaders.Add("Authorization", $"token {context.AccessToken}");
                 httpClient.DefaultRequestHeaders.Add("User-Agent", "Routsky");
-                
+
                 var response = await httpClient.GetAsync("https://api.github.com/user/emails");
                 if (response.IsSuccessStatusCode)
                 {
@@ -209,6 +209,14 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+// --- RENDER PROXY KABA KUVVET ÇÖZÜMÜ ---
+app.Use((context, next) =>
+{
+    context.Request.Scheme = "https";
+    return next();
+});
+// --------------------------------------
 
 // ── Forwarded Headers MUST be first in pipeline (Render reverse proxy) ──
 app.UseForwardedHeaders();
