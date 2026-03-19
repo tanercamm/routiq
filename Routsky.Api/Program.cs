@@ -82,11 +82,17 @@ var key = System.Text.Encoding.ASCII.GetBytes(
 
 builder.Services.AddAuthentication(options =>
 {
+    options.DefaultScheme = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
     options.DefaultAuthenticateScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
     options.DefaultSignInScheme = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
 })
-.AddCookie() // Required for temporary social auth storage
+.AddCookie(options =>
+{
+    options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
+    options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
+    options.Cookie.HttpOnly = true;
+}) // Required for temporary social auth storage
 .AddJwtBearer(options =>
 {
     options.RequireHttpsMetadata = false;
@@ -102,23 +108,19 @@ builder.Services.AddAuthentication(options =>
 .AddGoogle(options =>
 {
     options.CallbackPath = "/api/Auth/callback/Google";
-    options.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? "";
-    options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "";
+    options.ClientId = builder.Configuration["Authentication:Google:ClientId"]!;
+    options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
     options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
 
     options.CorrelationCookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
     options.CorrelationCookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
     options.CorrelationCookie.HttpOnly = true;
-
-    options.NonceCookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
-    options.NonceCookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
-    options.NonceCookie.HttpOnly = true;
 })
 .AddGitHub(options =>
 {
     options.CallbackPath = "/api/Auth/callback/GitHub";
-    options.ClientId = builder.Configuration["Authentication:Github:ClientId"] ?? "";
-    options.ClientSecret = builder.Configuration["Authentication:Github:ClientSecret"] ?? "";
+    options.ClientId = builder.Configuration["Authentication:GitHub:ClientId"]!;
+    options.ClientSecret = builder.Configuration["Authentication:GitHub:ClientSecret"]!;
     options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
 
     options.CorrelationCookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
@@ -180,13 +182,13 @@ builder.Services.AddAuthentication(options =>
 // ── Forwarded Headers (Render reverse proxy) ──
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
 
 // ── Cookie Policy (for cross-site OAuth flows) ──
-builder.Services.Configure<Microsoft.AspNetCore.Builder.CookiePolicyOptions>(options =>
+builder.Services.AddCookiePolicy(options =>
 {
     options.CheckConsentNeeded = context => false;
     options.MinimumSameSitePolicy = Microsoft.AspNetCore.Http.SameSiteMode.None;
@@ -210,6 +212,7 @@ var app = builder.Build();
 
 // ── Forwarded Headers MUST be first in pipeline (Render reverse proxy) ──
 app.UseForwardedHeaders();
+app.UseCookiePolicy();
 
 // ── V2 Database Seed ──
 using (var scope = app.Services.CreateScope())
@@ -255,8 +258,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseCookiePolicy();
 app.UseStaticFiles();
 app.UseCors("AllowAll");
 app.UseAuthentication();
