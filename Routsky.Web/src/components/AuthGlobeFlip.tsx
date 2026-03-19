@@ -226,13 +226,6 @@ export const AuthGlobeFlip = () => {
         }
     };
 
-    const handleSocialLogin = (provider: string) => {
-        if (provider === 'GitHub') {
-            const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
-            window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email`;
-        }
-    };
-
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
