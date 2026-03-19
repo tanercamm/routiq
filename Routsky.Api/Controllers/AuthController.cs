@@ -78,9 +78,7 @@ public class AuthController : ControllerBase
             var response = await _authService.HandleSocialAuthAsync(result.Principal);
             logger.LogInformation("[SocialCallback] HandleSocialAuthAsync completed successfully for user: {UserId}", response.Id);
             
-            // Production Redirect Only
-            var userJson = System.Web.HttpUtility.UrlEncode(System.Text.Json.JsonSerializer.Serialize(response));
-            return Redirect("https://routsky.com/auth/callback?token=" + response.Token + "&user=" + userJson);
+            return Redirect($"https://routsky.com/auth/callback?token={response.Token}");
         }
         catch (Exception ex)
         {

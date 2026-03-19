@@ -106,31 +106,13 @@ builder.Services.AddAuthentication(options =>
     options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "";
     options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
 
-    // Correlation cookie settings for both environments (strict for production)
     options.CorrelationCookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
     options.CorrelationCookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
     options.CorrelationCookie.HttpOnly = true;
 
-    // ── Production: Secure state cookie for cross-site OIDC flow ──
-    if (builder.Environment.IsProduction())
-    {
-        options.Events.OnRedirectToAuthorizationEndpoint = context =>
-        {
-            // Ensure state cookie is secure and allows cross-site usage
-            var correlationId = context.Request.Query["correlation_id"].ToString() ?? Guid.NewGuid().ToString();
-            context.Response.Cookies.Append(
-                ".AspNetCore.Correlation.Google",
-                correlationId,
-                new Microsoft.AspNetCore.Http.CookieOptions
-                {
-                    Secure = true,
-                    SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None,
-                    HttpOnly = true
-                });
-            context.Response.Redirect(context.RedirectUri);
-            return System.Threading.Tasks.Task.CompletedTask;
-        };
-    }
+    options.NonceCookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
+    options.NonceCookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
+    options.NonceCookie.HttpOnly = true;
 })
 .AddGitHub(options =>
 {
@@ -139,12 +121,10 @@ builder.Services.AddAuthentication(options =>
     options.ClientSecret = builder.Configuration["Authentication:Github:ClientSecret"] ?? "";
     options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
 
-    // Correlation cookie settings for both environments
     options.CorrelationCookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.None;
     options.CorrelationCookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
     options.CorrelationCookie.HttpOnly = true;
-    
-    // ── Request email scope from GitHub ──
+
     options.Scope.Add("user:email");
     
     // ── Manual email fetch if claim is missing ──
@@ -197,11 +177,20 @@ builder.Services.AddAuthentication(options =>
 //     };
 // });
 
+// ── Forwarded Headers (Render reverse proxy) ──
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // ── Cookie Policy (for cross-site OAuth flows) ──
 builder.Services.Configure<Microsoft.AspNetCore.Builder.CookiePolicyOptions>(options =>
 {
     options.CheckConsentNeeded = context => false;
-    options.MinimumSameSitePolicy = Microsoft.AspNetCore.Http.SameSiteMode.Unspecified;
+    options.MinimumSameSitePolicy = Microsoft.AspNetCore.Http.SameSiteMode.None;
+    options.Secure = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
 });
 
 builder.Services.AddControllers()
@@ -219,13 +208,8 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// ── Forwarded Headers (Unconditional for Proxy) ──
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedHost,
-    RequireHeaderSymmetry = false,
-    AllowedHosts = new[] { "routsky.com" }
-});
+// ── Forwarded Headers MUST be first in pipeline (Render reverse proxy) ──
+app.UseForwardedHeaders();
 
 // ── V2 Database Seed ──
 using (var scope = app.Services.CreateScope())
@@ -272,8 +256,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseStaticFiles();
 app.UseCookiePolicy();
+app.UseStaticFiles();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
