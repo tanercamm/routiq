@@ -98,7 +98,7 @@ Respond ONLY with JSON, no markdown: {{""minutes"": N, ""costUsd"": N}}");
         const int chunkSize = 15;
         var chunks = uncached.Chunk(chunkSize).ToList();
 
-        var tasks = chunks.Select(async chunk =>
+        foreach (var chunk in chunks)
         {
             var chunkResults = new Dictionary<string, (int Minutes, int CostUsd)>();
 
@@ -146,17 +146,12 @@ Respond STRICTLY with a JSON array, no markdown wrapping, no explanation:
                 }
             }
 
-            return chunkResults;
-        });
-
-        var results = await Task.WhenAll(tasks);
-
-        foreach (var chunkResult in results)
-        {
-            foreach (var kvp in chunkResult)
+            foreach (var kvp in chunkResults)
             {
                 _cache[kvp.Key] = kvp.Value;
             }
+
+            await Task.Delay(2000);
         }
 
         _logger.LogInformation("[GeminiClient] Cached {Count}/{Total} flight estimates from Gemini batch",
