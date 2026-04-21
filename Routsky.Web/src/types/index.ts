@@ -90,3 +90,54 @@ export interface EliminationSummary {
     reason: string;           // EliminationReason enum name
     explanation: string;
 }
+
+export type VisaMapStatus =
+    | 'VisaFree'
+    | 'EVisaOrOnArrival'
+    | 'ConditionalOrTimeLimited'
+    | 'VisaRequired'
+    | 'BannedOrRefused'
+    | 'Unknown';
+
+export interface GlobalVisaCountryStatus {
+    status: VisaMapStatus;
+    source: string;
+    rawRuleName?: string;
+    rawColor?: string;
+    durationDays?: number;
+}
+
+export interface GlobalVisaMapResponse {
+    passportCode: string;
+    generatedAtUtc: string;
+    countries: Record<string, GlobalVisaCountryStatus>;
+}
+
+export type VoteType = 'Upvote' | 'Downvote';
+
+export interface RouteVoteSummary {
+    userId: number;
+    isUpvote: boolean;
+}
+
+export interface GroupShortlistRoute {
+    id: string;
+    destinationId: string;
+    addedByUserId: number;
+    addedAt: string;
+    upvotes: number;
+    downvotes: number;
+    upvoterIds: number[];
+    downvoterIds: number[];
+    currentUserVote?: VoteType;
+    votes: RouteVoteSummary[];
+}
+
+export interface VoteShortlistRequest {
+    voteType: VoteType;
+}
+
+export interface VoteShortlistResponse {
+    message: string;
+    route: GroupShortlistRoute;
+}

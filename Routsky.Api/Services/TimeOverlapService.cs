@@ -5,8 +5,15 @@ namespace Routsky.Api.Services;
 /// Stateless service. Input (multi-member flight times) → Output (friction score, max difference).
 /// Lower friction = fairer for all group members.
 /// </summary>
-public class TimeOverlapService
+public class TimeOverlapService : ITimeOverlapService
 {
+    private readonly ILogger<TimeOverlapService> _logger;
+
+    public TimeOverlapService(ILogger<TimeOverlapService> logger)
+    {
+        _logger = logger;
+    }
+
     public class TimeOverlapResult
     {
         public int MaxDifferenceMinutes { get; set; }

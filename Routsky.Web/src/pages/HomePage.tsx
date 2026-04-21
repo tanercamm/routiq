@@ -5,6 +5,7 @@ import Globe, { type GlobeMethods } from 'react-globe.gl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Shield, DollarSign, Calendar, X } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { VisaWorldMap } from '../components/VisaWorldMap';
 import {
   SUPPORTED_CITIES,
   ALL_CITIES,
@@ -95,6 +96,7 @@ export function HomePage() {
   const isLight = theme === 'light';
   const [zoomTier, setZoomTier] = useState<ZoomTier>('far');
   const zoomTierRef = useRef<ZoomTier>('far');
+  const [intelView, setIntelView] = useState<'globe' | 'visa'>('globe');
 
   useEffect(() => {
     const update = () => {
@@ -185,7 +187,7 @@ export function HomePage() {
 
       <div className={`absolute inset-0 pointer-events-none z-[1] ${isLight ? 'bg-[#F5F5F7]/20' : 'bg-[#050a18]/40'}`} />
 
-      {dimensions.width > 0 && (
+      {intelView === 'globe' && dimensions.width > 0 && (
         <GlobeScene
           globeRef={globeRef}
           width={dimensions.width}
@@ -194,6 +196,12 @@ export function HomePage() {
           onPointClick={handlePointClick}
           isLight={isLight}
         />
+      )}
+
+      {intelView === 'visa' && (
+        <div className="absolute inset-0 z-10 px-4 pb-6 pt-24 sm:px-6 lg:px-8">
+          <VisaWorldMap />
+        </div>
       )}
 
       {/* Top-left HUD */}
@@ -241,31 +249,48 @@ export function HomePage() {
         </div>
       </motion.div>
 
-      {/* Top-right network status — matte flat panel */}
+      {/* Top-right mode + network status */}
       <motion.div
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.5 }}
         className="absolute top-6 right-6 z-20 pointer-events-none"
       >
-        <div className="border transition-all duration-300 rounded-lg px-4 py-3 min-w-[180px] light:bg-white/70 light:backdrop-blur-md light:border-gray-200 light:shadow-sm dark:border-slate-800/80 dark:bg-[#0a1628]">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-1.5 h-1.5 rounded-full light:bg-[#007AFF] dark:bg-[#007AFF]/50" />
-            <span className="text-[10px] font-bold tracking-[0.2em] light:text-[#007AFF] dark:text-[#007AFF]/50 uppercase transition-colors">System Online</span>
+        <div className="space-y-3">
+          <div className="pointer-events-auto inline-flex items-center rounded-xl border border-slate-700/70 bg-[#0a1628]/95 p-1 shadow-lg backdrop-blur">
+            <button
+              className={`px-3 py-1.5 text-[10px] font-bold tracking-wide transition-colors ${intelView === 'globe' ? 'rounded-lg bg-[#007AFF] text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              onClick={() => setIntelView('globe')}
+            >
+              3D Globe
+            </button>
+            <button
+              className={`px-3 py-1.5 text-[10px] font-bold tracking-wide transition-colors ${intelView === 'visa' ? 'rounded-lg bg-[#007AFF] text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              onClick={() => setIntelView('visa')}
+            >
+              Visa Intel 2D
+            </button>
           </div>
-          <div className="space-y-1">
-            {['Visa Engine', 'Cost Analyzer', 'Flight Scanner', 'Safety Monitor'].map((s, i) => (
-              <div key={s} className="flex items-center justify-between">
-                <span className="text-[10px] light:text-gray-500 dark:text-gray-600 transition-colors">{s}</span>
-                <span className={`text-[10px] font-bold transition-colors ${
-                  isLight 
-                    ? 'text-[#001A33]' 
-                    : (i < 3 ? 'text-blue-100/90' : 'text-blue-200/70')
-                }`}>
-                  {i < 3 ? 'READY' : 'ACTIVE'}
-                </span>
-              </div>
-            ))}
+
+          <div className="border transition-all duration-300 rounded-lg px-4 py-3 min-w-[180px] light:bg-white/70 light:backdrop-blur-md light:border-gray-200 light:shadow-sm dark:border-slate-800/80 dark:bg-[#0a1628]">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-1.5 h-1.5 rounded-full light:bg-[#007AFF] dark:bg-[#007AFF]/50" />
+              <span className="text-[10px] font-bold tracking-[0.2em] light:text-[#007AFF] dark:text-[#007AFF]/50 uppercase transition-colors">System Online</span>
+            </div>
+            <div className="space-y-1">
+              {['Visa Engine', 'Cost Analyzer', 'Flight Scanner', 'Safety Monitor'].map((s, i) => (
+                <div key={s} className="flex items-center justify-between">
+                  <span className="text-[10px] light:text-gray-500 dark:text-gray-600 transition-colors">{s}</span>
+                  <span className={`text-[10px] font-bold transition-colors ${
+                    isLight 
+                      ? 'text-[#001A33]' 
+                      : (i < 3 ? 'text-blue-100/90' : 'text-blue-200/70')
+                  }`}>
+                    {i < 3 ? 'READY' : 'ACTIVE'}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </motion.div>

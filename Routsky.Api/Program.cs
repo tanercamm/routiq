@@ -1,18 +1,24 @@
-using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Routsky.Api.Data;
 using Routsky.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Configuration Options ──
+builder.Services.Configure<Routsky.Api.Configuration.BudgetDefaults>(builder.Configuration.GetSection(Routsky.Api.Configuration.BudgetDefaults.SectionName));
+builder.Services.Configure<Routsky.Api.Configuration.CurrencyRates>(builder.Configuration.GetSection(Routsky.Api.Configuration.CurrencyRates.SectionName));
+builder.Services.Configure<Routsky.Api.Configuration.FlightDefaults>(builder.Configuration.GetSection(Routsky.Api.Configuration.FlightDefaults.SectionName));
+builder.Services.Configure<Routsky.Api.Configuration.GeminiSettings>(builder.Configuration.GetSection(Routsky.Api.Configuration.GeminiSettings.SectionName));
+builder.Services.Configure<Routsky.Api.Configuration.CarbonEstimation>(builder.Configuration.GetSection(Routsky.Api.Configuration.CarbonEstimation.SectionName));
+builder.Services.Configure<Routsky.Api.Configuration.AvatarSettings>(builder.Configuration.GetSection(Routsky.Api.Configuration.AvatarSettings.SectionName));
+builder.Services.Configure<Routsky.Api.Configuration.PrestigeMapping>(builder.Configuration.GetSection(Routsky.Api.Configuration.PrestigeMapping.SectionName));
+builder.Services.Configure<Routsky.Api.Configuration.DiscoverDefaults>(builder.Configuration.GetSection(Routsky.Api.Configuration.DiscoverDefaults.SectionName));
+builder.Services.Configure<Routsky.Api.Configuration.InviteCodeSettings>(builder.Configuration.GetSection(Routsky.Api.Configuration.InviteCodeSettings.SectionName));
 
 // ── CORS ──
 builder.Services.AddCors(options =>
@@ -51,14 +57,18 @@ builder.Services.AddSingleton<TravelBuddyApiService>();
 builder.Services.AddHttpClient<TurkishAirlinesFlightPriceProvider>();
 builder.Services.AddSingleton<TurkishAirlinesFlightPriceProvider>();
 builder.Services.AddScoped<GeminiFlightPriceProvider>();
-builder.Services.AddScoped<HybridFlightPriceService>();
+builder.Services.AddScoped<IHybridFlightPriceService, HybridFlightPriceService>();
 
 // ── MCP Decision Services (Agent-as-Orchestrator) ──
-builder.Services.AddScoped<RouteFeasibilityService>();
-builder.Services.AddScoped<BudgetConsistencyService>();
-builder.Services.AddScoped<TimeOverlapService>();
-builder.Services.AddScoped<DecisionSolverService>();
+builder.Services.AddScoped<IRouteFeasibilityService, RouteFeasibilityService>();
+builder.Services.AddScoped<IBudgetConsistencyService, BudgetConsistencyService>();
+builder.Services.AddScoped<ITimeOverlapService, TimeOverlapService>();
+builder.Services.AddScoped<IDecisionSolverService, DecisionSolverService>();
 builder.Services.AddHttpClient<AgentInsightService>();
+builder.Services.AddScoped<IAgentInsightService>(sp => sp.GetRequiredService<AgentInsightService>());
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<IAvatarService, AvatarService>();
+builder.Services.AddScoped<ICommunityService, CommunityService>();
 
 // ── Semantic Kernel ──
 var geminiKey = builder.Configuration["Gemini:ApiKey"];

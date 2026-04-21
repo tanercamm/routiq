@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using Routsky.Api.Entities;
@@ -20,6 +21,8 @@ public static class DbInitializer
         await SeedDestinationsAsync(context);
         await SeedUsersAsync(context);
         await SeedCityIntelligenceAsync(context);
+        await SeedAccommodationZonesAsync(context);
+        await SeedAttractionsAsync(context);
     }
 
     // ─────────────────────────────────────────────
@@ -750,4 +753,46 @@ public static class DbInitializer
         AverageTransportCostUSD = transportCost,
         BestMonthsToVisit = bestMonths,
     };
+
+    // ─────────────────────────────────────────────
+    // ACCOMMODATION ZONES (from JSON seed file)
+    // ─────────────────────────────────────────────
+    private static async Task SeedAccommodationZonesAsync(RoutskyDbContext context)
+    {
+        if (await context.AccommodationZones.AnyAsync()) return;
+
+        var path = Path.Combine(AppContext.BaseDirectory, "SeedData", "accommodation_zones.json");
+        var json = await File.ReadAllTextAsync(path);
+        var zones = JsonSerializer.Deserialize<List<AccommodationZone>>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        if (zones is { Count: > 0 })
+        {
+            context.AccommodationZones.AddRange(zones);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // ATTRACTIONS (from JSON seed file)
+    // ─────────────────────────────────────────────
+    private static async Task SeedAttractionsAsync(RoutskyDbContext context)
+    {
+        if (await context.Attractions.AnyAsync()) return;
+
+        var path = Path.Combine(AppContext.BaseDirectory, "SeedData", "attractions.json");
+        var json = await File.ReadAllTextAsync(path);
+        var attractions = JsonSerializer.Deserialize<List<Attraction>>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        if (attractions is { Count: > 0 })
+        {
+            context.Attractions.AddRange(attractions);
+            await context.SaveChangesAsync();
+        }
+    }
 }

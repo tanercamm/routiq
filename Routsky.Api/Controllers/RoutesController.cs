@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using Routsky.Api.Data;
 using Routsky.Api.DTOs;
 using Routsky.Api.Entities;
-using Routsky.Api.Services;
 
 namespace Routsky.Api.Controllers;
 

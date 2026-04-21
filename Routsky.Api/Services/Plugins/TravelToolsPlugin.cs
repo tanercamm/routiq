@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
+using Routsky.Api.Configuration;
 using Routsky.Api.Data;
 
 namespace Routsky.Api.Services.Plugins;
@@ -22,15 +23,18 @@ namespace Routsky.Api.Services.Plugins;
 ///   - GetCityIntelligence       → safety, cost of living, seasonal data
 ///   - CheckVisaMatrix           → visa status lookup
 ///   - GetCurrentWeather         → live weather conditions
+///   - GetAccommodationZones    → accommodation options by city
+///   - GetAttractions           → activities and attractions by city
 /// </summary>
 public class TravelToolsPlugin
 {
-    private readonly RouteFeasibilityService _feasibility;
-    private readonly BudgetConsistencyService _budget;
-    private readonly TimeOverlapService _timeOverlap;
+    private readonly IRouteFeasibilityService _feasibility;
+    private readonly IBudgetConsistencyService _budget;
+    private readonly ITimeOverlapService _timeOverlap;
     private readonly RoutskyDbContext _context;
-    private readonly AgentInsightService _insight;
+    private readonly IAgentInsightService _insight;
     private readonly List<MemberContext> _members;
+    private readonly CurrencyRates _currencyRates;
 
     public record MemberContext(
         string Name, int UserId, string Origin,
@@ -105,12 +109,13 @@ public class TravelToolsPlugin
     };
 
     public TravelToolsPlugin(
-        RouteFeasibilityService feasibility,
-        BudgetConsistencyService budget,
-        TimeOverlapService timeOverlap,
+        IRouteFeasibilityService feasibility,
+        IBudgetConsistencyService budget,
+        ITimeOverlapService timeOverlap,
         RoutskyDbContext context,
-        AgentInsightService insight,
-        List<MemberContext> members)
+        IAgentInsightService insight,
+        List<MemberContext> members,
+        CurrencyRates currencyRates)
     {
         _feasibility = feasibility;
         _budget = budget;
@@ -118,6 +123,7 @@ public class TravelToolsPlugin
         _context = context;
         _insight = insight;
         _members = members;
+        _currencyRates = currencyRates;
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -412,16 +418,64 @@ public class TravelToolsPlugin
     }
 
     // ════════════════════════════════════════════════════════════════
+    //  ACCOMMODATION & ATTRACTION TOOLS
+    // ════════════════════════════════════════════════════════════════
+
+    [KernelFunction("GetAccommodationZones")]
+    [Description("Returns accommodation zone options for a given city, including zone name, description, category (Budget/Mid-Range/Luxury), and average nightly cost. Use this to recommend where group members should stay.")]
+    public async Task<string> GetAccommodationZones(
+        [Description("City name exactly as listed, e.g. Belgrade or Bangkok")] string cityName)
+    {
+        var zones = await _context.AccommodationZones
+            .Where(z => z.CityName == cityName)
+            .OrderBy(z => z.AverageNightlyCost)
+            .Select(z => new
+            {
+                z.ZoneName,
+                z.Description,
+                z.Category,
+                z.AverageNightlyCost,
+                z.Currency
+            })
+            .ToListAsync();
+
+        if (zones.Count == 0)
+            return JsonSerializer.Serialize(new { Error = $"No accommodation data available for {cityName}" });
+
+        return JsonSerializer.Serialize(zones);
+    }
+
+    [KernelFunction("GetAttractions")]
+    [Description("Returns notable attractions and activities for a given city, including name, estimated cost, duration in hours, category (Historical/Museum/Nature/Entertainment), and best time of day. Use this to suggest daily itinerary activities.")]
+    public async Task<string> GetAttractions(
+        [Description("City name exactly as listed, e.g. Belgrade or Bangkok")] string cityName)
+    {
+        var attractions = await _context.Attractions
+            .Where(a => a.CityName == cityName)
+            .OrderBy(a => a.EstimatedDurationInHours)
+            .Select(a => new
+            {
+                a.Name,
+                a.EstimatedCost,
+                a.EstimatedDurationInHours,
+                a.Description,
+                a.Category,
+                a.BestTimeOfDay
+            })
+            .ToListAsync();
+
+        if (attractions.Count == 0)
+            return JsonSerializer.Serialize(new { Error = $"No attraction data available for {cityName}" });
+
+        return JsonSerializer.Serialize(attractions);
+    }
+
+    // ════════════════════════════════════════════════════════════════
     //  INTERNAL HELPERS (not exposed to Agent)
     // ════════════════════════════════════════════════════════════════
 
-    private static int ConvertCurrency(int usdAmount, string targetCurrency) => targetCurrency switch
-    {
-        "EUR" => (int)(usdAmount * 0.95),
-        "TRY" => (int)(usdAmount * 36.5),
-        "AUD" => (int)(usdAmount * 1.5),
-        _ => usdAmount
-    };
+    private int ConvertCurrency(int usdAmount, string targetCurrency) =>
+        _currencyRates.Convert(usdAmount, targetCurrency);
 
     private static string GetRegion(string countryCode) => countryCode switch
     {

@@ -1,6 +1,8 @@
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Routsky.Api.Configuration;
 
 namespace Routsky.Api.Services;
 
@@ -13,12 +15,20 @@ public class GeminiFlightPriceProvider : IFlightPriceProvider
 {
     private readonly Kernel _kernel;
     private readonly ILogger<GeminiFlightPriceProvider> _logger;
+    private readonly FlightDefaults _flightDefaults;
+    private readonly GeminiSettings _geminiSettings;
     private readonly Dictionary<string, (int Minutes, int CostUsd)> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public GeminiFlightPriceProvider(Kernel kernel, ILogger<GeminiFlightPriceProvider> logger)
+    public GeminiFlightPriceProvider(
+        Kernel kernel,
+        ILogger<GeminiFlightPriceProvider> logger,
+        IOptions<FlightDefaults> flightDefaults,
+        IOptions<GeminiSettings> geminiSettings)
     {
         _kernel = kernel;
         _logger = logger;
+        _flightDefaults = flightDefaults.Value;
+        _geminiSettings = geminiSettings.Value;
     }
 
     public async Task<FlightEstimate?> EstimateAsync(string originCode, string destinationCode, DateTime? departureDate = null)
@@ -39,7 +49,7 @@ Respond ONLY with JSON, no markdown: {{""minutes"": N, ""costUsd"": N}}");
 
         var settings = new PromptExecutionSettings
         {
-            ExtensionData = new Dictionary<string, object> { { "temperature", 0.1 } }
+            ExtensionData = new Dictionary<string, object> { { "temperature", _geminiSettings.Temperature } }
         };
 
         try
@@ -61,7 +71,7 @@ Respond ONLY with JSON, no markdown: {{""minutes"": N, ""costUsd"": N}}");
             }
 
             var minutes = parsed.Minutes;
-            var costUsd = parsed.CostUsd > 0 ? parsed.CostUsd : 300;
+            var costUsd = parsed.CostUsd > 0 ? parsed.CostUsd : _flightDefaults.SingleFallbackCostUsd;
             _cache[key] = (minutes, costUsd);
             return new FlightEstimate(minutes, costUsd, "gemini");
         }
@@ -92,10 +102,10 @@ Respond ONLY with JSON, no markdown: {{""minutes"": N, ""costUsd"": N}}");
         var chatService = _kernel.GetRequiredService<IChatCompletionService>();
         var settings = new PromptExecutionSettings
         {
-            ExtensionData = new Dictionary<string, object> { { "temperature", 0.1 }, { "topP", 0.9 } }
+            ExtensionData = new Dictionary<string, object> { { "temperature", _geminiSettings.Temperature }, { "topP", _geminiSettings.TopP } }
         };
 
-        const int chunkSize = 15;
+        var chunkSize = _flightDefaults.GeminiBatchChunkSize;
         var chunks = uncached.Chunk(chunkSize).ToList();
 
         foreach (var chunk in chunks)
@@ -130,7 +140,7 @@ Respond STRICTLY with a JSON array, no markdown wrapping, no explanation:
                         if (!string.IsNullOrEmpty(est.Origin) && !string.IsNullOrEmpty(est.Destination) && est.Minutes > 0)
                         {
                             var key = $"{est.Origin.ToUpperInvariant()}-{est.Destination.ToUpperInvariant()}";
-                            chunkResults[key] = (est.Minutes, est.CostUsd > 0 ? est.CostUsd : 300);
+                            chunkResults[key] = (est.Minutes, est.CostUsd > 0 ? est.CostUsd : _flightDefaults.SingleFallbackCostUsd);
                         }
                     }
                 }
@@ -142,7 +152,7 @@ Respond STRICTLY with a JSON array, no markdown wrapping, no explanation:
                 {
                     var key = $"{route.Origin}-{route.Destination}";
                     // Fallback: Realistic default assigning $250 and 180m depending on the chunk failure
-                    chunkResults[key] = (180, 250);
+                    chunkResults[key] = (_flightDefaults.FallbackFlightMinutes, _flightDefaults.BatchFallbackCostUsd);
                 }
             }
 
@@ -151,7 +161,7 @@ Respond STRICTLY with a JSON array, no markdown wrapping, no explanation:
                 _cache[kvp.Key] = kvp.Value;
             }
 
-            await Task.Delay(2000);
+            await Task.Delay(_flightDefaults.GeminiBatchDelayMs);
         }
 
         _logger.LogInformation("[GeminiClient] Cached {Count}/{Total} flight estimates from Gemini batch",

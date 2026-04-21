@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Routsky.Api.Data;
-using Routsky.Api.DTOs;
 using Routsky.Api.Services;
 
 namespace Routsky.Api.Controllers;

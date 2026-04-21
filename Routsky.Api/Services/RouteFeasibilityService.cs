@@ -8,15 +8,15 @@ namespace Routsky.Api.Services;
 /// Flight data sourced from HybridFlightPriceService (TK + Gemini).
 /// Visa data sourced from TravelBuddyApiService (live API).
 /// </summary>
-public class RouteFeasibilityService
+public class RouteFeasibilityService : IRouteFeasibilityService
 {
     private readonly TravelBuddyApiService _travelBuddy;
-    private readonly HybridFlightPriceService _flightService;
+    private readonly IHybridFlightPriceService _flightService;
     private readonly ILogger<RouteFeasibilityService> _logger;
 
     public RouteFeasibilityService(
         TravelBuddyApiService travelBuddy,
-        HybridFlightPriceService flightService,
+        IHybridFlightPriceService flightService,
         ILogger<RouteFeasibilityService> logger)
     {
         _travelBuddy = travelBuddy;

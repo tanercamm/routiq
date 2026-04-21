@@ -7,9 +7,9 @@ namespace Routsky.Api.Controllers;
 [Route("api/flights")]
 public class FlightController : ControllerBase
 {
-    private readonly RouteFeasibilityService _feasibility;
+    private readonly IRouteFeasibilityService _feasibility;
 
-    public FlightController(RouteFeasibilityService feasibility)
+    public FlightController(IRouteFeasibilityService feasibility)
     {
         _feasibility = feasibility;
     }

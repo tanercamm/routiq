@@ -1,5 +1,12 @@
 import axios from 'axios';
-import type { RouteRequest, RouteResponse } from '../types';
+import type {
+    GlobalVisaMapResponse,
+    GroupShortlistRoute,
+    RouteRequest,
+    RouteResponse,
+    VoteShortlistRequest,
+    VoteShortlistResponse,
+} from '../types';
 
 export const BASE_URL = 'https://routsky-api-prod.onrender.com/api';
 
@@ -139,5 +146,37 @@ export const changePassword = async (passwords: { currentPassword?: string, newP
 export const getAnalytics = async () => {
     const url = getApiUrl('/analytics');
     const response = await api.get(url);
+    return response.data;
+};
+
+export const getGlobalVisaMap = async (passportCode: string): Promise<GlobalVisaMapResponse> => {
+    const safeCode = passportCode.trim().toUpperCase();
+    const url = getApiUrl(`/visa/global-map/${encodeURIComponent(safeCode)}`);
+    const response = await api.get<GlobalVisaMapResponse>(url);
+    return response.data;
+};
+
+export const getGroupShortlist = async (groupId: string): Promise<GroupShortlistRoute[]> => {
+    const url = getApiUrl(`/groups/${encodeURIComponent(groupId)}/shortlist`);
+    const response = await api.get<GroupShortlistRoute[]>(url);
+    return response.data;
+};
+
+export const voteShortlistRoute = async (
+    groupId: string,
+    shortlistRouteId: string,
+    payload: VoteShortlistRequest
+): Promise<VoteShortlistResponse> => {
+    const url = getApiUrl(`/groups/${encodeURIComponent(groupId)}/shortlist/${encodeURIComponent(shortlistRouteId)}/vote`);
+    const response = await api.post<VoteShortlistResponse>(url, payload);
+    return response.data;
+};
+
+export const clearShortlistVote = async (
+    groupId: string,
+    shortlistRouteId: string,
+): Promise<VoteShortlistResponse> => {
+    const url = getApiUrl(`/groups/${encodeURIComponent(groupId)}/shortlist/${encodeURIComponent(shortlistRouteId)}/vote`);
+    const response = await api.delete<VoteShortlistResponse>(url);
     return response.data;
 };

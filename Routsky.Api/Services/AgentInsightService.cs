@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Routsky.Api.Services
 {
-    public class AgentInsightService
+    public class AgentInsightService : IAgentInsightService
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<AgentInsightService> _logger;

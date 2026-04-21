@@ -17,6 +17,7 @@ public class TravelBuddyApiService
     private readonly string _apiKey;
     private readonly string _baseUrl;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
+    private const int GlobalMapEnrichmentCap = 72;
 
     public TravelBuddyApiService(
         HttpClient httpClient,
@@ -59,6 +60,22 @@ public class TravelBuddyApiService
         public List<string> Yellow { get; set; } = new();
         [JsonPropertyName("red")]
         public List<string> Red { get; set; } = new();
+    }
+
+    public class GlobalVisaCountryStatus
+    {
+        public string Status { get; set; } = "Unknown";
+        public string Source { get; set; } = "map";
+        public string? RawRuleName { get; set; }
+        public string? RawColor { get; set; }
+        public int? DurationDays { get; set; }
+    }
+
+    public class GlobalVisaMapResponse
+    {
+        public string PassportCode { get; set; } = "";
+        public DateTime GeneratedAtUtc { get; set; }
+        public Dictionary<string, GlobalVisaCountryStatus> Countries { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -204,6 +221,63 @@ public class TravelBuddyApiService
     }
 
     /// <summary>
+    /// Returns global visa map classifications for one passport.
+    /// Uses map endpoint for breadth + selective per-country enrichment for edge statuses.
+    /// </summary>
+    public async Task<GlobalVisaMapResponse> GetGlobalVisaStatusesAsync(string passportCode)
+    {
+        passportCode = passportCode.ToUpperInvariant();
+        var globalCacheKey = $"visaglobal:{passportCode}";
+
+        if (_cache.TryGetValue(globalCacheKey, out GlobalVisaMapResponse? cached) && cached != null)
+            return cached;
+
+        var map = await GetVisaMapAsync(passportCode);
+        var countries = BuildBaselineCountries(map);
+
+        var enrichmentTargets = map.Red
+            .Concat(map.Yellow)
+            .Concat(map.Blue)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Select(c => c.ToUpperInvariant())
+            .Distinct()
+            .Take(GlobalMapEnrichmentCap)
+            .ToList();
+
+        foreach (var destinationCode in enrichmentTargets)
+        {
+            var check = await CheckVisaAsync(passportCode, destinationCode);
+            var enriched = BuildEnrichedStatus(check);
+
+            if (!countries.TryGetValue(destinationCode, out var existing))
+            {
+                countries[destinationCode] = enriched;
+                continue;
+            }
+
+            // Keep baseline unless enrichment found stricter/more informative status.
+            if (ShouldReplaceStatus(existing.Status, enriched.Status))
+                countries[destinationCode] = enriched;
+            else
+            {
+                existing.RawRuleName ??= check.RuleName;
+                existing.RawColor ??= check.Color;
+                existing.DurationDays ??= check.DurationDays;
+            }
+        }
+
+        var response = new GlobalVisaMapResponse
+        {
+            PassportCode = passportCode,
+            GeneratedAtUtc = DateTime.UtcNow,
+            Countries = countries
+        };
+
+        _cache.Set(globalCacheKey, response, CacheTtl);
+        return response;
+    }
+
+    /// <summary>
     /// Maps Travel Buddy color codes to our internal VisaRequirement-compatible strings.
     /// green → VisaFree, blue → EVisa/OnArrival, yellow → EVisa, red → Required
     /// </summary>
@@ -243,6 +317,120 @@ public class TravelBuddyApiService
         return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(c => c.ToUpperInvariant())
             .ToList();
+    }
+
+    private static Dictionary<string, GlobalVisaCountryStatus> BuildBaselineCountries(VisaMapResult map)
+    {
+        var countries = new Dictionary<string, GlobalVisaCountryStatus>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var code in map.Green.Where(static c => !string.IsNullOrWhiteSpace(c)))
+        {
+            countries[code] = new GlobalVisaCountryStatus
+            {
+                Status = "VisaFree",
+                Source = "map",
+                RawColor = "green",
+                RawRuleName = "Visa Free"
+            };
+        }
+
+        foreach (var code in map.Blue.Where(static c => !string.IsNullOrWhiteSpace(c)))
+        {
+            countries[code] = new GlobalVisaCountryStatus
+            {
+                Status = "EVisaOrOnArrival",
+                Source = "map",
+                RawColor = "blue",
+                RawRuleName = "e-Visa or Visa on Arrival"
+            };
+        }
+
+        foreach (var code in map.Yellow.Where(static c => !string.IsNullOrWhiteSpace(c)))
+        {
+            countries[code] = new GlobalVisaCountryStatus
+            {
+                Status = "EVisaOrOnArrival",
+                Source = "map",
+                RawColor = "yellow",
+                RawRuleName = "e-Visa or Visa on Arrival"
+            };
+        }
+
+        foreach (var code in map.Red.Where(static c => !string.IsNullOrWhiteSpace(c)))
+        {
+            countries[code] = new GlobalVisaCountryStatus
+            {
+                Status = "VisaRequired",
+                Source = "map",
+                RawColor = "red",
+                RawRuleName = "Visa Required"
+            };
+        }
+
+        return countries;
+    }
+
+    private static GlobalVisaCountryStatus BuildEnrichedStatus(VisaCheckResult check)
+    {
+        var normalizedColor = (check.Color ?? string.Empty).ToLowerInvariant();
+        var ruleText = $"{check.RuleName} {check.SecondaryRule} {check.Notes}".Trim();
+        var lowerRule = ruleText.ToLowerInvariant();
+
+        var status = normalizedColor switch
+        {
+            "green" => "VisaFree",
+            "blue" => "EVisaOrOnArrival",
+            "yellow" => "EVisaOrOnArrival",
+            "red" => "VisaRequired",
+            _ => "Unknown"
+        };
+
+        if (ContainsAny(lowerRule, "ban", "banned", "refused", "refusal", "forbidden", "prohibited", "entry not allowed", "denied"))
+        {
+            status = "BannedOrRefused";
+        }
+        else if (ContainsAny(lowerRule, "e-visa", "evisa", "visa on arrival", "on arrival", "eta", "electronic travel authorization"))
+        {
+            status = "EVisaOrOnArrival";
+        }
+        else if (check.DurationDays.HasValue && check.DurationDays.Value > 0 && check.DurationDays.Value <= 90)
+        {
+            status = "ConditionalOrTimeLimited";
+        }
+        else if (ContainsAny(lowerRule, "permit", "registration", "pre-approval", "approval required", "conditions apply", "must show", "proof of"))
+        {
+            status = "ConditionalOrTimeLimited";
+        }
+
+        return new GlobalVisaCountryStatus
+        {
+            Status = status,
+            Source = "enriched-check",
+            RawRuleName = string.IsNullOrWhiteSpace(ruleText) ? null : ruleText,
+            RawColor = check.Color,
+            DurationDays = check.DurationDays
+        };
+    }
+
+    private static bool ContainsAny(string source, params string[] terms) =>
+        terms.Any(term => source.Contains(term, StringComparison.OrdinalIgnoreCase));
+
+    private static bool ShouldReplaceStatus(string existing, string enriched)
+    {
+        if (string.Equals(existing, enriched, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (string.Equals(enriched, "BannedOrRefused", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (string.Equals(existing, "Unknown", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (string.Equals(existing, "VisaRequired", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(enriched, "ConditionalOrTimeLimited", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
     }
 
     private static VisaCheckResult ResolveFromMap(VisaMapResult map, string passport, string destination)

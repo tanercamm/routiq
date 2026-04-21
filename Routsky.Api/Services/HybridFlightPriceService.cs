@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+using Routsky.Api.Configuration;
 
 namespace Routsky.Api.Services;
 
@@ -7,24 +9,27 @@ namespace Routsky.Api.Services;
 /// Strategy: Try Turkish Airlines first (real prices), fall back to Gemini (AI estimates).
 /// All results are cached in-memory to avoid redundant calls.
 /// </summary>
-public class HybridFlightPriceService
+public class HybridFlightPriceService : IHybridFlightPriceService
 {
     private readonly TurkishAirlinesFlightPriceProvider _tkProvider;
     private readonly GeminiFlightPriceProvider _geminiProvider;
     private readonly IMemoryCache _cache;
     private readonly ILogger<HybridFlightPriceService> _logger;
+    private readonly FlightDefaults _flightDefaults;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(6);
 
     public HybridFlightPriceService(
         TurkishAirlinesFlightPriceProvider tkProvider,
         GeminiFlightPriceProvider geminiProvider,
         IMemoryCache cache,
-        ILogger<HybridFlightPriceService> logger)
+        ILogger<HybridFlightPriceService> logger,
+        IOptions<FlightDefaults> flightDefaults)
     {
         _tkProvider = tkProvider;
         _geminiProvider = geminiProvider;
         _cache = cache;
         _logger = logger;
+        _flightDefaults = flightDefaults.Value;
     }
 
     public async Task<FlightEstimate> EstimateAsync(string originCode, string destinationCode, DateTime? departureDate = null)
@@ -56,7 +61,7 @@ public class HybridFlightPriceService
         _logger.LogWarning("[HybridFlight] All providers failed for {Origin}→{Dest}, using defaults",
             originCode, destinationCode);
 
-        var fallback = new FlightEstimate(180, 500, "fallback");
+        var fallback = new FlightEstimate(_flightDefaults.FallbackFlightMinutes, _flightDefaults.FallbackCostUsd, "fallback");
         _cache.Set(key, fallback, CacheTtl);
         return fallback;
     }

@@ -38,6 +38,10 @@ public class RoutskyDbContext : DbContext
     public DbSet<CityIntelligence> CityIntelligences { get; set; }
     public DbSet<VisaMatrix> VisaMatrices { get; set; }
 
+    // ── Accommodation & Attractions ──
+    public DbSet<AccommodationZone> AccommodationZones { get; set; }
+    public DbSet<Attraction> Attractions { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -195,6 +199,16 @@ public class RoutskyDbContext : DbContext
         // RouteStops ordering within a route
         modelBuilder.Entity<RouteStop>()
             .HasIndex(rs => new { rs.SavedRouteId, rs.StopOrder })
+            .IsUnique();
+
+        // ── Accommodation Zones ──
+        modelBuilder.Entity<AccommodationZone>()
+            .HasIndex(az => new { az.CityName, az.ZoneName })
+            .IsUnique();
+
+        // ── Attractions ──
+        modelBuilder.Entity<Attraction>()
+            .HasIndex(a => new { a.CityName, a.Name })
             .IsUnique();
     }
 }

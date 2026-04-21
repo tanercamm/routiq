@@ -9,9 +9,9 @@ namespace Routsky.Api.Controllers;
 [Route("api/agent")]
 public class AgentProxyController : ControllerBase
 {
-    private readonly AgentInsightService _agentInsightService;
+    private readonly IAgentInsightService _agentInsightService;
 
-    public AgentProxyController(AgentInsightService agentInsightService)
+    public AgentProxyController(IAgentInsightService agentInsightService)
     {
         _agentInsightService = agentInsightService;
     }

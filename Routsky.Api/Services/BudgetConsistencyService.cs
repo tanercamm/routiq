@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Options;
+using Routsky.Api.Configuration;
+
 namespace Routsky.Api.Services;
 
 /// <summary>
@@ -5,8 +8,19 @@ namespace Routsky.Api.Services;
 /// Stateless service. Input (TicketPrice, UserBudget) → Output (PercentageUsed, Severity).
 /// Pure math — no external calls.
 /// </summary>
-public class BudgetConsistencyService
+public class BudgetConsistencyService : IBudgetConsistencyService
 {
+    private readonly int _defaultBudgetUsd;
+    private readonly ILogger<BudgetConsistencyService> _logger;
+
+    public BudgetConsistencyService(
+        IOptions<BudgetDefaults> budgetDefaults,
+        ILogger<BudgetConsistencyService> logger)
+    {
+        _defaultBudgetUsd = budgetDefaults.Value.DefaultBudgetUsd;
+        _logger = logger;
+    }
+
     public class BudgetResult
     {
         public int TicketPrice { get; set; }
@@ -20,8 +34,7 @@ public class BudgetConsistencyService
 
     public BudgetResult Analyse(int ticketPrice, int userBudget)
     {
-        // Default budget if user hasn't set one
-        var effectiveBudget = userBudget > 0 ? userBudget : 1500;
+        var effectiveBudget = userBudget > 0 ? userBudget : _defaultBudgetUsd;
 
         var percentageUsed = (double)ticketPrice / effectiveBudget * 100.0;
         var severity = percentageUsed switch

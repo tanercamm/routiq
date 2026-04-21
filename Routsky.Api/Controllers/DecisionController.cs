@@ -3,6 +3,8 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Routsky.Api.Configuration;
 using Routsky.Api.Data;
 using Routsky.Api.Services;
 
@@ -14,17 +16,22 @@ namespace Routsky.Api.Controllers;
 public class DecisionController : ControllerBase
 {
     private readonly RoutskyDbContext _context;
-    private readonly DecisionSolverService _solver;
+    private readonly IDecisionSolverService _solver;
+    private readonly int _defaultBudgetUsd;
 
     private static readonly JsonSerializerOptions CamelCase = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public DecisionController(RoutskyDbContext context, DecisionSolverService solver)
+    public DecisionController(
+        RoutskyDbContext context,
+        IDecisionSolverService solver,
+        IOptions<BudgetDefaults> budgetDefaults)
     {
         _context = context;
         _solver = solver;
+        _defaultBudgetUsd = budgetDefaults.Value.DefaultBudgetUsd;
     }
 
     [HttpGet("groups/{id}/participants")]
@@ -51,7 +58,7 @@ public class DecisionController : ControllerBase
                 originMissing = string.IsNullOrWhiteSpace(m.User.Profile!.Origin)
                     && (m.User.Profile.Passports == null || m.User.Profile.Passports.Count == 0),
                 passports = m.User.Profile.Passports ?? new List<string>(),
-                budget = m.User.Profile.Budget > 0 ? m.User.Profile.Budget : 1500
+                budget = m.User.Profile.Budget > 0 ? m.User.Profile.Budget : _defaultBudgetUsd
             })
             .ToListAsync();
 

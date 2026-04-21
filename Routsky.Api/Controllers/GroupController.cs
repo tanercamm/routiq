@@ -2,6 +2,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Routsky.Api.Configuration;
 using Routsky.Api.Data;
 using Routsky.Api.Entities;
 
@@ -13,10 +15,17 @@ namespace Routsky.Api.Controllers;
 public class GroupController : ControllerBase
 {
     private readonly RoutskyDbContext _context;
+    private readonly int _defaultBudgetUsd;
+    private readonly InviteCodeSettings _inviteCodeSettings;
 
-    public GroupController(RoutskyDbContext context)
+    public GroupController(
+        RoutskyDbContext context,
+        IOptions<BudgetDefaults> budgetDefaults,
+        IOptions<InviteCodeSettings> inviteCodeSettings)
     {
         _context = context;
+        _defaultBudgetUsd = budgetDefaults.Value.DefaultBudgetUsd;
+        _inviteCodeSettings = inviteCodeSettings.Value;
     }
 
     public class CreateGroupRequest
@@ -124,7 +133,18 @@ public class GroupController : ControllerBase
             .OrderByDescending(g => g.CreatedAt)
             .ToListAsync();
 
-        // Step 3: Project to DTOs in memory (safe for JSON ValueConverter columns)
+        // Step 3: Pre-fetch all shortlist routes for these groups in a single query (avoids N+1)
+        var allShortlists = await _context.GroupShortlistRoutes
+            .AsNoTracking()
+            .Where(sr => groupIds.Contains(sr.GroupId))
+            .Include(sr => sr.Votes)
+            .ToListAsync();
+
+        var shortlistByGroup = allShortlists
+            .GroupBy(sr => sr.GroupId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Step 4: Project to DTOs in memory (safe for JSON ValueConverter columns)
         var result = groups.Select(g => new
         {
             id = g.Id,
@@ -139,17 +159,13 @@ public class GroupController : ControllerBase
                 origin = !string.IsNullOrWhiteSpace(m.User?.Profile?.Origin)
                     ? m.User!.Profile!.Origin
                     : (m.User?.Profile?.Passports?.FirstOrDefault() ?? ""),
-                budget = (m.User?.Profile?.Budget ?? 0) > 0 ? m.User!.Profile!.Budget : 1500
+                budget = (m.User?.Profile?.Budget ?? 0) > 0 ? m.User!.Profile!.Budget : _defaultBudgetUsd
             }).ToList(),
             isEngineReady = g.Members.Count > 1,
             avatars = g.Members.Select(m =>
                 m.User?.AvatarUrl ?? $"https://ui-avatars.com/api/?name={Uri.EscapeDataString($"{m.User?.FirstName} {m.User?.LastName}".Trim())}&background=random&color=fff"
             ).ToList(),
-            shortlist = _context.GroupShortlistRoutes
-                .AsNoTracking()
-                .Where(sr => sr.GroupId == g.Id)
-                .Include(sr => sr.Votes)
-                .ToList()
+            shortlist = (shortlistByGroup.TryGetValue(g.Id, out var routes) ? routes : new List<GroupShortlistRoute>())
                 .Select(sr => new
                 {
                     id = sr.Id,
@@ -199,13 +215,13 @@ public class GroupController : ControllerBase
     [HttpPost("{groupId}/shortlist")]
     public async Task<IActionResult> AddToShortlist(Guid groupId, [FromBody] AddShortlistRequest request)
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!int.TryParse(userIdStr, out int userId)) return Unauthorized();
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
 
         if (string.IsNullOrWhiteSpace(request.DestinationId))
             return BadRequest("Destination is required.");
 
-        var isMember = await _context.TravelGroupMembers.AnyAsync(m => m.GroupId == groupId && m.UserId == userId);
+        var isMember = await IsGroupMemberAsync(groupId, userId.Value);
         if (!isMember) return Forbid();
 
         var existing = await _context.GroupShortlistRoutes.FirstOrDefaultAsync(s => s.GroupId == groupId && s.DestinationId == request.DestinationId);
@@ -216,7 +232,7 @@ public class GroupController : ControllerBase
             Id = Guid.NewGuid(),
             GroupId = groupId,
             DestinationId = request.DestinationId,
-            AddedByUserId = userId,
+            AddedByUserId = userId.Value,
             AddedAt = DateTime.UtcNow
         };
 
@@ -228,25 +244,51 @@ public class GroupController : ControllerBase
 
     public class VoteRequest
     {
-        public bool IsUpvote { get; set; }
+        public bool? IsUpvote { get; set; }
+        public string? VoteType { get; set; }
+    }
+
+    [HttpGet("{groupId}/shortlist")]
+    public async Task<IActionResult> GetShortlist(Guid groupId)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var isMember = await IsGroupMemberAsync(groupId, userId.Value);
+        if (!isMember) return Forbid();
+
+        var shortlist = await _context.GroupShortlistRoutes
+            .AsNoTracking()
+            .Where(s => s.GroupId == groupId)
+            .Include(s => s.Votes)
+            .OrderByDescending(s => s.AddedAt)
+            .ToListAsync();
+
+        var response = shortlist.Select(sr => ToShortlistDto(sr, userId.Value));
+        return Ok(response);
     }
 
     [HttpPost("{groupId}/shortlist/{routeId}/vote")]
+    [HttpPost("{groupId}/routes/{routeId}/vote")]
     public async Task<IActionResult> VoteShortlistRoute(Guid groupId, Guid routeId, [FromBody] VoteRequest request)
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!int.TryParse(userIdStr, out int userId)) return Unauthorized();
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
 
-        var isMember = await _context.TravelGroupMembers.AnyAsync(m => m.GroupId == groupId && m.UserId == userId);
+        var isMember = await IsGroupMemberAsync(groupId, userId.Value);
         if (!isMember) return Forbid();
+
+        var parsedVote = ParseVote(request);
+        if (parsedVote == null)
+            return BadRequest(new { message = "Provide voteType=Upvote|Downvote or isUpvote=true|false." });
 
         var route = await _context.GroupShortlistRoutes.FirstOrDefaultAsync(r => r.Id == routeId && r.GroupId == groupId);
         if (route == null) return NotFound("Route not found in shortlist.");
 
-        var existingVote = await _context.RouteVotes.FirstOrDefaultAsync(v => v.GroupShortlistRouteId == routeId && v.UserId == userId);
+        var existingVote = await _context.RouteVotes.FirstOrDefaultAsync(v => v.GroupShortlistRouteId == routeId && v.UserId == userId.Value);
         if (existingVote != null)
         {
-            existingVote.IsUpvote = request.IsUpvote;
+            existingVote.IsUpvote = parsedVote.Value;
             existingVote.VotedAt = DateTime.UtcNow;
         }
         else
@@ -255,22 +297,121 @@ public class GroupController : ControllerBase
             {
                 Id = Guid.NewGuid(),
                 GroupShortlistRouteId = routeId,
-                UserId = userId,
-                IsUpvote = request.IsUpvote,
+                UserId = userId.Value,
+                IsUpvote = parsedVote.Value,
                 VotedAt = DateTime.UtcNow
             });
         }
 
         await _context.SaveChangesAsync();
-        return Ok(new { message = "Vote cast successfully" });
+
+        var updated = await _context.GroupShortlistRoutes
+            .AsNoTracking()
+            .Include(s => s.Votes)
+            .FirstAsync(s => s.Id == routeId);
+
+        return Ok(new
+        {
+            message = "Vote cast successfully",
+            route = ToShortlistDto(updated, userId.Value)
+        });
     }
 
-    private static string GenerateInviteCode()
+    [HttpDelete("{groupId}/shortlist/{routeId}/vote")]
+    [HttpDelete("{groupId}/routes/{routeId}/vote")]
+    public async Task<IActionResult> ClearShortlistVote(Guid groupId, Guid routeId)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var isMember = await IsGroupMemberAsync(groupId, userId.Value);
+        if (!isMember) return Forbid();
+
+        var route = await _context.GroupShortlistRoutes
+            .Include(r => r.Votes)
+            .FirstOrDefaultAsync(r => r.Id == routeId && r.GroupId == groupId);
+        if (route == null) return NotFound("Route not found in shortlist.");
+
+        var existingVote = route.Votes.FirstOrDefault(v => v.UserId == userId.Value);
+        if (existingVote == null)
+        {
+            return Ok(new
+            {
+                message = "No existing vote to clear",
+                route = ToShortlistDto(route, userId.Value)
+            });
+        }
+
+        _context.RouteVotes.Remove(existingVote);
+        await _context.SaveChangesAsync();
+
+        var updated = await _context.GroupShortlistRoutes
+            .AsNoTracking()
+            .Include(s => s.Votes)
+            .FirstAsync(s => s.Id == routeId);
+
+        return Ok(new
+        {
+            message = "Vote cleared successfully",
+            route = ToShortlistDto(updated, userId.Value)
+        });
+    }
+
+    private string GenerateInviteCode()
     {
         const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         var random = new Random();
-        var code = new string(Enumerable.Repeat(chars, 4)
+        var code = new string(Enumerable.Repeat(chars, _inviteCodeSettings.CodeLength)
             .Select(s => s[random.Next(s.Length)]).ToArray());
-        return "RTQ-" + code;
+        return _inviteCodeSettings.Prefix + code;
+    }
+
+    private int? GetCurrentUserId()
+    {
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(userIdStr, out var userId) ? userId : null;
+    }
+
+    private Task<bool> IsGroupMemberAsync(Guid groupId, int userId) =>
+        _context.TravelGroupMembers.AnyAsync(m => m.GroupId == groupId && m.UserId == userId);
+
+    private static bool? ParseVote(VoteRequest request)
+    {
+        if (request.IsUpvote.HasValue) return request.IsUpvote.Value;
+        if (string.IsNullOrWhiteSpace(request.VoteType)) return null;
+
+        return request.VoteType.Trim().ToLowerInvariant() switch
+        {
+            "upvote" => true,
+            "downvote" => false,
+            _ => null
+        };
+    }
+
+    private static object ToShortlistDto(GroupShortlistRoute route, int currentUserId)
+    {
+        var upvoters = route.Votes.Where(v => v.IsUpvote).Select(v => v.UserId).Distinct().ToList();
+        var downvoters = route.Votes.Where(v => !v.IsUpvote).Select(v => v.UserId).Distinct().ToList();
+
+        return new
+        {
+            id = route.Id,
+            destinationId = route.DestinationId,
+            addedByUserId = route.AddedByUserId,
+            addedAt = route.AddedAt,
+            upvotes = upvoters.Count,
+            downvotes = downvoters.Count,
+            upvoterIds = upvoters,
+            downvoterIds = downvoters,
+            currentUserVote = route.Votes
+                .Where(v => v.UserId == currentUserId)
+                .Select(v => v.IsUpvote ? "Upvote" : "Downvote")
+                .FirstOrDefault(),
+            votes = route.Votes.Select(v => new
+            {
+                userId = v.UserId,
+                isUpvote = v.IsUpvote
+            })
+        };
     }
 }

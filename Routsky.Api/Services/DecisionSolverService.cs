@@ -1,9 +1,10 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Routsky.Api.Configuration;
 using Routsky.Api.Data;
 
 namespace Routsky.Api.Services;
@@ -13,22 +14,32 @@ namespace Routsky.Api.Services;
 /// Fetches member data → calls MCP atoms for facts → passes to Gemini Agent Brain for reasoning → picks winner with explanation.
 /// This is a true "Agent Brain" — it does NOT hardcode winners.
 /// </summary>
-public class DecisionSolverService
+public class DecisionSolverService : IDecisionSolverService
 {
     private readonly RoutskyDbContext _context;
-    private readonly RouteFeasibilityService _feasibility;
-    private readonly BudgetConsistencyService _budget;
-    private readonly TimeOverlapService _timeOverlap;
+    private readonly IRouteFeasibilityService _feasibility;
+    private readonly IBudgetConsistencyService _budget;
+    private readonly ITimeOverlapService _timeOverlap;
     private readonly Kernel _kernel;
     private readonly ILogger<DecisionSolverService> _logger;
+    private readonly BudgetDefaults _budgetDefaults;
+    private readonly CurrencyRates _currencyRates;
+    private readonly PrestigeMapping _prestigeMapping;
+    private readonly DiscoverDefaults _discoverDefaults;
+    private readonly GeminiSettings _geminiSettings;
 
     public DecisionSolverService(
         RoutskyDbContext context,
-        RouteFeasibilityService feasibility,
-        BudgetConsistencyService budget,
-        TimeOverlapService timeOverlap,
+        IRouteFeasibilityService feasibility,
+        IBudgetConsistencyService budget,
+        ITimeOverlapService timeOverlap,
         Kernel kernel,
-        ILogger<DecisionSolverService> logger)
+        ILogger<DecisionSolverService> logger,
+        IOptions<BudgetDefaults> budgetDefaults,
+        IOptions<CurrencyRates> currencyRates,
+        IOptions<PrestigeMapping> prestigeMapping,
+        IOptions<DiscoverDefaults> discoverDefaults,
+        IOptions<GeminiSettings> geminiSettings)
     {
         _context = context;
         _feasibility = feasibility;
@@ -36,6 +47,11 @@ public class DecisionSolverService
         _timeOverlap = timeOverlap;
         _kernel = kernel;
         _logger = logger;
+        _budgetDefaults = budgetDefaults.Value;
+        _currencyRates = currencyRates.Value;
+        _prestigeMapping = prestigeMapping.Value;
+        _discoverDefaults = discoverDefaults.Value;
+        _geminiSettings = geminiSettings.Value;
     }
 
     // ── DTOs ──
@@ -88,6 +104,13 @@ public class DecisionSolverService
         public string BudgetLimit { get; set; } = "Any";
         public string Duration { get; set; } = "Any";
         public string Region { get; set; } = "All";
+
+        /// <summary>Backpacker, Comfort, or Luxury. Null = no preference.</summary>
+        public string? TravelStyle { get; set; }
+        /// <summary>Relaxed, Moderate, or Fast. Null = Moderate.</summary>
+        public string? Pace { get; set; }
+        /// <summary>Historical, Nature, Entertainment, Museum, etc. Null = no preference.</summary>
+        public List<string>? Interests { get; set; }
     }
 
     public class MemberInfo
@@ -122,7 +145,7 @@ public class DecisionSolverService
             City: d.City,
             Country: d.Country,
             CountryCode: d.CountryCode,
-            PrestigeScore: (int)Math.Clamp(d.PopularityWeight * 50, 10, 100)
+            PrestigeScore: (int)Math.Clamp(d.PopularityWeight * _prestigeMapping.Multiplier, _prestigeMapping.MinScore, _prestigeMapping.MaxScore)
         )).ToList();
     }
 
@@ -181,9 +204,7 @@ public class DecisionSolverService
                 }
 
                 var currency = member.PreferredCurrency;
-                var convertedCost = feasibility.EstimatedCostUsd;
-                if (currency == "EUR") convertedCost = (int)(feasibility.EstimatedCostUsd * 0.95);
-                else if (currency == "TRY") convertedCost = (int)(feasibility.EstimatedCostUsd * 36.5);
+                var convertedCost = _currencyRates.Convert(feasibility.EstimatedCostUsd, currency);
 
                 rawTickets.Add(new
                 {
@@ -301,17 +322,24 @@ Respond STRICTLY with valid JSON, NO markdown. Do not wrap in ```json.
             try { feasibility = await _feasibility.AnalyseAsync(origin, code, passports, countryCode); }
             catch (Exception) { continue; }
 
-            double dailyCostUsd = 100 * (intelligence.CostOfLivingIndex / 100.0);
+            double dailyCostUsd = _discoverDefaults.DailyCostBaseUsd * (intelligence.CostOfLivingIndex / 100.0);
             double totalLandCost = dailyCostUsd * durationDays;
             double projectedTotalCost = feasibility.EstimatedCostUsd + totalLandCost;
             bool isVisaRequired = feasibility.VisaRequired;
             var visaType = feasibility.VisaType;
 
             var currency = origin == "SYD" ? "AUD" : origin == "BER" ? "EUR" : origin == "IST" ? "TRY" : "USD";
-            var convertedCost = feasibility.EstimatedCostUsd;
-            if (currency == "EUR") convertedCost = (int)(feasibility.EstimatedCostUsd * 0.95);
-            else if (currency == "TRY") convertedCost = (int)(feasibility.EstimatedCostUsd * 36.5);
-            else if (currency == "AUD") convertedCost = (int)(feasibility.EstimatedCostUsd * 1.5);
+            var convertedCost = _currencyRates.Convert(feasibility.EstimatedCostUsd, currency);
+
+            var accommodations = await _context.AccommodationZones
+                .Where(z => z.CityName == city)
+                .Select(z => new { z.ZoneName, z.Category, z.AverageNightlyCost })
+                .ToListAsync();
+
+            var cityAttractions = await _context.Attractions
+                .Where(a => a.CityName == city)
+                .Select(a => new { a.Name, a.Category, a.EstimatedCost, a.EstimatedDurationInHours })
+                .ToListAsync();
 
             factsList.Add(new
             {
@@ -322,7 +350,9 @@ Respond STRICTLY with valid JSON, NO markdown. Do not wrap in ```json.
                 FlightTimeMinutes = feasibility.FlightTimeMinutes,
                 VisaRequired = isVisaRequired,
                 SafetyIndex = intelligence.SafetyIndex,
-                PrestigeScore = prestigeScore
+                PrestigeScore = prestigeScore,
+                AccommodationZones = accommodations,
+                Attractions = cityAttractions
             });
 
             storedTickets[code] = new List<MemberTicket> { new MemberTicket
@@ -338,33 +368,71 @@ Respond STRICTLY with valid JSON, NO markdown. Do not wrap in ```json.
                 VisaType = visaType,
                 VisaRequired = isVisaRequired,
                 BudgetSeverity = projectedTotalCost > maxBudget ? "over" : "comfortable",
-                BudgetPercentUsed = maxBudget < 10000 ? (projectedTotalCost / maxBudget) * 100 : 50
+                BudgetPercentUsed = maxBudget < _discoverDefaults.MaxBudgetCap ? (projectedTotalCost / maxBudget) * 100 : _discoverDefaults.DefaultBudgetPercentUsed
             }};
         }
 
+        var travelStyle = request.TravelStyle ?? "Any";
+        var pace = request.Pace ?? "Moderate";
+        var interests = request.Interests is { Count: > 0 }
+            ? string.Join(", ", request.Interests)
+            : "Any";
+
         var prompt = $@"
-ROLE: Solo travel decision engine. TERMINAL-STYLE OUTPUT ONLY.
+ROLE: Solo travel decision engine with preference-aware reasoning. TERMINAL-STYLE OUTPUT ONLY.
 STRICT OUTPUT RULES: No greetings, no salutations, no filler phrases, no conversational tone. Zero ""Hello"", ""I've reviewed"", ""I'm excited"", ""Great news"". Write like a flight operations terminal — direct, factual, concise.
 
-Constraints: Budget ≤ ${maxBudget}, Passports: {string.Join(",", passports)}, Duration: {request.Duration}.
+═══ USER CONSTRAINTS ═══
+Budget: ≤ ${maxBudget} total trip cost
+Passports: {string.Join(",", passports)}
+Duration: {request.Duration} ({durationDays} days)
 
-Raw Facts:
+═══ USER PREFERENCES ═══
+TravelStyle: {travelStyle}
+  → Map to AccommodationZone categories: Backpacker=Budget zones, Comfort=Mid-Range zones, Luxury=Luxury zones. ""Any"" = no preference.
+Pace: {pace}
+  → Relaxed = favor cities with fewer but longer attractions (≥2h each). Fast = favor cities with many short attractions. Moderate = balanced.
+Interests: {interests}
+  → Match against Attraction.Category values in each city's data: Historical, Museum, Nature, Entertainment. ""Any"" = no preference.
+
+═══ RAW FACTS (per candidate) ═══
+Each candidate includes: flight cost, total trip cost, visa status, safety index, prestige, AccommodationZones (with Category and NightlyCost), and Attractions (with Category, Cost, DurationInHours).
+
 {JsonSerializer.Serialize(factsList)}
 
-Decision Rules:
-1. Eliminate destinations requiring Visa when VisaRequired = true.
-2. Prioritize staying within total trip budget (EstimatedTotalTripCostUsd).
-3. Pick the most logical winner balancing cost, flight time, SafetyIndex, and prestige.
+═══ MANDATORY 3-STEP REASONING ═══
 
-Explanation MUST be 2-4 sentences, max 150 words. State the winner, the key metric that decided it, and one reason runners-up lost. No bullet points, no numbering.
+STEP 1 — HARD ELIMINATION:
+Discard any destination where:
+  (a) VisaRequired = true, OR
+  (b) EstimatedTotalTripCostUsd > {maxBudget}.
+Record every eliminated destination and reason in EliminatedReasons.
 
+STEP 2 — PREFERENCE SCORING (survivors only):
+For each surviving destination, compute a rational composite score (0-100) considering:
+  (a) Budget efficiency: lower EstimatedTotalTripCostUsd relative to budget cap = higher score.
+  (b) TravelStyle alignment: if TravelStyle != ""Any"", check AccommodationZones array. A city with zones matching the mapped category scores higher. No matching zones = penalty.
+  (c) Interest alignment: if Interests != ""Any"", count how many of the user's Interests appear in the city's Attractions[].Category values. More matches = higher score. Zero matches = significant penalty.
+  (d) Pace fit: if Pace=""Relaxed"", prefer cities with fewer attractions of longer duration. If Pace=""Fast"", prefer cities with many attractions. Moderate = neutral.
+  (e) SafetyIndex and PrestigeScore as tiebreakers.
+  (f) Flight time: shorter is better, but secondary to preference alignment.
+
+STEP 3 — WINNER SELECTION:
+Pick the destination with the highest composite score. In the Explanation, you MUST cite:
+  - At least one specific Attraction by name that matches the user's Interests (if Interests != ""Any"" and data exists).
+  - The AccommodationZone category that matches TravelStyle (if TravelStyle != ""Any"" and data exists).
+  - The concrete metric that separated the winner from the runner-up.
+If no accommodation/attraction data exists for the winner, state this explicitly and justify using other metrics.
+
+═══ OUTPUT FORMAT ═══
+Explanation MUST be 2-4 sentences, max 200 words. Cite specific attraction names and zone categories from the data.
 ALL fields below are REQUIRED for Winner AND every Alternative. Do not omit City, Country, AvgCostUsd, or AvgFlightTime.
 Respond STRICTLY in JSON, NO markdown wrapping. Do not wrap in ```json.
 {{
   ""Winner"": {{ ""DestinationCode"": ""XYZ"", ""City"": ""CityName"", ""Country"": ""CountryName"", ""CompositeScore"": 95, ""AvgCostUsd"": 1000, ""AvgFlightTime"": ""2h 30m"" }},
   ""Alternatives"": [ {{ ""DestinationCode"": ""ABC"", ""City"": ""CityName"", ""Country"": ""CountryName"", ""CompositeScore"": 85, ""AvgCostUsd"": 1200, ""AvgFlightTime"": ""3h"" }} ],
-  ""Explanation"": ""Direct factual reasoning. No filler."",
-  ""EliminatedReasons"": {{ ""DEF"": ""Over budget"", ""GHI"": ""Visa required"" }}
+  ""Explanation"": ""Direct factual reasoning citing specific attractions and zones."",
+  ""EliminatedReasons"": {{ ""DEF"": ""Over budget ($X > ${maxBudget})"", ""GHI"": ""Visa required"" }}
 }}
 ";
         return await ExecuteAgentPrompt(prompt, storedTickets, candidateDestinations);
@@ -386,7 +454,7 @@ Respond STRICTLY in JSON, NO markdown wrapping. Do not wrap in ```json.
 
             var executionSettings = new PromptExecutionSettings
             {
-                ExtensionData = new Dictionary<string, object> { { "temperature", 0.1 }, { "topP", 0.9 } }
+                ExtensionData = new Dictionary<string, object> { { "temperature", _geminiSettings.Temperature }, { "topP", _geminiSettings.TopP } }
             };
 
             var response = await chatService.GetChatMessageContentAsync(history, executionSettings);
@@ -526,7 +594,7 @@ Respond STRICTLY in JSON, NO markdown wrapping. Do not wrap in ```json.
                 Name = name,
                 Origin = resolvedOrigin,
                 Passports = passports ?? new List<string>(),
-                Budget = budget > 0 ? budget : 1500,
+                Budget = budget > 0 ? budget : _budgetDefaults.DefaultBudgetUsd,
                 PreferredCurrency = m.User.Profile?.PreferredCurrency ?? "USD"
             });
         }
@@ -544,12 +612,4 @@ Respond STRICTLY in JSON, NO markdown wrapping. Do not wrap in ```json.
         return string.IsNullOrWhiteSpace(cleaned) ? text.Trim() : cleaned;
     }
 
-    private async Task<string> GetRegionForCountryCodeAsync(string countryCode)
-    {
-        var destination = await _context.Destinations
-            .Where(d => d.CountryCode == countryCode)
-            .Select(d => d.Region)
-            .FirstOrDefaultAsync();
-        return destination ?? "Other";
-    }
 }

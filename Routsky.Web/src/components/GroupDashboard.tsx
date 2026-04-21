@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Trash2, Copy, Check } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, Trash2, Copy, Check, ThumbsUp, ThumbsDown, RefreshCw, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { countryNames } from '../utils/countryMapper';
-import { runDecisionEngine } from '../api/routskyApi';
+import { clearShortlistVote, getGroupShortlist, runDecisionEngine, voteShortlistRoute } from '../api/routskyApi';
+import type { GroupShortlistRoute, VoteType } from '../types';
 
 // ── Types: Agent Decision Result (from MCP backend) ──
 interface MemberTicket {
@@ -65,10 +66,28 @@ const GroupDashboard = ({ allGroups, selectedGroupId, onBack, deleteGroup }: any
     const [isCalculating, setIsCalculating] = useState(false);
     const [decisionResult, setDecisionResult] = useState<DecisionResult | null>(null);
     const [decisionError, setDecisionError] = useState<string | null>(null);
+    const [shortlist, setShortlist] = useState<GroupShortlistRoute[]>([]);
+    const [shortlistLoading, setShortlistLoading] = useState(false);
+    const [shortlistError, setShortlistError] = useState<string | null>(null);
+    const [votingRouteId, setVotingRouteId] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const { user: currentUser } = useAuth();
 
     const group = allGroups?.find((g: any) => g.id === selectedGroupId);
+
+    const loadShortlist = useCallback(async () => {
+        if (!selectedGroupId) return;
+        setShortlistLoading(true);
+        setShortlistError(null);
+        try {
+            const data = await getGroupShortlist(selectedGroupId);
+            setShortlist(data);
+        } catch (err: any) {
+            setShortlistError(err?.response?.data?.message ?? 'Could not fetch shortlist.');
+        } finally {
+            setShortlistLoading(false);
+        }
+    }, [selectedGroupId]);
 
     // Restore persisted decision on mount
     useEffect(() => {
@@ -77,6 +96,10 @@ const GroupDashboard = ({ allGroups, selectedGroupId, onBack, deleteGroup }: any
             if (cached) setDecisionResult(cached);
         }
     }, [selectedGroupId]);
+
+    useEffect(() => {
+        loadShortlist();
+    }, [loadShortlist]);
 
     // CRASH PROTECTION
     if (!group) return <div className="p-8 text-white text-center mt-12 text-sm">Workspace not found.</div>;
@@ -112,6 +135,96 @@ const GroupDashboard = ({ allGroups, selectedGroupId, onBack, deleteGroup }: any
             setIsCalculating(false);
         }
     };
+
+    const updateLocalVote = (route: GroupShortlistRoute, userId: number, voteType: VoteType): GroupShortlistRoute => {
+        const upvoterIds = route.upvoterIds.filter(id => id !== userId);
+        const downvoterIds = route.downvoterIds.filter(id => id !== userId);
+
+        if (voteType === 'Upvote') upvoterIds.push(userId);
+        if (voteType === 'Downvote') downvoterIds.push(userId);
+
+        return {
+            ...route,
+            upvoterIds: Array.from(new Set(upvoterIds)),
+            downvoterIds: Array.from(new Set(downvoterIds)),
+            upvotes: Array.from(new Set(upvoterIds)).length,
+            downvotes: Array.from(new Set(downvoterIds)).length,
+            currentUserVote: voteType,
+            votes: [
+                ...route.votes.filter(v => v.userId !== userId),
+                { userId, isUpvote: voteType === 'Upvote' }
+            ]
+        };
+    };
+
+    const handleVote = async (routeId: string, voteType: VoteType) => {
+        if (!currentUser?.id || !selectedGroupId) return;
+
+        const previous = shortlist;
+        setVotingRouteId(routeId);
+        setShortlist(prev =>
+            prev.map(route => route.id === routeId ? updateLocalVote(route, currentUser.id, voteType) : route)
+        );
+
+        try {
+            const response = await voteShortlistRoute(selectedGroupId, routeId, { voteType });
+            setShortlist(prev => prev.map(route => route.id === routeId ? response.route : route));
+            setShortlistError(null);
+        } catch (err: any) {
+            setShortlist(previous);
+            setShortlistError(err?.response?.data?.message ?? 'Voting failed.');
+            await loadShortlist();
+        } finally {
+            setVotingRouteId(null);
+        }
+    };
+
+    const clearLocalVote = (route: GroupShortlistRoute, userId: number): GroupShortlistRoute => {
+        const upvoterIds = route.upvoterIds.filter(id => id !== userId);
+        const downvoterIds = route.downvoterIds.filter(id => id !== userId);
+
+        return {
+            ...route,
+            upvoterIds,
+            downvoterIds,
+            upvotes: upvoterIds.length,
+            downvotes: downvoterIds.length,
+            currentUserVote: undefined,
+            votes: route.votes.filter(v => v.userId !== userId)
+        };
+    };
+
+    const handleClearVote = async (routeId: string) => {
+        if (!currentUser?.id || !selectedGroupId) return;
+
+        const previous = shortlist;
+        setVotingRouteId(routeId);
+        setShortlist(prev =>
+            prev.map(route => route.id === routeId ? clearLocalVote(route, currentUser.id) : route)
+        );
+
+        try {
+            const response = await clearShortlistVote(selectedGroupId, routeId);
+            setShortlist(prev => prev.map(route => route.id === routeId ? response.route : route));
+            setShortlistError(null);
+        } catch (err: any) {
+            setShortlist(previous);
+            setShortlistError(err?.response?.data?.message ?? 'Could not clear vote.');
+            await loadShortlist();
+        } finally {
+            setVotingRouteId(null);
+        }
+    };
+
+    const findCandidateMeta = (destinationId: string): CandidateResult | null => {
+        if (!decisionResult) return null;
+        const normalized = destinationId.toUpperCase();
+        const candidates = [decisionResult.winner, ...decisionResult.alternatives];
+        return candidates.find(c => c.destinationCode.toUpperCase() === normalized) ?? null;
+    };
+
+    const getCurrencySymbol = (currency?: string) =>
+        currency === 'EUR' ? '€' : currency === 'TRY' ? '₺' : '$';
 
     // Avatar resolver
     const resolveAvatar = (member: any) => {
@@ -180,6 +293,102 @@ const GroupDashboard = ({ allGroups, selectedGroupId, onBack, deleteGroup }: any
 
                     {/* ═══ RIGHT COL: Engine + Results (compact) ═══ */}
                     <div className="lg:col-span-9 space-y-3">
+                        {/* Shortlist Voting */}
+                        <div className="bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-gray-800 p-3 rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wider">
+                                    Route Shortlist Voting
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                    {shortlistLoading && <span className="text-[10px] text-gray-400">Loading...</span>}
+                                    <button
+                                        onClick={loadShortlist}
+                                        disabled={shortlistLoading}
+                                        className="flex items-center gap-1 rounded-md border border-gray-200 dark:border-gray-700 px-2 py-1 text-[10px] font-semibold text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-300 disabled:opacity-60"
+                                    >
+                                        <RefreshCw size={11} className={shortlistLoading ? 'animate-spin' : ''} />
+                                        Refresh
+                                    </button>
+                                </div>
+                            </div>
+
+                            {shortlistError && (
+                                <div className="mb-2 text-[11px] text-red-500 bg-red-50 dark:bg-red-900/20 p-1.5 rounded border border-red-200 dark:border-red-800/50">
+                                    {shortlistError}
+                                </div>
+                            )}
+
+                            {!shortlistLoading && shortlist.length === 0 ? (
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                    No shortlisted routes yet. Add destinations to start group voting.
+                                </p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {shortlist.map(route => {
+                                        const candidate = findCandidateMeta(route.destinationId);
+                                        const isUpvoted = route.currentUserVote === 'Upvote';
+                                        const isDownvoted = route.currentUserVote === 'Downvote';
+                                        const currency = candidate?.memberTickets?.[0]?.currency;
+                                        return (
+                                            <div key={route.id} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 p-2.5">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div>
+                                                        <div className="text-xs font-bold text-gray-900 dark:text-gray-100">
+                                                            {candidate?.city ? `${candidate.city} (${route.destinationId})` : route.destinationId}
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                            {candidate
+                                                                ? `${candidate.country} • ${getCurrencySymbol(currency)}${candidate.avgConvertedCost || candidate.avgCostUsd} • ${candidate.avgFlightTime}`
+                                                                : 'No recent engine data for this route.'}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={() => handleVote(route.id, 'Upvote')}
+                                                            disabled={votingRouteId === route.id}
+                                                            className={`flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold transition-colors ${
+                                                                isUpvoted
+                                                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                                                    : 'bg-white text-gray-600 hover:text-emerald-600 dark:bg-gray-900/50 dark:text-gray-300'
+                                                            }`}
+                                                        >
+                                                            <ThumbsUp size={12} /> {route.upvotes}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleVote(route.id, 'Downvote')}
+                                                            disabled={votingRouteId === route.id}
+                                                            className={`flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold transition-colors ${
+                                                                isDownvoted
+                                                                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
+                                                                    : 'bg-white text-gray-600 hover:text-rose-600 dark:bg-gray-900/50 dark:text-gray-300'
+                                                            }`}
+                                                        >
+                                                            <ThumbsDown size={12} /> {route.downvotes}
+                                                        </button>
+                                                        {route.currentUserVote && (
+                                                            <button
+                                                                onClick={() => handleClearVote(route.id)}
+                                                                disabled={votingRouteId === route.id}
+                                                                className="flex items-center gap-1 rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1 text-[10px] font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white disabled:opacity-60"
+                                                                title="Clear my vote"
+                                                            >
+                                                                <X size={11} />
+                                                                Clear
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
+                                                    {candidate
+                                                        ? `AI reasoning: ${candidate.city} scored ${candidate.compositeScore}/100 with avg flight time ${candidate.avgFlightTime}.`
+                                                        : 'AI reasoning: No recent decision output available for this destination yet.'}
+                                                </p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
 
                         {/* Intersection Engine */}
                         <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-950/20 dark:to-blue-900/10 p-4 rounded-xl border border-indigo-100 dark:border-indigo-500/20 relative overflow-hidden">
