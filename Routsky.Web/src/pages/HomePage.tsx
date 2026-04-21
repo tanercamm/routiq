@@ -310,7 +310,8 @@ const GlobeView = memo(function GlobeView({ width, height, isLight }: GlobeViewP
 
 /* ─────────────────────────────────────────────────────────────
  *  VisaView — SELF-CONTAINED component for the 2D visa view.
- *  Has ZERO references to globeData, CityPoint, safety, cost.
+ *  Has ZERO references to globeData, CityPoint, safety, cost,
+ *  city nodes, or "Intelligence" cards. STRICTLY forbidden here.
  * ───────────────────────────────────────────────────────────── */
 
 interface VisaViewProps {
@@ -320,11 +321,15 @@ interface VisaViewProps {
 function VisaView({ isLight }: VisaViewProps) {
   return (
     <>
-      <div className="absolute inset-0 z-10 px-4 pb-6 pt-24 sm:px-6 lg:px-8">
+      {/* Map container — flex column that fills the full viewport below the HUD.
+          The inner VisaWorldMap uses `h-full flex-col` so the SVG grows to
+          fill whatever space remains after the legend. */}
+      <div className="absolute inset-0 z-10 flex flex-col px-4 pb-6 pt-28 sm:px-6 lg:px-8">
         <VisaWorldMap />
       </div>
 
-      {/* Visa-only HUD */}
+      {/* Visa-only HUD — title/subtitle only. No city intelligence, no safety,
+          no cost, no rings, no ghost tooltips. */}
       <div className="absolute top-6 left-6 z-20 pointer-events-none">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
           <div className="flex items-center gap-2 mb-1.5">
@@ -340,7 +345,7 @@ function VisaView({ isLight }: VisaViewProps) {
             </span>
           </h1>
           <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-500'} mt-2.5 max-w-[280px] leading-relaxed transition-colors`}>
-            Live visa intelligence powered by RapidAPI. Hover any country for visa details.
+            Live visa intelligence powered by RapidAPI. Hover any country for visa status.
           </p>
         </motion.div>
       </div>

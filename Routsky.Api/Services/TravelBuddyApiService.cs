@@ -31,7 +31,26 @@ public class TravelBuddyApiService
 
         _baseUrl = configuration["TravelBuddy:BaseUrl"] ?? "https://visa-requirement.p.rapidapi.com";
         var envVar = configuration["TravelBuddy:ApiKeyEnvVar"] ?? "TRAVELBUDDY_RAPIDAPI_KEY";
-        _apiKey = Environment.GetEnvironmentVariable(envVar) ?? "";
+        _apiKey = Environment.GetEnvironmentVariable(envVar)
+                  ?? configuration[$"TravelBuddy:ApiKey"]
+                  ?? "";
+
+        if (string.IsNullOrWhiteSpace(_apiKey))
+        {
+            _logger.LogError(
+                "[TravelBuddy] RapidAPI key NOT configured. Set env var '{EnvVar}' (or config 'TravelBuddy:ApiKey'). " +
+                "All visa lookups will return 'Unknown' until this is fixed.",
+                envVar);
+        }
+        else
+        {
+            var masked = _apiKey.Length <= 8
+                ? new string('*', _apiKey.Length)
+                : $"{_apiKey[..4]}...{_apiKey[^4..]}";
+            _logger.LogInformation(
+                "[TravelBuddy] RapidAPI configured. Host={Host}, Key={MaskedKey}",
+                new Uri(_baseUrl).Host, masked);
+        }
     }
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(_apiKey);
@@ -121,8 +140,10 @@ public class TravelBuddyApiService
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("[TravelBuddy] API returned {Status} for {Passport}→{Dest}",
-                    response.StatusCode, passportCode, destinationCode);
+                var body = await SafeReadBodyAsync(response);
+                _logger.LogWarning(
+                    "[TravelBuddy] /v2/visa/check returned {Status} for {Passport}→{Dest}. Body: {Body}",
+                    response.StatusCode, passportCode, destinationCode, body);
                 return FallbackResult(passportCode, destinationCode);
             }
 
@@ -187,8 +208,10 @@ public class TravelBuddyApiService
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("[TravelBuddy] Map API returned {Status} for {Passport}",
-                    response.StatusCode, passportCode);
+                var body = await SafeReadBodyAsync(response);
+                _logger.LogWarning(
+                    "[TravelBuddy] /v2/visa/map returned {Status} for {Passport}. Body: {Body}",
+                    response.StatusCode, passportCode, body);
                 return new VisaMapResult { PassportCode = passportCode };
             }
 
@@ -304,9 +327,24 @@ public class TravelBuddyApiService
                 System.Text.Encoding.UTF8,
                 "application/json")
         };
+        // RapidAPI auth headers — required on every call; ".Add" will throw if missing.
         request.Headers.Add("X-RapidAPI-Key", _apiKey);
         request.Headers.Add("X-RapidAPI-Host", new Uri(_baseUrl).Host);
         return request;
+    }
+
+    private static async Task<string> SafeReadBodyAsync(HttpResponseMessage response)
+    {
+        try
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            if (body.Length > 512) body = body[..512] + "…";
+            return body;
+        }
+        catch
+        {
+            return "<unreadable>";
+        }
     }
 
     private static List<string> ParseColorList(JsonElement colors, string colorKey)
