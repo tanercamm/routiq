@@ -242,7 +242,7 @@ export function VisaWorldMap({
     if (visaKeys.length === 0) {
       console.warn(
         `[VisaWorldMap] Visa map is EMPTY for passport ${passportCode}. ` +
-          `Likely the RapidAPI key is missing on the server (TRAVELBUDDY_RAPIDAPI_KEY).`,
+          `The server returned no visa classifications — check backend logs for details.`,
       );
       return;
     }

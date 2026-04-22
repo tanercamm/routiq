@@ -32,143 +32,32 @@ public class TravelBuddyApiService
         _baseUrl = configuration["TravelBuddy:BaseUrl"] ?? "https://visa-requirement.p.rapidapi.com";
 
         // ═══════════════════════════════════════════════════════════════════
-        // PHASE 1: Dump all environment variable keys that look relevant
-        //          (NEVER log values — only key names and lengths)
+        // KEY RESOLUTION — clean 3-source chain
+        // Priority: Render double-underscore → single-underscore → IConfiguration
         // ═══════════════════════════════════════════════════════════════════
-        try
-        {
-            var allEnvVars = Environment.GetEnvironmentVariables();
-            var relevantKeys = new List<string>();
-            foreach (System.Collections.DictionaryEntry entry in allEnvVars)
-            {
-                var key = entry.Key?.ToString() ?? "";
-                if (key.Contains("TRAVEL", StringComparison.OrdinalIgnoreCase) ||
-                    key.Contains("RAPID", StringComparison.OrdinalIgnoreCase) ||
-                    key.Contains("BUDDY", StringComparison.OrdinalIgnoreCase) ||
-                    key.Contains("VISA", StringComparison.OrdinalIgnoreCase))
-                {
-                    var valLen = (entry.Value?.ToString() ?? "").Length;
-                    relevantKeys.Add($"{key} (len={valLen})");
-                }
-            }
-            _logger.LogWarning(
-                "[TravelBuddy] ENV VAR SCAN — found {Count} relevant keys: [{Keys}]. Total env vars: {Total}",
-                relevantKeys.Count,
-                relevantKeys.Count > 0 ? string.Join(", ", relevantKeys) : "<none>",
-                allEnvVars.Count);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "[TravelBuddy] Failed to scan environment variables");
-        }
+        _apiKey = Environment.GetEnvironmentVariable("TRAVELBUDDY__RAPIDAPI__KEY")
+                ?? Environment.GetEnvironmentVariable("TRAVELBUDDY_RAPIDAPI_KEY")
+                ?? configuration["TravelBuddy:RapidApiKey"]
+                ?? string.Empty;
 
-        // ═══════════════════════════════════════════════════════════════════
-        // PHASE 2: Aggressive key resolution — every source and casing variant
-        // ═══════════════════════════════════════════════════════════════════
-        var attempts = new Dictionary<string, string?>(StringComparer.Ordinal)
-        {
-            // Render double-underscore variant (confirmed in production logs)
-            ["ENV:TRAVELBUDDY__RAPIDAPI__KEY"] =
-                Environment.GetEnvironmentVariable("TRAVELBUDDY__RAPIDAPI__KEY"),
-            // OS-level env var (exact casing)
-            ["ENV:TRAVELBUDDY_RAPIDAPI_KEY"] =
-                Environment.GetEnvironmentVariable("TRAVELBUDDY_RAPIDAPI_KEY"),
-            // OS-level env var (ProcessEnvironmentBlock — all-caps)
-            ["ENV:TRAVELBUDDY_RAPIDAPI_KEY(Process)"] =
-                Environment.GetEnvironmentVariable("TRAVELBUDDY_RAPIDAPI_KEY", EnvironmentVariableTarget.Process),
-            // IConfiguration flat key (EnvironmentVariables provider maps KEY=val → configuration["KEY"])
-            ["CFG:TRAVELBUDDY_RAPIDAPI_KEY"] =
-                configuration["TRAVELBUDDY_RAPIDAPI_KEY"],
-            // IConfiguration section-style (appsettings TravelBuddy:ApiKey or env TravelBuddy__ApiKey)
-            ["CFG:TravelBuddy:ApiKey"] =
-                configuration["TravelBuddy:ApiKey"],
-            // Double-underscore variant (Render may map : → __)
-            ["ENV:TravelBuddy__ApiKey"] =
-                Environment.GetEnvironmentVariable("TravelBuddy__ApiKey"),
-            // Custom env var name from appsettings
-            ["CFG:TravelBuddy:ApiKeyEnvVar→ENV"] =
-                ResolveCustomEnvVar(configuration),
-        };
-
-        // Log each attempt
-        foreach (var (label, val) in attempts)
-        {
-            _logger.LogWarning(
-                "[TravelBuddy] KEY PROBE {Label}: {Result}",
-                label,
-                string.IsNullOrWhiteSpace(val) ? "NULL/EMPTY" : $"FOUND (len={val.Length})");
-        }
-
-        // Pick the first non-empty value
-        _apiKey = attempts.Values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))
-                  ?? string.Empty;
-
-        // ═══════════════════════════════════════════════════════════════════
-        // PHASE 3: Last-resort case-insensitive scan of ALL env vars
-        // ═══════════════════════════════════════════════════════════════════
-        if (string.IsNullOrWhiteSpace(_apiKey))
-        {
-            _logger.LogWarning("[TravelBuddy] All standard probes returned null. Running case-insensitive env var scan...");
-            try
-            {
-                foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
-                {
-                    var key = entry.Key?.ToString() ?? "";
-                    if (key.Equals("TRAVELBUDDY_RAPIDAPI_KEY", StringComparison.OrdinalIgnoreCase) ||
-                        key.Equals("TRAVELBUDDY__RAPIDAPI__KEY", StringComparison.OrdinalIgnoreCase))
-                    {
-                        _apiKey = entry.Value?.ToString() ?? "";
-                        _logger.LogWarning(
-                            "[TravelBuddy] Case-insensitive scan HIT: actual key name = '{ActualKey}', len={Length}",
-                            key, _apiKey.Length);
-                        break;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[TravelBuddy] Case-insensitive env scan failed");
-            }
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
-        // PHASE 4: Final verdict
-        // ═══════════════════════════════════════════════════════════════════
-        _logger.LogWarning("TRAVELBUDDY API KEY LENGTH: {Length}", _apiKey?.Length ?? 0);
-
+        // ── Final verdict log (masked) ──
         if (string.IsNullOrWhiteSpace(_apiKey))
         {
             _logger.LogError(
-                "[TravelBuddy] CRITICAL: API key is NULL after exhaustive search. " +
-                "Visa lookups will return 'Unknown'. Set TRAVELBUDDY_RAPIDAPI_KEY in Render env vars.");
+                "[TravelBuddy] CRITICAL: API key is NULL/EMPTY after all sources. " +
+                "Visa lookups will fail. Set TRAVELBUDDY__RAPIDAPI__KEY in Render env vars.");
         }
         else
         {
             var masked = _apiKey.Length <= 8
                 ? new string('*', _apiKey.Length)
                 : $"{_apiKey[..4]}...{_apiKey[^4..]}";
-            _logger.LogWarning(
-                "[TravelBuddy] API key RESOLVED. Host={Host}, Key={MaskedKey}, Length={Length}",
+            _logger.LogInformation(
+                "[TravelBuddy] API key RESOLVED ✓  Host={Host}, Key={MaskedKey}, Length={Length}",
                 new Uri(_baseUrl).Host, masked, _apiKey.Length);
         }
     }
 
-    /// <summary>Resolve the custom env var name indirection from appsettings.</summary>
-    private static string? ResolveCustomEnvVar(IConfiguration configuration)
-    {
-        var customName = configuration["TravelBuddy:ApiKeyEnvVar"];
-        if (string.IsNullOrWhiteSpace(customName)) return null;
-        return Environment.GetEnvironmentVariable(customName);
-    }
-
-    private static string? FirstNonEmpty(params string?[] values)
-    {
-        foreach (var v in values)
-        {
-            if (!string.IsNullOrWhiteSpace(v)) return v;
-        }
-        return null;
-    }
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(_apiKey);
 
@@ -251,16 +140,26 @@ public class TravelBuddyApiService
 
         try
         {
+            _logger.LogInformation(
+                "[TravelBuddy] HTTP POST /v2/visa/check — Passport={Passport}, Dest={Dest}, KeyLen={KeyLen}",
+                passportCode, destinationCode, _apiKey.Length);
+
             var payload = new { passport = passportCode, destination = destinationCode };
             var request = CreateRequest("/v2/visa/check", payload);
             var response = await _http.SendAsync(request);
 
+            _logger.LogInformation(
+                "[TravelBuddy] /v2/visa/check RESPONSE: StatusCode={StatusCode} ({StatusInt})",
+                response.StatusCode, (int)response.StatusCode);
+
             if (!response.IsSuccessStatusCode)
             {
-                var body = await SafeReadBodyAsync(response);
-                _logger.LogWarning(
-                    "[TravelBuddy] /v2/visa/check returned {Status} for {Passport}→{Dest}. Body: {Body}",
-                    response.StatusCode, passportCode, destinationCode, body);
+                var errorBody = await SafeReadBodyAsync(response);
+                _logger.LogError(
+                    "[TravelBuddy] RapidAPI FAILED: {StatusCode} ({StatusInt}) — {Passport}→{Dest}. " +
+                    "Response body: {Body}",
+                    response.StatusCode, (int)response.StatusCode,
+                    passportCode, destinationCode, errorBody);
                 return FallbackResult(passportCode, destinationCode);
             }
 
@@ -287,14 +186,14 @@ public class TravelBuddyApiService
             }
 
             _cache.Set(cacheKey, result, CacheTtl);
-            _logger.LogInformation("[TravelBuddy] Visa check {Passport}→{Dest}: {Rule} ({Color})",
+            _logger.LogInformation("[TravelBuddy] Visa check OK: {Passport}→{Dest} = {Rule} ({Color})",
                 passportCode, destinationCode, result.RuleName, result.Color);
 
             return result;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[TravelBuddy] Failed to check visa for {Passport}→{Dest}", passportCode, destinationCode);
+            _logger.LogError(ex, "[TravelBuddy] EXCEPTION during visa check {Passport}→{Dest}", passportCode, destinationCode);
             return FallbackResult(passportCode, destinationCode);
         }
     }
@@ -319,20 +218,43 @@ public class TravelBuddyApiService
 
         try
         {
+            _logger.LogInformation(
+                "[TravelBuddy] HTTP POST /v2/visa/map — Passport={Passport}, KeyLen={KeyLen}, Host={Host}",
+                passportCode, _apiKey.Length, new Uri(_baseUrl).Host);
+
             var payload = new { passport = passportCode };
             var request = CreateRequest("/v2/visa/map", payload);
             var response = await _http.SendAsync(request);
 
+            _logger.LogInformation(
+                "[TravelBuddy] /v2/visa/map RESPONSE: StatusCode={StatusCode} ({StatusInt})",
+                response.StatusCode, (int)response.StatusCode);
+
             if (!response.IsSuccessStatusCode)
             {
-                var body = await SafeReadBodyAsync(response);
-                _logger.LogWarning(
-                    "[TravelBuddy] /v2/visa/map returned {Status} for {Passport}. Body: {Body}",
-                    response.StatusCode, passportCode, body);
+                var errorBody = await SafeReadBodyAsync(response);
+                var statusInt = (int)response.StatusCode;
+
+                _logger.LogError(
+                    "[TravelBuddy] RapidAPI FAILED on /v2/visa/map: {StatusCode} ({StatusInt}) — " +
+                    "Passport={Passport}. Response body: {Body}",
+                    response.StatusCode, statusInt, passportCode, errorBody);
+
+                // Propagate auth failures as exceptions so the controller returns
+                // a meaningful error to the frontend (not just empty data)
+                if (statusInt is 401 or 403)
+                {
+                    throw new HttpRequestException(
+                        $"RapidAPI auth failed ({statusInt}). Check API key validity and quota. Body: {errorBody}");
+                }
+
                 return new VisaMapResult { PassportCode = passportCode };
             }
 
             var json = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation(
+                "[TravelBuddy] /v2/visa/map raw response length={Len} chars", json.Length);
+
             var doc = JsonDocument.Parse(json);
             var data = doc.RootElement.GetProperty("data");
             var colors = data.GetProperty("colors");
@@ -348,14 +270,18 @@ public class TravelBuddyApiService
 
             _cache.Set(cacheKey, result, CacheTtl);
             _logger.LogInformation(
-                "[TravelBuddy] Visa map loaded for {Passport}: {Green} green, {Blue} blue, {Yellow} yellow, {Red} red",
+                "[TravelBuddy] Visa map OK for {Passport}: {Green} green, {Blue} blue, {Yellow} yellow, {Red} red",
                 passportCode, result.Green.Count, result.Blue.Count, result.Yellow.Count, result.Red.Count);
 
             return result;
         }
+        catch (HttpRequestException)
+        {
+            throw; // let auth failures propagate to controller
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[TravelBuddy] Failed to fetch visa map for {Passport}", passportCode);
+            _logger.LogError(ex, "[TravelBuddy] EXCEPTION during visa map fetch for {Passport}", passportCode);
             return new VisaMapResult { PassportCode = passportCode };
         }
     }

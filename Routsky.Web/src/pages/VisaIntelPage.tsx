@@ -91,10 +91,16 @@ export function VisaIntelPage() {
         const status = (err as { response?: { status?: number } })?.response?.status;
         const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
           ?.message;
-        const message =
-          status === 401
-            ? 'Sign in to load your visa intelligence map.'
-            : apiMessage ?? 'Failed to load visa intelligence map.';
+        let message: string;
+        if (status === 401) {
+          message = 'Sign in to load your visa intelligence map.';
+        } else if (status === 502) {
+          message = apiMessage ?? 'Visa API upstream error — check RapidAPI key/quota.';
+        } else if (status === 500) {
+          message = apiMessage ?? 'Internal server error while fetching visa data.';
+        } else {
+          message = apiMessage ?? 'Failed to load visa intelligence map.';
+        }
         if (active) {
           setVisaMap({});
           setError(message);
@@ -292,8 +298,8 @@ export function VisaIntelPage() {
 
         {showEmptyDataBanner && (
           <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-300">
-            No visa data for <span className="font-bold">{passportCode}</span> — check{' '}
-            <code className="text-amber-200">TRAVELBUDDY_RAPIDAPI_KEY</code>
+            No visa data returned for <span className="font-bold">{passportCode}</span> — the
+            visa API may be temporarily unavailable. Try again shortly.
           </div>
         )}
 
