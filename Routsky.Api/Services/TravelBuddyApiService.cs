@@ -14,7 +14,7 @@ public class TravelBuddyApiService
     private readonly HttpClient _http;
     private readonly IMemoryCache _cache;
     private readonly ILogger<TravelBuddyApiService> _logger;
-    private readonly string _apiKey;
+    private readonly string _apiKey = string.Empty;
     private readonly string _baseUrl;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
     private const int GlobalMapEnrichmentCap = 72;
@@ -31,63 +31,130 @@ public class TravelBuddyApiService
 
         _baseUrl = configuration["TravelBuddy:BaseUrl"] ?? "https://visa-requirement.p.rapidapi.com";
 
-        // Aggressive key resolution — OS-level env var is checked FIRST for production
-        // deployments (Render, Docker, etc.) where IConfiguration may not pick them up.
-        // 1) Direct OS-level environment variable (covers Render, Docker, systemd)
-        // 2) Flat config key (env var exposed via EnvironmentVariables provider)
-        // 3) Section-style override (TravelBuddy:ApiKey in appsettings)
-        // 4) Custom env-var name via TravelBuddy:ApiKeyEnvVar (legacy path)
-        var fromEnvDirect = Environment.GetEnvironmentVariable("TRAVELBUDDY_RAPIDAPI_KEY");
-        var fromConfigFlat = configuration["TRAVELBUDDY_RAPIDAPI_KEY"];
-        var fromConfigSection = configuration["TravelBuddy:ApiKey"];
-        var customEnvVarName = configuration["TravelBuddy:ApiKeyEnvVar"];
-        var fromCustomEnv = !string.IsNullOrWhiteSpace(customEnvVarName)
-            ? Environment.GetEnvironmentVariable(customEnvVarName)
-            : null;
+        // ═══════════════════════════════════════════════════════════════════
+        // PHASE 1: Dump all environment variable keys that look relevant
+        //          (NEVER log values — only key names and lengths)
+        // ═══════════════════════════════════════════════════════════════════
+        try
+        {
+            var allEnvVars = Environment.GetEnvironmentVariables();
+            var relevantKeys = new List<string>();
+            foreach (System.Collections.DictionaryEntry entry in allEnvVars)
+            {
+                var key = entry.Key?.ToString() ?? "";
+                if (key.Contains("TRAVEL", StringComparison.OrdinalIgnoreCase) ||
+                    key.Contains("RAPID", StringComparison.OrdinalIgnoreCase) ||
+                    key.Contains("BUDDY", StringComparison.OrdinalIgnoreCase) ||
+                    key.Contains("VISA", StringComparison.OrdinalIgnoreCase))
+                {
+                    var valLen = (entry.Value?.ToString() ?? "").Length;
+                    relevantKeys.Add($"{key} (len={valLen})");
+                }
+            }
+            _logger.LogWarning(
+                "[TravelBuddy] ENV VAR SCAN — found {Count} relevant keys: [{Keys}]. Total env vars: {Total}",
+                relevantKeys.Count,
+                relevantKeys.Count > 0 ? string.Join(", ", relevantKeys) : "<none>",
+                allEnvVars.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[TravelBuddy] Failed to scan environment variables");
+        }
 
-        _apiKey =
-            FirstNonEmpty(fromEnvDirect, fromConfigFlat, fromConfigSection, fromCustomEnv)
-            ?? string.Empty;
+        // ═══════════════════════════════════════════════════════════════════
+        // PHASE 2: Aggressive key resolution — every source and casing variant
+        // ═══════════════════════════════════════════════════════════════════
+        var attempts = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            // OS-level env var (exact casing)
+            ["ENV:TRAVELBUDDY_RAPIDAPI_KEY"] =
+                Environment.GetEnvironmentVariable("TRAVELBUDDY_RAPIDAPI_KEY"),
+            // OS-level env var (ProcessEnvironmentBlock — all-caps)
+            ["ENV:TRAVELBUDDY_RAPIDAPI_KEY(Process)"] =
+                Environment.GetEnvironmentVariable("TRAVELBUDDY_RAPIDAPI_KEY", EnvironmentVariableTarget.Process),
+            // IConfiguration flat key (EnvironmentVariables provider maps KEY=val → configuration["KEY"])
+            ["CFG:TRAVELBUDDY_RAPIDAPI_KEY"] =
+                configuration["TRAVELBUDDY_RAPIDAPI_KEY"],
+            // IConfiguration section-style (appsettings TravelBuddy:ApiKey or env TravelBuddy__ApiKey)
+            ["CFG:TravelBuddy:ApiKey"] =
+                configuration["TravelBuddy:ApiKey"],
+            // Double-underscore variant (Render may map : → __)
+            ["ENV:TravelBuddy__ApiKey"] =
+                Environment.GetEnvironmentVariable("TravelBuddy__ApiKey"),
+            // Custom env var name from appsettings
+            ["CFG:TravelBuddy:ApiKeyEnvVar→ENV"] =
+                ResolveCustomEnvVar(configuration),
+        };
 
-        string source =
-            !string.IsNullOrWhiteSpace(fromEnvDirect)     ? "Environment.GetEnvironmentVariable(\"TRAVELBUDDY_RAPIDAPI_KEY\")" :
-            !string.IsNullOrWhiteSpace(fromConfigFlat)    ? "configuration[\"TRAVELBUDDY_RAPIDAPI_KEY\"]" :
-            !string.IsNullOrWhiteSpace(fromConfigSection) ? "configuration[\"TravelBuddy:ApiKey\"]" :
-            !string.IsNullOrWhiteSpace(fromCustomEnv)     ? $"Environment.GetEnvironmentVariable(\"{customEnvVarName}\")" :
-                                                            "<none>";
+        // Log each attempt
+        foreach (var (label, val) in attempts)
+        {
+            _logger.LogWarning(
+                "[TravelBuddy] KEY PROBE {Label}: {Result}",
+                label,
+                string.IsNullOrWhiteSpace(val) ? "NULL/EMPTY" : $"FOUND (len={val.Length})");
+        }
 
-        // ── Simple key-length log for Render debugging ──
+        // Pick the first non-empty value
+        _apiKey = attempts.Values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))
+                  ?? string.Empty;
+
+        // ═══════════════════════════════════════════════════════════════════
+        // PHASE 3: Last-resort case-insensitive scan of ALL env vars
+        // ═══════════════════════════════════════════════════════════════════
+        if (string.IsNullOrWhiteSpace(_apiKey))
+        {
+            _logger.LogWarning("[TravelBuddy] All standard probes returned null. Running case-insensitive env var scan...");
+            try
+            {
+                foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
+                {
+                    var key = entry.Key?.ToString() ?? "";
+                    if (key.Equals("TRAVELBUDDY_RAPIDAPI_KEY", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _apiKey = entry.Value?.ToString() ?? "";
+                        _logger.LogWarning(
+                            "[TravelBuddy] Case-insensitive scan HIT: actual key name = '{ActualKey}', len={Length}",
+                            key, _apiKey.Length);
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[TravelBuddy] Case-insensitive env scan failed");
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // PHASE 4: Final verdict
+        // ═══════════════════════════════════════════════════════════════════
         _logger.LogWarning("TRAVELBUDDY API KEY LENGTH: {Length}", _apiKey?.Length ?? 0);
-
-        // ── Aggressive diagnostic log — ALWAYS fires on startup ──
-        _logger.LogWarning(
-            "[TravelBuddy] KEY DIAGNOSTIC — apiKey is {Status}. Key length: {Length}. " +
-            "Source: {Source}. " +
-            "EnvDirect={EnvDirectStatus}, ConfigFlat={ConfigFlatStatus}, ConfigSection={ConfigSectionStatus}",
-            string.IsNullOrWhiteSpace(_apiKey) ? "NULL/EMPTY" : "PRESENT",
-            _apiKey.Length,
-            source,
-            string.IsNullOrWhiteSpace(fromEnvDirect) ? "null" : $"len={fromEnvDirect!.Length}",
-            string.IsNullOrWhiteSpace(fromConfigFlat) ? "null" : $"len={fromConfigFlat!.Length}",
-            string.IsNullOrWhiteSpace(fromConfigSection) ? "null" : $"len={fromConfigSection!.Length}");
 
         if (string.IsNullOrWhiteSpace(_apiKey))
         {
             _logger.LogError(
-                "[TravelBuddy] RapidAPI key NOT configured. Checked: " +
-                "Environment.GetEnvironmentVariable(\"TRAVELBUDDY_RAPIDAPI_KEY\"), " +
-                "configuration[\"TRAVELBUDDY_RAPIDAPI_KEY\"], configuration[\"TravelBuddy:ApiKey\"]. " +
-                "All visa lookups will return 'Unknown' until this is fixed.");
+                "[TravelBuddy] CRITICAL: API key is NULL after exhaustive search. " +
+                "Visa lookups will return 'Unknown'. Set TRAVELBUDDY_RAPIDAPI_KEY in Render env vars.");
         }
         else
         {
             var masked = _apiKey.Length <= 8
                 ? new string('*', _apiKey.Length)
                 : $"{_apiKey[..4]}...{_apiKey[^4..]}";
-            _logger.LogInformation(
-                "[TravelBuddy] RapidAPI configured. Host={Host}, Key={MaskedKey}, Source={Source}",
-                new Uri(_baseUrl).Host, masked, source);
+            _logger.LogWarning(
+                "[TravelBuddy] API key RESOLVED. Host={Host}, Key={MaskedKey}, Length={Length}",
+                new Uri(_baseUrl).Host, masked, _apiKey.Length);
         }
+    }
+
+    /// <summary>Resolve the custom env var name indirection from appsettings.</summary>
+    private static string? ResolveCustomEnvVar(IConfiguration configuration)
+    {
+        var customName = configuration["TravelBuddy:ApiKeyEnvVar"];
+        if (string.IsNullOrWhiteSpace(customName)) return null;
+        return Environment.GetEnvironmentVariable(customName);
     }
 
     private static string? FirstNonEmpty(params string?[] values)

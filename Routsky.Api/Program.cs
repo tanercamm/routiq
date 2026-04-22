@@ -9,6 +9,11 @@ using Routsky.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── Explicitly ensure OS-level environment variables are loaded ──
+// WebApplicationBuilder adds this by default, but we force it to guarantee
+// Render/Docker env vars (e.g. TRAVELBUDDY_RAPIDAPI_KEY) are always ingested.
+builder.Configuration.AddEnvironmentVariables();
+
 // ── Configuration Options ──
 builder.Services.Configure<Routsky.Api.Configuration.BudgetDefaults>(builder.Configuration.GetSection(Routsky.Api.Configuration.BudgetDefaults.SectionName));
 builder.Services.Configure<Routsky.Api.Configuration.CurrencyRates>(builder.Configuration.GetSection(Routsky.Api.Configuration.CurrencyRates.SectionName));
@@ -50,8 +55,20 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddMemoryCache();
 
 // ── Travel Buddy API (Visa) ──
-builder.Services.AddHttpClient<TravelBuddyApiService>();
-builder.Services.AddSingleton<TravelBuddyApiService>();
+// CRITICAL: AddHttpClient registers as Transient. We need Singleton lifetime
+// so the cache and API key persist. Use the factory overload to get a properly
+// configured HttpClient from IHttpClientFactory while keeping singleton lifetime.
+builder.Services.AddHttpClient("TravelBuddyApi");
+builder.Services.AddSingleton<TravelBuddyApiService>(sp =>
+{
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    var client = factory.CreateClient("TravelBuddyApi");
+    return new TravelBuddyApiService(
+        client,
+        sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+        sp.GetRequiredService<IConfiguration>(),
+        sp.GetRequiredService<ILogger<TravelBuddyApiService>>());
+});
 
 // ── Flight Price Providers (Hybrid: Turkish Airlines + Gemini) ──
 builder.Services.AddHttpClient<TurkishAirlinesFlightPriceProvider>();
