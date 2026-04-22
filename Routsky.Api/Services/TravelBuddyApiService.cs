@@ -56,6 +56,9 @@ public class TravelBuddyApiService
             !string.IsNullOrWhiteSpace(fromCustomEnv)     ? $"Environment.GetEnvironmentVariable(\"{customEnvVarName}\")" :
                                                             "<none>";
 
+        // ── Simple key-length log for Render debugging ──
+        _logger.LogWarning("TRAVELBUDDY API KEY LENGTH: {Length}", _apiKey?.Length ?? 0);
+
         // ── Aggressive diagnostic log — ALWAYS fires on startup ──
         _logger.LogWarning(
             "[TravelBuddy] KEY DIAGNOSTIC — apiKey is {Status}. Key length: {Length}. " +

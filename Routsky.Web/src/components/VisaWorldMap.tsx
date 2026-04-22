@@ -2,10 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { geoNaturalEarth1, geoPath } from 'd3-geo';
 import type { Feature, FeatureCollection, Geometry, GeoJsonProperties } from 'geojson';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
-import { getGlobalVisaMap } from '../api/routskyApi';
-import { useAuth } from '../context/AuthContext';
 import type { GlobalVisaCountryStatus, VisaMapStatus } from '../types';
 
 /**
@@ -97,65 +93,41 @@ function getCountryName(feature: CountryFeature): string {
   return 'Unknown';
 }
 
-/** Convert a 2-letter ISO country code into its regional-indicator flag emoji. */
-function flagEmoji(code: string): string {
-  if (!code || code.length !== 2) return '';
-  const base = 0x1f1e6;
-  const A = 'A'.charCodeAt(0);
-  const up = code.toUpperCase();
-  return String.fromCodePoint(base + (up.charCodeAt(0) - A), base + (up.charCodeAt(1) - A));
+/* ─── Re-export helpers for the page-level sidebar ─── */
+export { STATUS_COLORS, STATUS_LABELS, HOME_FILL };
+export type { CountryFeature };
+export { getCountryCode };
+
+/* ─── Props accepted from the parent page ─── */
+export interface VisaWorldMapProps {
+  passportCode: string;
+  visaMap: Record<string, GlobalVisaCountryStatus>;
+  loading: boolean;
+  geoLoading: boolean;
+  worldFeatures: CountryFeature[];
+  setWorldFeatures: (features: CountryFeature[]) => void;
+  setGeoLoading: (v: boolean) => void;
+  setError: (msg: string | null) => void;
+  reloadKey: number;
 }
 
-/** Inline loader used while waiting on auth hydration, GeoJSON, or the visa API. */
-function LoadingShell({ label }: { label: string }) {
-  return (
-    <div className="flex h-full w-full flex-col gap-2 overflow-hidden">
-      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-2xl border border-slate-800/80 bg-[#0a1628] shadow-2xl">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#007AFF]/30 border-t-[#007AFF]" />
-          <div className="text-sm font-semibold tracking-wide text-blue-200">{label}</div>
-          <div className="text-[11px] tracking-[0.2em] text-gray-500 uppercase">
-            Routsky Visa Intelligence
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+/** Fixed SVG coordinate space. */
+const SVG_W = 800;
+const SVG_H = 500;
 
-export function VisaWorldMap() {
-  const { user, isAuthenticated } = useAuth();
-  const passports = useMemo(
-    () =>
-      (user?.passports ?? [])
-        .map(p => (typeof p === 'string' ? p.trim().toUpperCase() : ''))
-        .filter(Boolean),
-    [user?.passports],
-  );
-
-  const [passportCode, setPassportCode] = useState<string>(() => passports[0] ?? 'TR');
-  const [selectorOpen, setSelectorOpen] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  // Keep selected passport in sync with the user's list (e.g. late hydration from /auth/me).
-  useEffect(() => {
-    if (passports.length === 0) return;
-    if (!passports.includes(passportCode)) {
-      setPassportCode(passports[0]);
-    }
-  }, [passports, passportCode]);
-
+export function VisaWorldMap({
+  passportCode,
+  visaMap,
+  loading,
+  geoLoading,
+  worldFeatures,
+  setWorldFeatures,
+  setGeoLoading,
+  setError,
+  reloadKey,
+}: VisaWorldMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [worldFeatures, setWorldFeatures] = useState<CountryFeature[]>([]);
-  const [visaMap, setVisaMap] = useState<Record<string, GlobalVisaCountryStatus>>({});
-  const [loading, setLoading] = useState(true);
-  const [geoLoading, setGeoLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-
-  /** Fixed SVG coordinate space — the viewBox never changes. */
-  const SVG_W = 800;
-  const SVG_H = 500;
 
   // ── Load GeoJSON (re-runnable via reloadKey) ──
   useEffect(() => {
@@ -182,56 +154,20 @@ export function VisaWorldMap() {
     return () => {
       active = false;
     };
-  }, [reloadKey]);
+  }, [reloadKey, setGeoLoading, setWorldFeatures, setError]);
 
-  // ── Load visa status map whenever the passport changes (re-runnable via reloadKey) ──
-  useEffect(() => {
-    let active = true;
-    const loadVisaData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await getGlobalVisaMap(passportCode);
-        if (!active) return;
-        const countries = response?.countries ?? {};
-        const normalized: Record<string, GlobalVisaCountryStatus> = {};
-        for (const [code, value] of Object.entries(countries)) {
-          if (!code || !value) continue;
-          normalized[code.trim().toUpperCase()] = value;
-        }
-        setVisaMap(normalized);
-      } catch (err: unknown) {
-        console.error('[VisaWorldMap] Failed to load visa map', err);
-        const status = (err as { response?: { status?: number } })?.response?.status;
-        const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message;
-        const message =
-          status === 401
-            ? 'Sign in to load your visa intelligence map.'
-            : apiMessage ?? 'Failed to load visa intelligence map.';
-        if (active) {
-          setVisaMap({});
-          setError(message);
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    loadVisaData();
-    return () => {
-      active = false;
-    };
-  }, [passportCode, reloadKey]);
-
-  // ── Fixed projection — scale + translate tuned for 800×500 viewBox ──
-  const projection = useMemo(
-    () =>
-      geoNaturalEarth1()
-        .scale(150)
-        .translate([SVG_W / 2, SVG_H / 2]),
-    [],
-  );
+  // ── Projection: use fitSize() so the ENTIRE GeoJSON fits perfectly inside the SVG ──
+  const projection = useMemo(() => {
+    const proj = geoNaturalEarth1();
+    if (worldFeatures.length > 0) {
+      const fc: FeatureCollection = { type: 'FeatureCollection', features: worldFeatures };
+      proj.fitSize([SVG_W, SVG_H], fc);
+    } else {
+      // Sensible default before GeoJSON loads
+      proj.scale(150).translate([SVG_W / 2, SVG_H / 2]);
+    }
+    return proj;
+  }, [worldFeatures]);
   const path = useMemo(() => geoPath(projection), [projection]);
 
   const statusForFeature = (feature: CountryFeature): VisaMapStatus => {
@@ -275,9 +211,6 @@ export function VisaWorldMap() {
     );
   }, [geoLoading, loading, worldFeatures, visaMap, passportCode]);
 
-  const showEmptyDataBanner =
-    !geoLoading && !loading && !error && Object.keys(visaMap).length === 0;
-
   const handleMouseMove = (event: ReactMouseEvent<SVGPathElement>, feature: CountryFeature) => {
     setTooltip({
       x: event.clientX + 14,
@@ -289,210 +222,70 @@ export function VisaWorldMap() {
 
   const busy = geoLoading || loading;
 
-  const usePillSelector = passports.length > 0 && passports.length <= 3;
-  const useDropdown = passports.length > 3;
-
-  // Graceful fallback states — never allow the component to collapse to a blank screen.
-  if (isAuthenticated && !user) {
-    return <LoadingShell label="Loading your passport profile..." />;
-  }
-
   return (
-    <div className="flex h-full w-full flex-col gap-2 overflow-hidden">
-
-      {/* Compact single-line header */}
-      <div className="flex shrink-0 items-center justify-between px-1 py-0.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs font-black tracking-wide text-white whitespace-nowrap">Visa Intelligence</span>
-          <span className="text-slate-700 select-none">|</span>
-          <span className="text-[11px] font-semibold text-blue-300 whitespace-nowrap">
-            {flagEmoji(passportCode)} {passportCode}
-          </span>
-          {Object.keys(visaMap).length > 0 && (
-            <span className="text-[10px] text-gray-500 whitespace-nowrap">
-              · {Object.keys(visaMap).length} countries
-            </span>
-          )}
-        </div>
-        {busy && (
-          <span className="text-[10px] text-blue-400 animate-pulse whitespace-nowrap ml-2">
-            Syncing...
-          </span>
-        )}
-      </div>
-
-      {/* Map fills remaining space. `min-h-0` lets it shrink so the legend below
-          is never pushed out of the viewport. Error/empty banners float inside
-          the map as toasts so they never affect the layout. */}
-      <div
-        ref={containerRef}
-        className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800/80 bg-[#0a1628] shadow-2xl"
+    <div
+      ref={containerRef}
+      className="relative h-full w-full overflow-hidden rounded-2xl border border-slate-800/80 bg-[#0a1628] shadow-2xl"
+    >
+      <svg
+        width="100%"
+        height="100%"
+        viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+        preserveAspectRatio="xMidYMid meet"
+        className="absolute inset-0"
       >
-        {/* Floating error toast — absolute so it never pushes the map */}
-        {error && (
-          <div className="pointer-events-auto absolute left-3 top-3 z-20 flex max-w-xs items-center gap-2 rounded-lg border border-red-500/40 bg-[#0a1628]/95 px-3 py-1.5 text-xs text-red-300 shadow-xl backdrop-blur-sm">
-            <span className="flex-1 truncate">{error}</span>
-            <button
-              onClick={() => setReloadKey(k => k + 1)}
-              className="shrink-0 font-bold text-red-200 hover:text-white transition-colors"
-              title="Retry"
-            >
-              ↻
-            </button>
-          </div>
-        )}
+        <defs>
+          <filter id="home-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2.2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <rect x={0} y={0} width={SVG_W} height={SVG_H} fill="#071124" />
+        <g>
+          {orderedFeatures.map(feature => {
+            const d = path(feature);
+            if (!d) return null;
+            const code = getCountryCode(feature);
+            const isHome = !!passportCode && code === passportCode;
+            const status = statusForFeature(feature);
+            const fill = isHome ? HOME_FILL : STATUS_COLORS[status];
+            return (
+              <path
+                key={String(feature.id ?? code ?? getCountryName(feature))}
+                d={d}
+                fill={fill}
+                stroke={isHome ? '#FFFFFF' : '#0f172a'}
+                strokeWidth={isHome ? 1.4 : 0.4}
+                filter={isHome ? 'url(#home-glow)' : undefined}
+                onMouseMove={event => handleMouseMove(event, feature)}
+                onMouseLeave={() => setTooltip(null)}
+                style={{ transition: 'fill 160ms ease', cursor: 'pointer' }}
+              />
+            );
+          })}
+        </g>
+      </svg>
 
-        {/* Floating empty-data toast */}
-        {showEmptyDataBanner && (
-          <div className="pointer-events-none absolute left-3 top-3 z-20 max-w-xs rounded-lg border border-amber-500/40 bg-[#0a1628]/95 px-3 py-1.5 text-xs text-amber-300 shadow-xl backdrop-blur-sm">
-            No visa data for <span className="font-bold">{passportCode}</span> — check{' '}
-            <code className="text-amber-200">TRAVELBUDDY_RAPIDAPI_KEY</code>
-          </div>
-        )}
-        <svg
-          viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-          preserveAspectRatio="xMidYMid meet"
-          className="absolute inset-0 h-full w-full"
-        >
-          <defs>
-            <filter id="home-glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="2.2" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-          <rect x={0} y={0} width={SVG_W} height={SVG_H} fill="#071124" />
-          <g>
-            {orderedFeatures.map(feature => {
-              const d = path(feature);
-              if (!d) return null;
-              const code = getCountryCode(feature);
-              const isHome = !!passportCode && code === passportCode;
-              const status = statusForFeature(feature);
-              const fill = isHome ? HOME_FILL : STATUS_COLORS[status];
-              return (
-                <path
-                  key={String(feature.id ?? code ?? getCountryName(feature))}
-                  d={d}
-                  fill={fill}
-                  stroke={isHome ? '#FFFFFF' : '#0f172a'}
-                  strokeWidth={isHome ? 1.4 : 0.4}
-                  filter={isHome ? 'url(#home-glow)' : undefined}
-                  onMouseMove={event => handleMouseMove(event, feature)}
-                  onMouseLeave={() => setTooltip(null)}
-                  style={{ transition: 'fill 160ms ease', cursor: 'pointer' }}
-                />
-              );
-            })}
-          </g>
-        </svg>
-
-        {/* In-map loading overlay — shown only when there's nothing to see yet */}
-        {busy && worldFeatures.length === 0 && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#0a1628]/70 backdrop-blur-sm">
-            <div className="flex flex-col items-center gap-3 text-center">
-              <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#007AFF]/30 border-t-[#007AFF]" />
-              <div className="text-sm font-semibold tracking-wide text-blue-200">
-                Loading Visa Intelligence...
-              </div>
-              <div className="text-[10px] tracking-[0.2em] text-gray-500 uppercase">
-                {geoLoading ? 'Fetching world geometry' : `Passport ${passportCode}`}
-              </div>
+      {/* In-map loading overlay — shown only when there's nothing to see yet */}
+      {busy && worldFeatures.length === 0 && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#0a1628]/70 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#007AFF]/30 border-t-[#007AFF]" />
+            <div className="text-sm font-semibold tracking-wide text-blue-200">
+              Loading Visa Intelligence...
+            </div>
+            <div className="text-[10px] tracking-[0.2em] text-gray-500 uppercase">
+              {geoLoading ? 'Fetching world geometry' : `Passport ${passportCode}`}
             </div>
           </div>
-        )}
-
-        {/* Floating passport selector — top-right of the map */}
-        <div className="pointer-events-auto absolute top-3 right-3 z-20">
-          {usePillSelector && (
-            <div className="flex items-center gap-1 rounded-xl border border-slate-700/70 bg-[#0a1628]/90 p-1 shadow-lg backdrop-blur">
-              {passports.map(code => {
-                const active = code === passportCode;
-                return (
-                  <button
-                    key={code}
-                    onClick={() => setPassportCode(code)}
-                    className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold tracking-wide transition-colors ${
-                      active
-                        ? 'bg-[#007AFF] text-white ring-1 ring-white/30'
-                        : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                    }`}
-                    aria-pressed={active}
-                  >
-                    <span className="text-sm leading-none">{flagEmoji(code)}</span>
-                    <span>{code}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {useDropdown && (
-            <div className="relative">
-              <button
-                onClick={() => setSelectorOpen(o => !o)}
-                className="flex items-center gap-2 rounded-xl border border-slate-700/70 bg-[#0a1628]/90 px-3 py-1.5 text-[11px] font-bold tracking-wide text-white shadow-lg backdrop-blur hover:border-[#007AFF]/60"
-                aria-haspopup="listbox"
-                aria-expanded={selectorOpen}
-              >
-                <span className="text-sm leading-none">{flagEmoji(passportCode)}</span>
-                <span>{passportCode}</span>
-                <ChevronDown
-                  size={12}
-                  className={`transition-transform ${selectorOpen ? 'rotate-180' : ''}`}
-                />
-              </button>
-              <AnimatePresence>
-                {selectorOpen && (
-                  <motion.ul
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.14 }}
-                    role="listbox"
-                    className="absolute right-0 mt-2 max-h-64 w-40 overflow-auto rounded-xl border border-slate-700/70 bg-[#0a1628]/95 p-1 shadow-2xl backdrop-blur"
-                  >
-                    {passports.map(code => {
-                      const active = code === passportCode;
-                      return (
-                        <li key={code}>
-                          <button
-                            role="option"
-                            aria-selected={active}
-                            onClick={() => {
-                              setPassportCode(code);
-                              setSelectorOpen(false);
-                            }}
-                            className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[11px] font-bold tracking-wide transition-colors ${
-                              active
-                                ? 'bg-[#007AFF] text-white'
-                                : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                            }`}
-                          >
-                            <span className="text-sm leading-none">{flagEmoji(code)}</span>
-                            <span>{code}</span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </motion.ul>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-
-          {passports.length === 0 && (
-            <div className="rounded-xl border border-slate-700/70 bg-[#0a1628]/90 px-3 py-1.5 text-[11px] font-semibold text-amber-300 shadow-lg backdrop-blur">
-              Add a passport in Profile
-            </div>
-          )}
         </div>
-      </div>
+      )}
 
-      {/* Tooltip: STRICTLY country name + visa status only. No safety/cost/etc. */}
+      {/* Tooltip: STRICTLY country name + visa status only. */}
       {tooltip && (
         <div
           className="pointer-events-none fixed z-[1100] min-w-[160px] rounded-lg border border-slate-700 bg-[#050a18]/95 px-3 py-2 text-xs text-white shadow-2xl backdrop-blur"
@@ -508,36 +301,6 @@ export function VisaWorldMap() {
           </div>
         </div>
       )}
-
-      {/* Compact legend — single flex-wrap row */}
-      <div className="shrink-0 rounded-xl border border-slate-700/60 bg-[#071124]/80 px-3 py-2">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-gray-500 whitespace-nowrap">
-            Legend
-          </span>
-          <div className="flex items-center gap-1.5">
-            <span
-              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: HOME_FILL, boxShadow: `0 0 6px ${HOME_FILL}` }}
-            />
-            <span className="text-[10px] font-medium text-gray-300">Home</span>
-          </div>
-          {(Object.keys(STATUS_COLORS) as VisaMapStatus[]).map(status => (
-            <div key={status} className="flex items-center gap-1.5">
-              <span
-                className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{
-                  backgroundColor: STATUS_COLORS[status],
-                  boxShadow: `0 0 4px ${STATUS_COLORS[status]}60`,
-                }}
-              />
-              <span className="text-[10px] font-medium text-gray-300 whitespace-nowrap">
-                {STATUS_LABELS[status]}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
