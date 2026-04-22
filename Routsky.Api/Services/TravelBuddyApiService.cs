@@ -268,10 +268,22 @@ public class TravelBuddyApiService
                 Red = ParseColorList(colors, "red"),
             };
 
-            _cache.Set(cacheKey, result, CacheTtl);
+            var totalCountries = result.Green.Count + result.Blue.Count + result.Yellow.Count + result.Red.Count;
             _logger.LogInformation(
-                "[TravelBuddy] Visa map OK for {Passport}: {Green} green, {Blue} blue, {Yellow} yellow, {Red} red",
-                passportCode, result.Green.Count, result.Blue.Count, result.Yellow.Count, result.Red.Count);
+                "[TravelBuddy] Visa map OK for {Passport}: {Green} green, {Blue} blue, {Yellow} yellow, {Red} red (total={Total})",
+                passportCode, result.Green.Count, result.Blue.Count, result.Yellow.Count, result.Red.Count, totalCountries);
+
+            // Only cache successful responses with actual data — never cache empty/failed results
+            if (totalCountries > 0)
+            {
+                _cache.Set(cacheKey, result, CacheTtl);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "[TravelBuddy] Visa map for {Passport} returned 0 countries — NOT caching so next request retries",
+                    passportCode);
+            }
 
             return result;
         }
@@ -339,7 +351,21 @@ public class TravelBuddyApiService
             Countries = countries
         };
 
-        _cache.Set(globalCacheKey, response, CacheTtl);
+        // Only cache if we got meaningful data — never lock in an empty response
+        if (countries.Count > 0)
+        {
+            _cache.Set(globalCacheKey, response, CacheTtl);
+            _logger.LogInformation(
+                "[TravelBuddy] Global visa map cached for {Passport}: {Count} countries",
+                passportCode, countries.Count);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "[TravelBuddy] Global visa map for {Passport} has 0 countries — NOT caching",
+                passportCode);
+        }
+
         return response;
     }
 

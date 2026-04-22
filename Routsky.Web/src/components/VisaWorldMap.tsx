@@ -23,6 +23,16 @@ const STATUS_COLORS: Record<VisaMapStatus, string> = {
   Unknown: '#2E3A52',
 };
 
+/** Light-theme status colors — slightly muted for white backgrounds. */
+const STATUS_COLORS_LIGHT: Record<VisaMapStatus, string> = {
+  VisaFree: '#16A34A',
+  EVisaOrOnArrival: '#CA8A04',
+  ConditionalOrTimeLimited: '#EA580C',
+  VisaRequired: '#DC2626',
+  BannedOrRefused: '#374151',
+  Unknown: '#CBD5E1',
+};
+
 /** Distinct color applied to the active passport's home country. */
 const HOME_FILL = '#38BDF8';
 
@@ -111,6 +121,7 @@ export interface VisaWorldMapProps {
   setGeoLoading: (v: boolean) => void;
   setError: (msg: string | null) => void;
   reloadKey: number;
+  isLight?: boolean;
 }
 
 /**
@@ -138,11 +149,18 @@ export function VisaWorldMap({
   setGeoLoading,
   setError,
   reloadKey,
+  isLight = false,
 }: VisaWorldMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [isPanning, setIsPanning] = useState(false);
+
+  // Pick the correct palette based on theme
+  const palette = isLight ? STATUS_COLORS_LIGHT : STATUS_COLORS;
+  const mapBg = isLight ? '#EFF6FF' : '#071124';
+  const strokeColor = isLight ? '#94A3B8' : '#0f172a';
+  const homeStroke = isLight ? '#1E40AF' : '#FFFFFF';
 
   // ── Load GeoJSON (re-runnable via reloadKey) ──
   useEffect(() => {
@@ -270,8 +288,12 @@ export function VisaWorldMap({
 
   return (
     <div
-      className={`relative h-full w-full overflow-hidden rounded-2xl border border-slate-800/80 bg-[#071124] shadow-2xl ${
+      className={`relative h-full w-full overflow-hidden rounded-2xl border shadow-2xl ${
         isPanning ? 'cursor-grabbing' : 'cursor-grab'
+      } ${
+        isLight
+          ? 'border-gray-200 bg-blue-50/60'
+          : 'border-slate-800/80 bg-[#071124]'
       }`}
     >
       <svg
@@ -292,7 +314,7 @@ export function VisaWorldMap({
             </feMerge>
           </filter>
         </defs>
-        <rect x={0} y={0} width={SVG_W} height={SVG_H} fill="#071124" />
+        <rect x={0} y={0} width={SVG_W} height={SVG_H} fill={mapBg} />
 
         {/* All map paths go inside this <g> — d3-zoom transforms this group */}
         <g ref={gRef}>
@@ -302,13 +324,13 @@ export function VisaWorldMap({
             const code = getCountryCode(feature);
             const isHome = !!passportCode && code === passportCode;
             const status = statusForFeature(feature);
-            const fill = isHome ? HOME_FILL : STATUS_COLORS[status];
+            const fill = isHome ? HOME_FILL : palette[status];
             return (
               <path
                 key={String(feature.id ?? code ?? getCountryName(feature))}
                 d={d}
                 fill={fill}
-                stroke={isHome ? '#FFFFFF' : '#0f172a'}
+                stroke={isHome ? homeStroke : strokeColor}
                 strokeWidth={isHome ? 1.4 : 0.4}
                 filter={isHome ? 'url(#home-glow)' : undefined}
                 onMouseMove={event => handleMouseMove(event, feature)}
@@ -322,13 +344,17 @@ export function VisaWorldMap({
 
       {/* In-map loading overlay — shown only when there's nothing to see yet */}
       {busy && worldFeatures.length === 0 && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#0a1628]/70 backdrop-blur-sm">
+        <div
+          className={`pointer-events-none absolute inset-0 z-10 flex items-center justify-center backdrop-blur-sm ${
+            isLight ? 'bg-white/60' : 'bg-[#0a1628]/70'
+          }`}
+        >
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#007AFF]/30 border-t-[#007AFF]" />
-            <div className="text-sm font-semibold tracking-wide text-blue-200">
+            <div className={`text-sm font-semibold tracking-wide ${isLight ? 'text-blue-700' : 'text-blue-200'}`}>
               Loading Visa Intelligence...
             </div>
-            <div className="text-[10px] tracking-[0.2em] text-gray-500 uppercase">
+            <div className={`text-[10px] tracking-[0.2em] uppercase ${isLight ? 'text-gray-500' : 'text-gray-500'}`}>
               {geoLoading ? 'Fetching world geometry' : `Passport ${passportCode}`}
             </div>
           </div>
@@ -338,14 +364,18 @@ export function VisaWorldMap({
       {/* Tooltip: STRICTLY country name + visa status only. */}
       {tooltip && (
         <div
-          className="pointer-events-none fixed z-[1100] min-w-[160px] rounded-lg border border-slate-700 bg-[#050a18]/95 px-3 py-2 text-xs text-white shadow-2xl backdrop-blur"
+          className={`pointer-events-none fixed z-[1100] min-w-[160px] rounded-lg border px-3 py-2 text-xs shadow-2xl backdrop-blur ${
+            isLight
+              ? 'border-gray-200 bg-white/95 text-gray-900'
+              : 'border-slate-700 bg-[#050a18]/95 text-white'
+          }`}
           style={{ top: tooltip.y, left: tooltip.x }}
         >
           <div className="font-bold">{tooltip.countryName}</div>
-          <div className="flex items-center gap-2 text-gray-300">
+          <div className={`flex items-center gap-2 ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>
             <span
               className="inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: STATUS_COLORS[tooltip.status] }}
+              style={{ backgroundColor: palette[tooltip.status] }}
             />
             {STATUS_LABELS[tooltip.status]}
           </div>

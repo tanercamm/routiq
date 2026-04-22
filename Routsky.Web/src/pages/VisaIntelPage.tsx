@@ -24,13 +24,15 @@ function flagEmoji(code: string): string {
 }
 
 /** Inline loader used while waiting on auth hydration. */
-function LoadingShell({ label }: { label: string }) {
+function LoadingShell({ label, isLight }: { label: string; isLight: boolean }) {
   return (
     <div className="flex h-full w-full items-center justify-center">
       <div className="flex flex-col items-center gap-3 text-center">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#007AFF]/30 border-t-[#007AFF]" />
-        <div className="text-sm font-semibold tracking-wide text-blue-200">{label}</div>
-        <div className="text-[11px] tracking-[0.2em] text-gray-500 uppercase">
+        <div className={`text-sm font-semibold tracking-wide ${isLight ? 'text-blue-700' : 'text-blue-200'}`}>
+          {label}
+        </div>
+        <div className={`text-[11px] tracking-[0.2em] uppercase ${isLight ? 'text-gray-500' : 'text-gray-500'}`}>
           Routsky Visa Intelligence
         </div>
       </div>
@@ -144,7 +146,7 @@ export function VisaIntelPage() {
           isLight ? 'bg-[#F5F5F7]' : 'bg-[#020308]'
         }`}
       >
-        <LoadingShell label="Loading your passport profile..." />
+        <LoadingShell label="Loading your passport profile..." isLight={isLight} />
       </div>
     );
   }
@@ -158,7 +160,13 @@ export function VisaIntelPage() {
       {/* ══════════════════════════════════════════════
           LEFT SIDEBAR
           ══════════════════════════════════════════════ */}
-      <aside className="flex w-[420px] shrink-0 flex-col gap-5 overflow-y-auto border-r border-slate-800/60 bg-[#071124]/50 p-6 backdrop-blur-sm">
+      <aside
+        className={`flex w-[420px] shrink-0 flex-col gap-5 overflow-y-auto border-r p-6 backdrop-blur-sm ${
+          isLight
+            ? 'border-gray-200 bg-white/80'
+            : 'border-slate-800/60 bg-[#071124]/50'
+        }`}
+      >
 
         {/* ── Title + sync indicator ── */}
         <div className="flex items-center gap-3">
@@ -166,8 +174,10 @@ export function VisaIntelPage() {
             <Globe2 size={18} className="text-white" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-sm font-black tracking-wide text-white">Visa Intelligence</h1>
-            <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+            <h1 className={`text-sm font-black tracking-wide ${isLight ? 'text-gray-900' : 'text-white'}`}>
+              Visa Intelligence
+            </h1>
+            <div className={`flex items-center gap-1.5 text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-500'}`}>
               <ShieldCheck size={10} className="text-blue-400" />
               <span>Real-time visa map</span>
               {busy && (
@@ -179,12 +189,18 @@ export function VisaIntelPage() {
 
         {/* ── Passport Selector ── */}
         <div className="flex flex-col gap-2">
-          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-gray-500">
+          <span className={`text-[9px] font-bold uppercase tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
             Active Passport
           </span>
 
           {usePillSelector && (
-            <div className="flex items-center gap-1 rounded-xl border border-slate-700/70 bg-[#0a1628]/90 p-1">
+            <div
+              className={`flex items-center gap-1 rounded-xl border p-1 ${
+                isLight
+                  ? 'border-gray-200 bg-gray-100'
+                  : 'border-slate-700/70 bg-[#0a1628]/90'
+              }`}
+            >
               {passports.map(code => {
                 const active = code === passportCode;
                 return (
@@ -194,7 +210,9 @@ export function VisaIntelPage() {
                     className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-bold tracking-wide transition-colors ${
                       active
                         ? 'bg-[#007AFF] text-white ring-1 ring-white/30'
-                        : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                        : isLight
+                          ? 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+                          : 'text-gray-300 hover:bg-white/5 hover:text-white'
                     }`}
                     aria-pressed={active}
                   >
@@ -210,7 +228,11 @@ export function VisaIntelPage() {
             <div className="relative">
               <button
                 onClick={() => setSelectorOpen(o => !o)}
-                className="flex w-full items-center gap-2 rounded-xl border border-slate-700/70 bg-[#0a1628]/90 px-3 py-2 text-[11px] font-bold tracking-wide text-white shadow-lg backdrop-blur hover:border-[#007AFF]/60"
+                className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold tracking-wide shadow-lg backdrop-blur transition-colors ${
+                  isLight
+                    ? 'border-gray-200 bg-white text-gray-900 hover:border-blue-400'
+                    : 'border-slate-700/70 bg-[#0a1628]/90 text-white hover:border-[#007AFF]/60'
+                }`}
                 aria-haspopup="listbox"
                 aria-expanded={selectorOpen}
               >
@@ -229,7 +251,11 @@ export function VisaIntelPage() {
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.14 }}
                     role="listbox"
-                    className="absolute left-0 right-0 z-30 mt-1.5 max-h-64 overflow-auto rounded-xl border border-slate-700/70 bg-[#0a1628]/95 p-1 shadow-2xl backdrop-blur"
+                    className={`absolute left-0 right-0 z-30 mt-1.5 max-h-64 overflow-auto rounded-xl border p-1 shadow-2xl backdrop-blur ${
+                      isLight
+                        ? 'border-gray-200 bg-white/95'
+                        : 'border-slate-700/70 bg-[#0a1628]/95'
+                    }`}
                   >
                     {passports.map(code => {
                       const active = code === passportCode;
@@ -245,7 +271,9 @@ export function VisaIntelPage() {
                             className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[11px] font-bold tracking-wide transition-colors ${
                               active
                                 ? 'bg-[#007AFF] text-white'
-                                : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                                : isLight
+                                  ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                  : 'text-gray-300 hover:bg-white/5 hover:text-white'
                             }`}
                           >
                             <span className="text-sm leading-none">{flagEmoji(code)}</span>
@@ -261,19 +289,31 @@ export function VisaIntelPage() {
           )}
 
           {passports.length === 0 && (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] font-semibold text-amber-300">
+            <div
+              className={`rounded-xl border px-3 py-2 text-[11px] font-semibold ${
+                isLight
+                  ? 'border-amber-300 bg-amber-50 text-amber-700'
+                  : 'border-amber-500/30 bg-amber-500/5 text-amber-300'
+              }`}
+            >
               Add a passport in your Profile
             </div>
           )}
 
           {/* Current passport summary */}
           {passportCode && (
-            <div className="flex items-center gap-2 rounded-lg bg-white/[0.03] px-3 py-2">
+            <div
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 ${
+                isLight ? 'bg-gray-100' : 'bg-white/[0.03]'
+              }`}
+            >
               <span className="text-lg leading-none">{flagEmoji(passportCode)}</span>
               <div className="min-w-0">
-                <div className="text-xs font-bold text-white">{passportCode}</div>
+                <div className={`text-xs font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>
+                  {passportCode}
+                </div>
                 {Object.keys(visaMap).length > 0 && (
-                  <div className="text-[10px] text-gray-500">
+                  <div className={`text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-500'}`}>
                     {Object.keys(visaMap).length} countries classified
                   </div>
                 )}
@@ -284,11 +324,21 @@ export function VisaIntelPage() {
 
         {/* ── Status Banners ── */}
         {error && (
-          <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/5 px-3 py-2.5 text-xs text-red-300">
+          <div
+            className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs ${
+              isLight
+                ? 'border-red-300 bg-red-50 text-red-700'
+                : 'border-red-500/40 bg-red-500/5 text-red-300'
+            }`}
+          >
             <span className="flex-1">{error}</span>
             <button
               onClick={() => setReloadKey(k => k + 1)}
-              className="shrink-0 rounded-md bg-red-500/20 px-2 py-0.5 font-bold text-red-200 hover:bg-red-500/30 hover:text-white transition-colors"
+              className={`shrink-0 rounded-md px-2 py-0.5 font-bold transition-colors ${
+                isLight
+                  ? 'bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-800'
+                  : 'bg-red-500/20 text-red-200 hover:bg-red-500/30 hover:text-white'
+              }`}
               title="Retry"
             >
               ↻ Retry
@@ -297,30 +347,48 @@ export function VisaIntelPage() {
         )}
 
         {showEmptyDataBanner && (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-300">
+          <div
+            className={`rounded-xl border px-3 py-2.5 text-xs ${
+              isLight
+                ? 'border-amber-300 bg-amber-50 text-amber-700'
+                : 'border-amber-500/40 bg-amber-500/5 text-amber-300'
+            }`}
+          >
             No visa data returned for <span className="font-bold">{passportCode}</span> — the
             visa API may be temporarily unavailable. Try again shortly.
           </div>
         )}
 
         {/* ── Divider ── */}
-        <div className="h-px bg-gradient-to-r from-transparent via-slate-700/60 to-transparent" />
+        <div
+          className={`h-px ${
+            isLight
+              ? 'bg-gradient-to-r from-transparent via-gray-300 to-transparent'
+              : 'bg-gradient-to-r from-transparent via-slate-700/60 to-transparent'
+          }`}
+        />
 
         {/* ── Legend (vertical list) ── */}
         <div className="flex flex-col gap-2">
-          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-gray-500">
+          <span className={`text-[9px] font-bold uppercase tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>
             Legend
           </span>
 
           {/* Home country */}
-          <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.03]">
+          <div
+            className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors ${
+              isLight ? 'hover:bg-gray-100' : 'hover:bg-white/[0.03]'
+            }`}
+          >
             <span
               className="inline-block h-3 w-3 shrink-0 rounded-full"
               style={{ backgroundColor: HOME_FILL, boxShadow: `0 0 6px ${HOME_FILL}` }}
             />
-            <span className="text-[11px] font-medium text-gray-300">Home Country</span>
+            <span className={`text-[11px] font-medium ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
+              Home Country
+            </span>
             {statusCounts.Home != null && (
-              <span className="ml-auto text-[10px] tabular-nums text-gray-600">
+              <span className={`ml-auto text-[10px] tabular-nums ${isLight ? 'text-gray-400' : 'text-gray-600'}`}>
                 {statusCounts.Home}
               </span>
             )}
@@ -329,7 +397,9 @@ export function VisaIntelPage() {
           {(Object.keys(STATUS_COLORS) as VisaMapStatus[]).map(status => (
             <div
               key={status}
-              className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.03]"
+              className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors ${
+                isLight ? 'hover:bg-gray-100' : 'hover:bg-white/[0.03]'
+              }`}
             >
               <span
                 className="inline-block h-3 w-3 shrink-0 rounded-full"
@@ -338,11 +408,11 @@ export function VisaIntelPage() {
                   boxShadow: `0 0 4px ${STATUS_COLORS[status]}60`,
                 }}
               />
-              <span className="text-[11px] font-medium text-gray-300">
+              <span className={`text-[11px] font-medium ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>
                 {STATUS_LABELS[status]}
               </span>
               {(statusCounts[status] ?? 0) > 0 && (
-                <span className="ml-auto text-[10px] tabular-nums text-gray-600">
+                <span className={`ml-auto text-[10px] tabular-nums ${isLight ? 'text-gray-400' : 'text-gray-600'}`}>
                   {statusCounts[status]}
                 </span>
               )}
@@ -365,6 +435,7 @@ export function VisaIntelPage() {
           setGeoLoading={setGeoLoading}
           setError={setError}
           reloadKey={reloadKey}
+          isLight={isLight}
         />
       </main>
     </div>
