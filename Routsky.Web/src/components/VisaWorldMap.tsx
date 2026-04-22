@@ -106,8 +106,31 @@ function flagEmoji(code: string): string {
   return String.fromCodePoint(base + (up.charCodeAt(0) - A), base + (up.charCodeAt(1) - A));
 }
 
+/** Inline loader used while waiting on auth hydration, GeoJSON, or the visa API. */
+function LoadingShell({ label }: { label: string }) {
+  return (
+    <div
+      className="flex h-full w-full flex-col"
+      style={{ minHeight: '80vh' }}
+    >
+      <div
+        className="relative flex flex-1 items-center justify-center overflow-hidden rounded-2xl border border-slate-800/80 bg-[#0a1628] shadow-2xl"
+        style={{ minHeight: '600px' }}
+      >
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#007AFF]/30 border-t-[#007AFF]" />
+          <div className="text-sm font-semibold tracking-wide text-blue-200">{label}</div>
+          <div className="text-[11px] tracking-[0.2em] text-gray-500 uppercase">
+            Routsky Visa Intelligence
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function VisaWorldMap() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const passports = useMemo(
     () =>
       (user?.passports ?? [])
@@ -118,6 +141,7 @@ export function VisaWorldMap() {
 
   const [passportCode, setPassportCode] = useState<string>(() => passports[0] ?? 'TR');
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Keep selected passport in sync with the user's list (e.g. late hydration from /auth/me).
   useEffect(() => {
@@ -150,15 +174,20 @@ export function VisaWorldMap() {
     return () => observer.disconnect();
   }, []);
 
-  // ── Load GeoJSON once ──
+  // ── Load GeoJSON (re-runnable via reloadKey) ──
   useEffect(() => {
     let active = true;
     const load = async () => {
+      setGeoLoading(true);
       try {
         const response = await fetch(GEOJSON_URL);
         if (!response.ok) throw new Error(`GeoJSON HTTP ${response.status}`);
         const geo = (await response.json()) as FeatureCollection<Geometry, GeoJsonProperties>;
-        if (active) setWorldFeatures(geo.features);
+        if (!active) return;
+        if (!geo || !Array.isArray(geo.features) || geo.features.length === 0) {
+          throw new Error('GeoJSON is empty or malformed');
+        }
+        setWorldFeatures(geo.features);
       } catch (err) {
         console.error('[VisaWorldMap] Failed to load world GeoJSON', err);
         if (active) setError('Failed to load world map geometry.');
@@ -170,9 +199,9 @@ export function VisaWorldMap() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
-  // ── Load visa status map whenever the user's primary passport changes ──
+  // ── Load visa status map whenever the passport changes (re-runnable via reloadKey) ──
   useEffect(() => {
     let active = true;
     const loadVisaData = async () => {
@@ -181,18 +210,26 @@ export function VisaWorldMap() {
       try {
         const response = await getGlobalVisaMap(passportCode);
         if (!active) return;
-        const countries = response.countries ?? {};
+        const countries = response?.countries ?? {};
         const normalized: Record<string, GlobalVisaCountryStatus> = {};
         for (const [code, value] of Object.entries(countries)) {
+          if (!code || !value) continue;
           normalized[code.trim().toUpperCase()] = value;
         }
         setVisaMap(normalized);
       } catch (err: unknown) {
         console.error('[VisaWorldMap] Failed to load visa map', err);
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message;
         const message =
-          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-          'Failed to load visa intelligence map.';
-        if (active) setError(message);
+          status === 401
+            ? 'Sign in to load your visa intelligence map.'
+            : apiMessage ?? 'Failed to load visa intelligence map.';
+        if (active) {
+          setVisaMap({});
+          setError(message);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -202,7 +239,7 @@ export function VisaWorldMap() {
     return () => {
       active = false;
     };
-  }, [passportCode]);
+  }, [passportCode, reloadKey]);
 
   // ── Projection + path are recomputed when the container resizes ──
   const projection = useMemo(
@@ -272,8 +309,17 @@ export function VisaWorldMap() {
   const usePillSelector = passports.length > 0 && passports.length <= 3;
   const useDropdown = passports.length > 3;
 
+  // Graceful fallback states — never allow the component to collapse to a blank screen.
+  if (isAuthenticated && !user) {
+    return <LoadingShell label="Loading your passport profile..." />;
+  }
+
   return (
-    <div className="flex h-full w-full flex-col gap-3">
+    <div
+      className="flex h-full w-full flex-col gap-3"
+      style={{ minHeight: '80vh' }}
+    >
+
       {/* Header row */}
       <div className="flex shrink-0 items-center justify-between px-1">
         <div>
@@ -292,8 +338,14 @@ export function VisaWorldMap() {
       </div>
 
       {error && (
-        <div className="shrink-0 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-300">
-          {error}
+        <div className="flex shrink-0 items-center justify-between gap-3 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          <span>{error}</span>
+          <button
+            onClick={() => setReloadKey(k => k + 1)}
+            className="shrink-0 rounded-md border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-red-200 hover:bg-red-500/20"
+          >
+            Retry
+          </button>
         </div>
       )}
 
@@ -304,10 +356,11 @@ export function VisaWorldMap() {
         </div>
       )}
 
-      {/* Map fills remaining space */}
+      {/* Map fills remaining space — explicit minHeight so the SVG never collapses to 0 */}
       <div
         ref={containerRef}
-        className="relative flex-1 min-h-[360px] overflow-hidden rounded-2xl border border-slate-800/80 bg-[#0a1628] shadow-2xl"
+        className="relative flex-1 overflow-hidden rounded-2xl border border-slate-800/80 bg-[#0a1628] shadow-2xl"
+        style={{ minHeight: '600px' }}
       >
         <svg
           viewBox={`0 0 ${size.width} ${size.height}`}
@@ -349,6 +402,21 @@ export function VisaWorldMap() {
             })}
           </g>
         </svg>
+
+        {/* In-map loading overlay — shown only when there's nothing to see yet */}
+        {busy && worldFeatures.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#0a1628]/70 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#007AFF]/30 border-t-[#007AFF]" />
+              <div className="text-sm font-semibold tracking-wide text-blue-200">
+                Loading Visa Intelligence...
+              </div>
+              <div className="text-[10px] tracking-[0.2em] text-gray-500 uppercase">
+                {geoLoading ? 'Fetching world geometry' : `Passport ${passportCode}`}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Floating passport selector — top-right of the map */}
         <div className="pointer-events-auto absolute top-3 right-3 z-20">
