@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { geoNaturalEarth1, geoPath } from 'd3-geo';
+import { zoom as d3Zoom, zoomIdentity } from 'd3-zoom';
+import { select } from 'd3-selection';
 import type { Feature, FeatureCollection, Geometry, GeoJsonProperties } from 'geojson';
 import type { GlobalVisaCountryStatus, VisaMapStatus } from '../types';
 
@@ -111,9 +113,13 @@ export interface VisaWorldMapProps {
   reloadKey: number;
 }
 
-/** Fixed SVG coordinate space. */
+/**
+ * Fixed SVG coordinate space.
+ * Using 800×450 (16:9-ish) fills the viewport more aggressively
+ * than 800×500, reducing dead space on the sides.
+ */
 const SVG_W = 800;
-const SVG_H = 500;
+const SVG_H = 450;
 
 export function VisaWorldMap({
   passportCode,
@@ -126,8 +132,10 @@ export function VisaWorldMap({
   setError,
   reloadKey,
 }: VisaWorldMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const gRef = useRef<SVGGElement>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
 
   // ── Load GeoJSON (re-runnable via reloadKey) ──
   useEffect(() => {
@@ -156,25 +164,56 @@ export function VisaWorldMap({
     };
   }, [reloadKey, setGeoLoading, setWorldFeatures, setError]);
 
-  // ── Projection: use fitSize() so the ENTIRE GeoJSON fits perfectly inside the SVG ──
+  // ── Projection: aggressive fill of the 800×450 viewBox ──
   const projection = useMemo(() => {
     const proj = geoNaturalEarth1();
     if (worldFeatures.length > 0) {
       const fc: FeatureCollection = { type: 'FeatureCollection', features: worldFeatures };
+      // fitSize computes the perfect scale+translate so the world fills the box
       proj.fitSize([SVG_W, SVG_H], fc);
     } else {
-      // Sensible default before GeoJSON loads
-      proj.scale(150).translate([SVG_W / 2, SVG_H / 2]);
+      proj.scale(155).translate([SVG_W / 2, SVG_H / 2]);
     }
     return proj;
   }, [worldFeatures]);
   const path = useMemo(() => geoPath(projection), [projection]);
 
-  const statusForFeature = (feature: CountryFeature): VisaMapStatus => {
-    const code = getCountryCode(feature);
-    if (!code) return 'Unknown';
-    return visaMap[code]?.status ?? 'Unknown';
-  };
+  // ── D3 Zoom & Pan ──
+  useEffect(() => {
+    const svg = svgRef.current;
+    const g = gRef.current;
+    if (!svg || !g) return;
+
+    const svgSel = select(svg);
+
+    const zoomBehavior = d3Zoom<SVGSVGElement, unknown>()
+      .scaleExtent([1, 8])
+      .translateExtent([[0, 0], [SVG_W, SVG_H]])
+      .on('start', () => setIsPanning(true))
+      .on('zoom', (event) => {
+        const { x, y, k } = event.transform;
+        select(g).attr('transform', `translate(${x},${y}) scale(${k})`);
+      })
+      .on('end', () => setIsPanning(false));
+
+    svgSel.call(zoomBehavior);
+
+    // Reset to identity on mount
+    svgSel.call(zoomBehavior.transform, zoomIdentity);
+
+    return () => {
+      svgSel.on('.zoom', null);
+    };
+  }, [worldFeatures]); // re-attach when features load
+
+  const statusForFeature = useCallback(
+    (feature: CountryFeature): VisaMapStatus => {
+      const code = getCountryCode(feature);
+      if (!code) return 'Unknown';
+      return visaMap[code]?.status ?? 'Unknown';
+    },
+    [visaMap],
+  );
 
   // Sort so the home-country feature renders LAST (glow sits on top of neighbours).
   const orderedFeatures = useMemo(() => {
@@ -224,10 +263,12 @@ export function VisaWorldMap({
 
   return (
     <div
-      ref={containerRef}
-      className="relative h-full w-full overflow-hidden rounded-2xl border border-slate-800/80 bg-[#0a1628] shadow-2xl"
+      className={`relative h-full w-full overflow-hidden rounded-2xl border border-slate-800/80 bg-[#0a1628] shadow-2xl ${
+        isPanning ? 'cursor-grabbing' : 'cursor-grab'
+      }`}
     >
       <svg
+        ref={svgRef}
         width="100%"
         height="100%"
         viewBox={`0 0 ${SVG_W} ${SVG_H}`}
@@ -245,7 +286,9 @@ export function VisaWorldMap({
           </filter>
         </defs>
         <rect x={0} y={0} width={SVG_W} height={SVG_H} fill="#071124" />
-        <g>
+
+        {/* All map paths go inside this <g> — d3-zoom transforms this group */}
+        <g ref={gRef}>
           {orderedFeatures.map(feature => {
             const d = path(feature);
             if (!d) return null;
