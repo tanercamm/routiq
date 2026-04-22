@@ -10,6 +10,7 @@ import { TravelGroupsPage } from './pages/TravelGroupsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { HomePage } from './pages/HomePage';
 import { FindRoutePage } from './pages/FindRoutePage';
+import { VisaIntelPage } from './pages/VisaIntelPage';
 import { AppLayout } from './components/AppLayout';
 import { AuthCallbackPage } from './pages/AuthCallbackPage';
 
@@ -30,6 +31,7 @@ function App() {
                 <Route path="/routes" element={<DiscoverPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/team" element={<TravelGroupsPage />} />
+                <Route path="/visa-intel" element={<VisaIntelPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>

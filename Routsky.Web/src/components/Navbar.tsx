@@ -8,6 +8,7 @@ const NAV_LINKS = [
     { label: 'Routes', path: '/routes' },
     { label: 'Analytics', path: '/analytics' },
     { label: 'Travel Groups', path: '/team' },
+    { label: 'Visa Intelligence', path: '/visa-intel' },
     { label: 'Settings', path: '/settings' },
 ];
 

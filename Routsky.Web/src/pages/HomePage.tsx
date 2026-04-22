@@ -4,7 +4,6 @@ import Globe, { type GlobeMethods } from 'react-globe.gl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Shield, DollarSign, Calendar, X } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import { VisaWorldMap } from '../components/VisaWorldMap';
 import {
   SUPPORTED_CITIES,
   ALL_CITIES,
@@ -308,61 +307,9 @@ const GlobeView = memo(function GlobeView({ width, height, isLight }: GlobeViewP
   );
 });
 
-/* ─────────────────────────────────────────────────────────────
- *  VisaView — SELF-CONTAINED component for the 2D visa view.
- *  Has ZERO references to globeData, CityPoint, safety, cost,
- *  city nodes, or "Intelligence" cards. STRICTLY forbidden here.
- * ───────────────────────────────────────────────────────────── */
-
-interface VisaViewProps {
-  isLight: boolean;
-}
-
-function VisaView({ isLight }: VisaViewProps) {
-  return (
-    <>
-      {/* Map container — flex column that fills the full viewport below the HUD.
-          The inner VisaWorldMap uses `h-full flex-col` so the SVG grows to
-          fill whatever space remains after the legend. */}
-      <div className="absolute inset-0 z-10 flex flex-col px-4 pb-6 pt-28 sm:px-6 lg:px-8">
-        <VisaWorldMap />
-      </div>
-
-      {/* Visa-only HUD — title/subtitle only. No city intelligence, no safety,
-          no cost, no rings, no ghost tooltips. */}
-      <div className="absolute top-6 left-6 z-20 pointer-events-none">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-          <div className="flex items-center gap-2 mb-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${isLight ? 'bg-[#007AFF]' : 'bg-[#007AFF]/70'} animate-pulse`} />
-            <span className={`text-[9px] font-bold tracking-[0.2em] ${isLight ? 'text-gray-400' : 'text-slate-400'} uppercase transition-colors`}>
-              Routsky - Orchestrating the World
-            </span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-none transition-colors flex flex-wrap items-baseline gap-x-2">
-            <span className={isLight ? 'text-gray-400' : 'text-white/60'}>Visa</span>
-            <span className="bg-gradient-to-r from-[#007AFF] to-[#007AFF]/80 bg-clip-text text-transparent">
-              Intelligence
-            </span>
-          </h1>
-          <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-500'} mt-2.5 max-w-[280px] leading-relaxed transition-colors`}>
-            Live visa intelligence powered by RapidAPI. Hover any country for visa status.
-          </p>
-        </motion.div>
-      </div>
-    </>
-  );
-}
-
 /* ═══════════════════════════════════════════════════════════════
- *  HomePage — the ONLY thing this component does is:
- *  1) Manage the viewMode toggle
- *  2) Measure the container size
- *  3) Render EXACTLY ONE of GlobeView or VisaView
- *
- *  When viewMode changes, React unmounts the old component
- *  and mounts the new one. The old component's entire subtree
- *  (including the Three.js WebGL canvas, all DOM overlays, and
- *  all React state like selected/zoomTier) is DESTROYED.
+ *  HomePage — 100% dedicated to the 3D Globe and agentic search.
+ *  VisaWorldMap lives on its own route (/visa-intel).
  * ═══════════════════════════════════════════════════════════════ */
 
 export function HomePage() {
@@ -371,7 +318,6 @@ export function HomePage() {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [viewMode, setViewMode] = useState<'3D' | '2D'>('3D');
 
   // Measure container
   useEffect(() => {
@@ -407,25 +353,15 @@ export function HomePage() {
       />
       <div className={`absolute inset-0 pointer-events-none z-[1] ${isLight ? 'bg-[#F5F5F7]/20' : 'bg-[#050a18]/40'}`} />
 
-      {/* ═══════════════════════════════════════════════════════
-       *  STRICT TERNARY: Mount exactly one view at a time.
-       *  The outer <div key={viewMode}> is the SINGLE source of
-       *  truth for remount — when viewMode flips, React destroys
-       *  the entire subtree (canvas, overlays, portals, state).
-       * ═══════════════════════════════════════════════════════ */}
-      <div key={viewMode} className="absolute inset-0">
-        {viewMode === '3D' ? (
-          <GlobeView
-            width={dimensions.width}
-            height={dimensions.height}
-            isLight={isLight}
-          />
-        ) : (
-          <VisaView isLight={isLight} />
-        )}
+      <div className="absolute inset-0">
+        <GlobeView
+          width={dimensions.width}
+          height={dimensions.height}
+          isLight={isLight}
+        />
       </div>
 
-      {/* ═══ SHARED: View toggle + system status (always visible) ═══ */}
+      {/* System status panel */}
       <motion.div
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -433,21 +369,6 @@ export function HomePage() {
         className="absolute top-6 right-6 z-20 pointer-events-none"
       >
         <div className="space-y-3">
-          <div className="pointer-events-auto inline-flex items-center rounded-xl border border-slate-700/70 bg-[#0a1628]/95 p-1 shadow-lg backdrop-blur">
-            <button
-              className={`px-3 py-1.5 text-[10px] font-bold tracking-wide transition-colors ${viewMode === '3D' ? 'rounded-lg bg-[#007AFF] text-white' : 'text-gray-400 hover:text-gray-200'}`}
-              onClick={() => setViewMode('3D')}
-            >
-              3D Globe
-            </button>
-            <button
-              className={`px-3 py-1.5 text-[10px] font-bold tracking-wide transition-colors ${viewMode === '2D' ? 'rounded-lg bg-[#007AFF] text-white' : 'text-gray-400 hover:text-gray-200'}`}
-              onClick={() => setViewMode('2D')}
-            >
-              Visa Intel 2D
-            </button>
-          </div>
-
           <div className="border transition-all duration-300 rounded-lg px-4 py-3 min-w-[180px] light:bg-white/70 light:backdrop-blur-md light:border-gray-200 light:shadow-sm dark:border-slate-800/80 dark:bg-[#0a1628]">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-1.5 h-1.5 rounded-full light:bg-[#007AFF] dark:bg-[#007AFF]/50" />
