@@ -13,6 +13,8 @@ import { FindRoutePage } from './pages/FindRoutePage';
 import { VisaIntelPage } from './pages/VisaIntelPage';
 import { AppLayout } from './components/AppLayout';
 import { AuthCallbackPage } from './pages/AuthCallbackPage';
+import LandingPage from './pages/LandingPage';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -20,12 +22,13 @@ function App() {
       <ThemeProvider>
         <BrowserRouter>
           <Routes>
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<AuthGlobeFlip />} />
             <Route path="/register" element={<AuthGlobeFlip />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
-                <Route path="/" element={<HomePage />} />
+                <Route path="/dashboard" element={<HomePage />} />
                 <Route path="/find-route" element={<FindRoutePage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/routes" element={<DiscoverPage />} />
@@ -35,7 +38,7 @@ function App() {
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </ThemeProvider>
