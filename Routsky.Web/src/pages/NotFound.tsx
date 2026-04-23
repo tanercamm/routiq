@@ -1,190 +1,196 @@
-import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import Globe from "react-globe.gl";
+import { useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import * as THREE from 'three';
+
+const SpaghettifiedSphere = () => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  
+  const shaderMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uColorPrimary: { value: new THREE.Color("#ff3300") },
+        uColorSecondary: { value: new THREE.Color("#ffaa00") }
+      },
+      vertexShader: `
+        uniform float uTime;
+        varying vec2 vUv;
+        varying float vDisplacement;
+        
+        // Simplex noise function
+        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+        vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+        float snoise(vec3 v) {
+          const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+          const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+          vec3 i  = floor(v + dot(v, C.yyy));
+          vec3 x0 = v - i + dot(i, C.xxx);
+          vec3 g = step(x0.yzx, x0.xyz);
+          vec3 l = 1.0 - g;
+          vec3 i1 = min(g.xyz, l.zxy);
+          vec3 i2 = max(g.xyz, l.zxy);
+          vec3 x1 = x0 - i1 + C.xxx;
+          vec3 x2 = x0 - i2 + C.yyy;
+          vec3 x3 = x0 - D.yyy;
+          i = mod289(i);
+          vec4 p = permute(permute(permute(
+                    i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                  + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                  + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+          float n_ = 0.142857142857;
+          vec3 ns = n_ * D.wyz - D.xzx;
+          vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+          vec4 x_ = floor(j * ns.z);
+          vec4 y_ = floor(j - 7.0 * x_);
+          vec4 x = x_ *ns.x + ns.yyyy;
+          vec4 y = y_ *ns.x + ns.yyyy;
+          vec4 h = 1.0 - abs(x) - abs(y);
+          vec4 b0 = vec4(x.xy, y.xy);
+          vec4 b1 = vec4(x.zw, y.zw);
+          vec4 s0 = floor(b0)*2.0 + 1.0;
+          vec4 s1 = floor(b1)*2.0 + 1.0;
+          vec4 sh = -step(h, vec4(0.0));
+          vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+          vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+          vec3 p0 = vec3(a0.xy,h.x);
+          vec3 p1 = vec3(a0.zw,h.y);
+          vec3 p2 = vec3(a1.xy,h.z);
+          vec3 p3 = vec3(a1.zw,h.w);
+          vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+          p0 *= norm.x;
+          p1 *= norm.y;
+          p2 *= norm.z;
+          p3 *= norm.w;
+          vec4 m = max(0.5 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+          m = m * m;
+          return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+        }
+
+        void main() {
+          vUv = uv;
+          vec3 pos = position;
+          
+          // Spaghettification effect: stretch heavily along the Y axis
+          float stretch = 1.0 + sin(uTime * 0.8) * 0.6;
+          pos.y *= stretch * 2.5;
+          
+          // Pinch effect near the poles to simulate singularity pull
+          float pinch = smoothstep(0.0, 1.0, abs(pos.y));
+          pos.x *= (1.0 - pinch * 0.85);
+          pos.z *= (1.0 - pinch * 0.85);
+
+          // Add displacement noise for cracking crust
+          float noise = snoise(pos * 3.0 + uTime * 0.4);
+          pos += normal * noise * 0.2;
+          vDisplacement = noise;
+
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        uniform vec3 uColorPrimary;
+        uniform vec3 uColorSecondary;
+        varying vec2 vUv;
+        varying float vDisplacement;
+
+        void main() {
+          // Base darkness of the devoured planet
+          vec3 baseColor = vec3(0.01, 0.0, 0.02);
+          
+          // Calculate magma intensity based on displacement and time
+          float magmaIntensity = smoothstep(-0.1, 0.5, vDisplacement);
+          magmaIntensity += sin(uTime * 3.0 + vUv.y * 20.0) * 0.2;
+          
+          vec3 magmaColor = mix(uColorPrimary, uColorSecondary, vUv.x + sin(uTime)*0.5);
+          
+          // Final color mixes dark crust with glowing magma
+          vec3 color = mix(baseColor, magmaColor, clamp(magmaIntensity, 0.0, 1.0));
+          
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `,
+      wireframe: false,
+    });
+  }, []);
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y += 0.008;
+      meshRef.current.rotation.z += 0.004;
+      shaderMaterial.uniforms.uTime.value = state.clock.getElapsedTime();
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} material={shaderMaterial}>
+      <sphereGeometry args={[1.5, 128, 128]} />
+    </mesh>
+  );
+};
 
 export default function NotFound() {
   const navigate = useNavigate();
-  const globeRef = useRef<any>(null);
-
-  useEffect(() => {
-    const globe = globeRef.current;
-    if (!globe) return;
-
-    // Slow, ominous inward spiral — no autoRotate, manual pull effect
-    globe.controls().autoRotate = false;
-    globe.controls().enableZoom = false;
-    globe.controls().enableRotate = false;
-    globe.pointOfView({ lat: 20, lng: 10, altitude: 2.5 });
-
-    // Gradually zoom in — simulates being pulled into singularity
-    let altitude = 2.5;
-    let angle = 0;
-    const interval = setInterval(() => {
-      altitude = Math.max(0.8, altitude - 0.003);
-      angle += 0.15;
-      globe.pointOfView({
-        lat: 20 + Math.sin(angle * 0.05) * 5,
-        lng: 10 + angle * 0.3,
-        altitude,
-      });
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, []);
 
   return (
-    <div className="relative min-h-screen bg-[#04010a] text-white overflow-hidden flex flex-col items-center justify-center">
-
-      {/* Dark radial void center */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 60% 60% at 50% 50%, rgba(0,0,0,0.95) 0%, rgba(20,0,40,0.7) 40%, transparent 70%)",
-        }}
-      />
-
-      {/* Accretion disk glow — subtle orange halo */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          width: 520,
-          height: 520,
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          borderRadius: "50%",
-          background:
-            "radial-gradient(ellipse at center, transparent 35%, rgba(180,60,0,0.08) 55%, rgba(255,100,20,0.15) 65%, rgba(180,60,0,0.06) 75%, transparent 85%)",
-          animation: "pulse-ring 4s ease-in-out infinite",
-        }}
-      />
-
-      {/* Globe */}
-      <div
-        className="absolute pointer-events-none select-none"
-        style={{
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          // Spaghettification: stretched vertically as it's "pulled in"
-          animation: "spaghetti 7s ease-in-out infinite",
-        }}
-      >
-        <Globe
-          ref={globeRef}
-          width={340}
-          height={340}
-          backgroundColor="rgba(0,0,0,0)"
-          globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
-          atmosphereColor="#ff4400"
-          atmosphereAltitude={0.18}
-          // No arcs, no points — stripped down, ominous
-        />
+    <div className="relative w-full h-screen bg-[#020106] text-white overflow-hidden flex flex-col items-center justify-center font-sans">
+      
+      {/* 3D Canvas Background */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <Canvas camera={{ position: [0, 0, 6], fov: 45 }}>
+          <ambientLight intensity={0.1} />
+          <SpaghettifiedSphere />
+          <EffectComposer>
+            <Bloom luminanceThreshold={0.1} luminanceSmoothing={0.9} height={300} intensity={2.5} mipmapBlur />
+          </EffectComposer>
+        </Canvas>
       </div>
 
-      {/* Lava cracks overlay on globe */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          width: 340,
-          height: 340,
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          borderRadius: "50%",
-          overflow: "hidden",
-          animation: "spaghetti 7s ease-in-out infinite",
-          mixBlendMode: "screen",
-        }}
-      >
-        <svg viewBox="0 0 340 340" width="340" height="340" style={{ opacity: 0.6 }}>
-          {/* Lava crack lines */}
-          <path d="M140 100 Q165 130 155 160 Q145 190 170 210" stroke="#ff5500" strokeWidth="1.5" fill="none" opacity="0.7" />
-          <path d="M170 90 Q185 120 175 145 Q162 168 180 195" stroke="#ff7700" strokeWidth="1" fill="none" opacity="0.5" />
-          <path d="M110 155 Q135 165 145 185 Q155 205 140 225" stroke="#ff4400" strokeWidth="1" fill="none" opacity="0.6" />
-          <path d="M195 130 Q210 155 200 175 Q190 195 205 215" stroke="#ff6600" strokeWidth="1" fill="none" opacity="0.4" />
-          {/* Magma glow spots */}
-          <circle cx="155" cy="160" r="4" fill="#ff5500" opacity="0.8">
-            <animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite" />
-          </circle>
-          <circle cx="175" cy="195" r="3" fill="#ff7700" opacity="0.7">
-            <animate attributeName="opacity" values="0.7;0.2;0.7" dur="2.5s" repeatCount="indefinite" />
-          </circle>
-          <circle cx="140" cy="185" r="2.5" fill="#ff4400" opacity="0.6">
-            <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1.8s" repeatCount="indefinite" />
-          </circle>
-          <circle cx="200" cy="175" r="2" fill="#ff6600" opacity="0.5">
-            <animate attributeName="opacity" values="0.5;0.1;0.5" dur="3s" repeatCount="indefinite" />
-          </circle>
-        </svg>
-      </div>
+      {/* Cinematic UI Overlay */}
+      <div className="relative z-10 flex flex-col items-center text-center mt-[30vh]">
+        <div className="inline-block px-3 py-1 mb-4 border border-red-500/20 bg-red-500/5 backdrop-blur-sm rounded-full">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-red-500 font-bold">
+            Critical Navigational Failure
+          </p>
+        </div>
 
-      {/* Content */}
-      <div className="relative z-10 text-center mt-[420px]">
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="text-[11px] tracking-[0.2em] uppercase text-orange-500/60 mb-3"
-        >
-          Routsky — Navigation Error
-        </motion.p>
-
-        <motion.h1
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="text-[7rem] font-extrabold leading-none tracking-tighter text-transparent mb-2"
-          style={{
-            WebkitTextStroke: "1px rgba(255,100,30,0.4)",
-          }}
-        >
+        <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-red-200 to-red-600 mb-2 leading-none drop-shadow-[0_0_30px_rgba(255,51,0,0.6)]">
           404
-        </motion.h1>
+        </h1>
+        
+        <h2 className="text-xl md:text-2xl font-bold text-red-400 tracking-widest uppercase mb-4 drop-shadow-[0_0_10px_rgba(255,51,0,0.8)]">
+          Sector Devoured
+        </h2>
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="text-white/50 text-sm mb-1"
-        >
-          Route not found
-        </motion.p>
+        <p className="text-slate-400 text-sm max-w-md mx-auto mb-10 leading-relaxed font-light px-6">
+          The routing endpoint you attempted to reach has collapsed into a singularity. 
+          Space-time distortion is critical. Immediate evacuation recommended.
+        </p>
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="text-white/20 text-xs tracking-widest uppercase mb-8"
-        >
-          This destination has been consumed by a singularity
-        </motion.p>
-
-        <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
+        <button
           onClick={() => navigate("/")}
-          className="px-6 py-2.5 text-sm font-medium border border-orange-500/30 text-orange-400/70 hover:border-orange-500/60 hover:text-orange-400 rounded-lg transition-all"
+          className="group relative flex items-center justify-center px-8 py-3.5 bg-transparent overflow-hidden rounded-xl border border-red-500/40 hover:border-red-400 transition-all duration-300"
         >
-          Return to Base
-        </motion.button>
+          {/* Glitch/Neon background hover effect */}
+          <div className="absolute inset-0 w-full h-full bg-red-500/10 group-hover:bg-red-500/20 transition-all duration-300 backdrop-blur-md" />
+          
+          <span className="relative z-10 text-sm font-semibold tracking-widest uppercase text-red-300 group-hover:text-white transition-colors flex items-center gap-2">
+            Return to Base
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 group-hover:-translate-x-1 transition-transform">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </span>
+        </button>
       </div>
 
-      <style>{`
-        @keyframes spaghetti {
-          0%, 100% { transform: translate(-50%, -50%) scaleX(1) scaleY(1); filter: blur(0px); }
-          30%       { transform: translate(-50%, -52%) scaleX(0.92) scaleY(1.06); filter: blur(0.3px); }
-          60%       { transform: translate(-50%, -55%) scaleX(0.82) scaleY(1.15); filter: blur(0.8px); }
-          80%       { transform: translate(-50%, -58%) scaleX(0.70) scaleY(1.25); filter: blur(1.5px); }
-        }
-        @keyframes pulse-ring {
-          0%, 100% { opacity: 0.6; transform: translate(-50%,-50%) scale(1); }
-          50%       { opacity: 1;   transform: translate(-50%,-50%) scale(1.04); }
-        }
-      `}</style>
+      {/* Cinematic Vignette */}
+      <div className="absolute inset-0 z-20 pointer-events-none" style={{
+        background: "radial-gradient(circle at center, transparent 20%, #020106 100%)"
+      }} />
     </div>
   );
 }
