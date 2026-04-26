@@ -10,13 +10,26 @@ import * as THREE from 'three';
 
 extend({ UnrealBloomPass });
 
-// ─── Particle Swarm (Hooke's Law Field — Routsky green palette) ──────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  PARTICLE SWARM — Zodiac Wheel, Routsky edition
+//
+//  Changes from original Casberry export:
+//  · Full green palette (#00ff88 → teal → deep space) — no orange/yellow
+//  · Core sun → bright green-white pulse
+//  · Zodiac clusters → cool green-teal gradient per sign
+//  · Orbital dust → faint teal connecting arcs
+//  · Deep stars → cold blue-green twinkle field
+//  · Larger particle geometry for more impact
+//  · Slower auto-rotate — calmer, more premium feel
+//  · Bloom tuned for green wavelength (higher radius, lower threshold)
+// ─────────────────────────────────────────────────────────────────────────────
 const ParticleSwarm = () => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const count   = 20000;
-  const dummy   = useMemo(() => new THREE.Object3D(), []);
-  const target  = useMemo(() => new THREE.Vector3(), []);
-  const pColor  = useMemo(() => new THREE.Color(), []);
+  const count = 20000;
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const target = useMemo(() => new THREE.Vector3(), []);
+  const pColor = useMemo(() => new THREE.Color(), []);
+  const color  = pColor;
 
   const positions = useMemo(() => {
     const pos: THREE.Vector3[] = [];
@@ -30,45 +43,111 @@ const ParticleSwarm = () => {
   }, []);
 
   const material = useMemo(() => new THREE.MeshBasicMaterial({ color: 0xffffff }), []);
-  const geometry = useMemo(() => new THREE.TetrahedronGeometry(0.18), []);
+  // Slightly larger tetrahedra — more visible, denser feel
+  const geometry = useMemo(() => new THREE.TetrahedronGeometry(0.28), []);
 
-  const K      = 1.2;
-  const AMP    = 22;
-  const SPREAD = 2.0;
-  const FREQ   = 1.0;
+  // Fixed params — no interactive sliders on landing
+  const SPREAD = 110;
+  const SPEED  = 0.14;   // slower = more premium
+  const GLOW   = 0.75;
+  const DRIFT  = 0.12;
 
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     const time = clock.getElapsedTime();
-    const n    = Math.cbrt(count) | 0;
+    const ti   = time * SPEED;
+    const PI2  = Math.PI * 2;
 
     for (let i = 0; i < count; i++) {
-      const ix = i % n;
-      const iy = ((i / n) | 0) % n;
-      const iz = ((i / (n * n)) | 0);
+      const t     = i / count;
+      const seed  = (i * 1.6180339887) % 1.0;
+      const seed2 = (i * 0.7548776662) % 1.0;
+      const seed3 = (i * 0.3819660113) % 1.0;
 
-      const cx = ix - n * 0.5;
-      const cy = iy - n * 0.5;
-      const cz = iz - n * 0.5;
-      const r  = Math.sqrt(cx * cx + cy * cy + cz * cz) + 0.0001;
+      let px = 0, py = 0, pz = 0;
+      let h = 0, s = 0, l = 0;
 
-      const omega        = Math.sqrt(K);
-      const phase        = omega * time * FREQ - r * 0.15;
-      const displacement = Math.sin(phase) * AMP / (1.0 + 0.05 * r);
+      // ── 0–2 %  CORE NODE — bright green-white pulse ──────────────────
+      if (t < 0.02) {
+        const coreR = 3.5 + seed * 5;
+        const coreA = seed2 * PI2 + ti * 0.9;
+        px = Math.cos(coreA) * coreR * (1 + Math.sin(ti * 2.1 + seed * 10) * 0.25);
+        pz = Math.sin(coreA) * coreR * (1 + Math.cos(ti * 1.8 + seed * 8)  * 0.25);
+        py = (seed3 - 0.5) * 2.5 + Math.sin(ti * 3 + seed * 5) * 1.2;
 
-      target.set(
-        cx * SPREAD + (cx / r) * displacement,
-        cy * SPREAD + (cy / r) * displacement,
-        cz * SPREAD + (cz / r) * displacement,
-      );
+        // Green-white core: hue 0.36–0.40, high lightness
+        h = 0.37 + Math.sin(ti + seed * 4) * 0.02;
+        s = 0.85;
+        l = 0.70 + Math.sin(ti * 2.5 + seed * 7) * 0.18;
 
-      // Routsky green palette: #00ff88 → deep teal
-      const energy    = displacement * displacement * K * 0.5;
-      const hue       = 0.38 - Math.min(energy * 0.008, 0.12);
-      const lightness = 0.35 + Math.sin(phase) * 0.12;
-      pColor.setHSL(hue, 1.0, Math.max(lightness, 0.18));
+      // ── 2–30 %  ZODIAC RING — 12 clusters, teal-to-green gradient ────
+      } else if (t < 0.30) {
+        const localT     = (t - 0.02) / 0.28;
+        const signIndex  = Math.floor(localT * 12) % 12;
+        const baseAngle  = (signIndex / 12) * PI2;
 
-      positions[i].lerp(target, 0.08);
+        // Tight cluster around each node
+        const clusterR = 2.5 + seed * 4.5;
+        const clusterA = seed2 * PI2;
+        const offsetX  = Math.cos(clusterA) * clusterR;
+        const offsetZ  = Math.sin(clusterA) * clusterR;
+
+        const ringAngle = baseAngle + ti * 0.12;
+        const ringR     = SPREAD * 0.68;
+
+        px = Math.cos(ringAngle) * ringR + offsetX;
+        pz = Math.sin(ringAngle) * ringR + offsetZ;
+        py = (seed3 - 0.5) * 3.5 + Math.sin(ti * 0.5 + seed * 3) * DRIFT * 10;
+
+        // Each node steps from green (0.36) to teal (0.50) around the ring
+        h = 0.36 + (signIndex / 12) * 0.14;
+        s = 0.80 + seed * 0.15;
+        l = 0.42 + Math.sin(ti + signIndex * 0.52 + seed * 2) * 0.13;
+
+      // ── 30–55 %  ORBITAL DUST — faint teal arcs between nodes ────────
+      } else if (t < 0.55) {
+        const localT   = (t - 0.30) / 0.25;
+        const orbitAng = localT * PI2 * 3 + ti * 0.09;
+        const orbitR   = SPREAD * (0.48 + localT * 0.34);
+        const wobble   = Math.sin(localT * PI2 * 8 + ti) * DRIFT * 11;
+
+        px = Math.cos(orbitAng) * orbitR + Math.sin(seed * PI2) * wobble;
+        pz = Math.sin(orbitAng) * orbitR + Math.cos(seed * PI2) * wobble;
+        py = (seed3 - 0.5) * 5 + Math.sin(ti * 0.3 + localT * 4) * DRIFT * 7;
+
+        // Cool teal, faint — appears as connecting fabric
+        h = 0.48 + Math.sin(localT * 3 + ti * 0.2) * 0.06;
+        s = 0.55 + GLOW * 0.12;
+        l = 0.18 + GLOW * 0.13 + Math.sin(ti + localT * 5) * 0.06;
+
+      // ── 55–100 %  DEEP FIELD — cold star background ───────────────────
+      } else {
+        const localT = (t - 0.55) / 0.45;
+        const phi    = Math.acos(2.0 * seed - 1.0);
+        const theta  = seed2 * PI2 + ti * 0.012;
+        const r      = SPREAD * (1.15 + localT * 1.6);
+        const sinPhi = Math.sin(phi);
+
+        px = sinPhi * Math.cos(theta) * r;
+        pz = sinPhi * Math.sin(theta) * r;
+        py = Math.cos(phi) * r * 0.14;
+
+        // Blue-green twinkle
+        const twinkle = Math.sin(ti * 2.8 + i * 0.31) * 0.5 + 0.5;
+        h = 0.50 + seed3 * 0.12;      // teal → cyan
+        s = 0.20 + GLOW * 0.10;
+        l = (0.06 + twinkle * 0.22) * GLOW;
+      }
+
+      target.set(px, py, pz);
+
+      // Clamp & apply color
+      h = ((h % 1.0) + 1.0) % 1.0;
+      s = Math.max(0.0, Math.min(1.0, s));
+      l = Math.max(0.02, Math.min(0.95, l));
+      color.setHSL(h, s, l);
+
+      positions[i].lerp(target, 0.09);
       dummy.position.copy(positions[i]);
       dummy.updateMatrix();
       meshRef.current.setMatrixAt(i, dummy.matrix);
@@ -83,64 +162,80 @@ const ParticleSwarm = () => {
   return <instancedMesh ref={meshRef} args={[geometry, material, count]} />;
 };
 
-// ─── Landing Page ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+//  LANDING PAGE
+// ─────────────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
+  // Authenticated users skip to dashboard immediately
   React.useEffect(() => {
     if (isAuthenticated) navigate('/home', { replace: true });
   }, [isAuthenticated, navigate]);
 
   const fadeUp = (delay = 0) => ({
-    initial:    { opacity: 0, y: 24 },
+    initial:    { opacity: 0, y: 20 },
     animate:    { opacity: 1, y: 0  },
-    transition: { duration: 0.6, delay, ease: 'easeOut' },
+    transition: { duration: 0.65, delay, ease: [0.16, 1, 0.3, 1] },
   });
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black">
 
-      {/* Particle canvas — full background */}
+      {/* ── Three.js Canvas ────────────────────────────────────────────── */}
       <div className="absolute inset-0 z-0">
-        <Canvas camera={{ position: [0, 0, 90], fov: 60 }}>
-          <fog attach="fog" args={['#000000', 80, 200]} />
+        <Canvas
+          camera={{ position: [0, 55, 85], fov: 55 }}
+          gl={{ antialias: true, alpha: false }}
+        >
+          {/* Very long fog — keeps stars visible but fades hard edges */}
+          <fog attach="fog" args={['#000000', 100, 260]} />
           <ParticleSwarm />
           <OrbitControls
             autoRotate
-            autoRotateSpeed={0.25}
+            autoRotateSpeed={0.18}
             enableZoom={false}
             enablePan={false}
             enableRotate={false}
           />
           <Effects disableGamma>
-            <unrealBloomPass threshold={0} strength={1.4} radius={0.5} />
+            {/* Green bloom: lower threshold, higher radius catches the green hue better */}
+            <unrealBloomPass threshold={0.0} strength={1.6} radius={0.65} />
           </Effects>
         </Canvas>
       </div>
 
-      {/* Radial vignette — draws eye to center */}
+      {/* ── Radial vignette — focus on center text ─────────────────────── */}
       <div
         className="absolute inset-0 z-10 pointer-events-none"
         style={{
-          background:
-            'radial-gradient(ellipse 70% 70% at 50% 50%, transparent 0%, rgba(0,0,0,0.5) 55%, rgba(0,0,0,0.92) 100%)',
+          background: [
+            'radial-gradient(ellipse 60% 55% at 50% 50%, transparent 0%, rgba(0,0,0,0.45) 50%, rgba(0,0,0,0.88) 100%)',
+          ].join(','),
         }}
       />
 
-      {/* NAV */}
+      {/* ── Bottom gradient — grounds the footer ──────────────────────── */}
+      <div
+        className="absolute bottom-0 left-0 right-0 z-10 h-40 pointer-events-none"
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85), transparent)' }}
+      />
+
+      {/* ── NAV ───────────────────────────────────────────────────────── */}
       <nav className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-8 py-5">
+        {/* Replace inner content with your existing <Logo /> component if you have one */}
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-[#00ff88] flex items-center justify-center">
+          <div className="w-7 h-7 rounded-full bg-[#00ff88] flex items-center justify-center shrink-0">
             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-black">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              <path d="M21 15c0 4.418-4.03 8-9 8s-9-3.582-9-8M3 8l9-7 9 7M12 1v14" />
             </svg>
           </div>
-          <div>
-            <span className="text-white font-semibold tracking-tight text-[15px]">
+          <div className="leading-none">
+            <p className="text-white font-semibold tracking-tight text-[15px] leading-none">
               Rout<span className="text-[#00ff88]">sky</span>
-            </span>
-            <p className="text-[9px] tracking-[0.16em] text-white/25 uppercase leading-none">
+            </p>
+            <p className="text-[9px] tracking-[0.16em] text-white/25 uppercase mt-0.5">
               Orchestrating the world
             </p>
           </div>
@@ -148,75 +243,94 @@ export default function LandingPage() {
 
         <button
           onClick={() => navigate('/login')}
-          className="text-white/40 hover:text-white text-sm transition-colors"
+          className="text-white/40 hover:text-white/80 text-sm transition-colors duration-200"
         >
           Sign In
         </button>
       </nav>
 
-      {/* HERO */}
+      {/* ── HERO ──────────────────────────────────────────────────────── */}
       <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-6 pointer-events-none">
 
-        <motion.div {...fadeUp(0)} className="flex items-center gap-2 mb-8 pointer-events-auto">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
-          <span className="text-[#00ff88] text-[11px] tracking-[0.18em] uppercase">
+        {/* Status pill */}
+        <motion.div {...fadeUp(0.1)} className="inline-flex items-center gap-2 mb-8 pointer-events-auto">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00ff88] opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#00ff88]" />
+          </span>
+          <span className="text-[#00ff88] text-[11px] tracking-[0.18em] uppercase font-medium">
             System Online — 320 Active Nodes
           </span>
         </motion.div>
 
+        {/* Main headline */}
         <motion.h1
-          {...fadeUp(0.1)}
-          className="text-[clamp(3rem,7vw,6rem)] font-extrabold leading-[1.02] tracking-[-0.03em] text-white mb-5"
+          {...fadeUp(0.2)}
+          className="font-extrabold leading-[1.0] tracking-[-0.035em] text-white mb-6"
+          style={{ fontSize: 'clamp(3.2rem, 7.5vw, 6.5rem)' }}
         >
           Orchestrate the
           <br />
-          <span className="text-[#00ff88]">World.</span>
+          <span
+            style={{
+              background: 'linear-gradient(135deg, #00ff88 0%, #00d4aa 50%, #00a8c8 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            World.
+          </span>
         </motion.h1>
 
+        {/* Subline */}
         <motion.p
-          {...fadeUp(0.2)}
-          className="text-white/40 text-[clamp(0.9rem,1.4vw,1.05rem)] leading-relaxed max-w-[460px] mb-10 font-light"
+          {...fadeUp(0.3)}
+          className="text-white/35 leading-relaxed max-w-[430px] mb-10 font-light"
+          style={{ fontSize: 'clamp(0.88rem, 1.3vw, 1.02rem)' }}
         >
           Deterministic route generation across 150 countries.
           Visa intelligence, cost analysis, and real-time safety
           in one decision engine.
         </motion.p>
 
+        {/* CTAs */}
         <motion.div
-          {...fadeUp(0.3)}
+          {...fadeUp(0.4)}
           className="flex items-center gap-3 pointer-events-auto"
         >
           <button
             onClick={() => navigate('/register')}
-            className="px-7 py-2.5 bg-[#00ff88] text-black text-sm font-bold rounded-full hover:bg-[#00e07a] transition-all active:scale-95"
+            className="px-7 py-2.5 bg-[#00ff88] text-black text-sm font-bold rounded-full hover:brightness-110 transition-all duration-200 active:scale-[0.97]"
           >
             Get Started
           </button>
           <button
             onClick={() => navigate('/login')}
-            className="px-7 py-2.5 border border-white/15 text-white/60 text-sm rounded-full hover:border-white/30 hover:text-white transition-all"
+            className="px-7 py-2.5 border border-white/12 text-white/55 text-sm rounded-full hover:border-[#00ff88]/30 hover:text-white/80 transition-all duration-200"
           >
             Sign In →
           </button>
         </motion.div>
       </div>
 
-      {/* FOOTER */}
+      {/* ── FOOTER STATS ──────────────────────────────────────────────── */}
       <motion.div
-        {...fadeUp(0.5)}
-        className="absolute bottom-0 left-0 right-0 z-20 flex justify-between items-end px-8 pb-6 pointer-events-none"
+        {...fadeUp(0.6)}
+        className="absolute bottom-0 left-0 right-0 z-20 flex items-end justify-between px-8 pb-6 pointer-events-none"
       >
-        <p className="text-white/20 text-[11px] tracking-widest uppercase">
+        <p className="text-white/18 text-[10px] tracking-[0.14em] uppercase">
           © 2026 Routsky Inc.
         </p>
-        <div className="flex gap-8">
+        <div className="flex gap-7">
           {[
-            { num: '320+', label: 'Active Nodes'       },
-            { num: '150',  label: 'Global Coverage'    },
+            { num: '320+', label: 'Active Nodes'    },
+            { num: '150',  label: 'Countries'       },
+            { num: '7',    label: 'Regions'         },
           ].map((s) => (
             <div key={s.label} className="text-right">
-              <p className="text-[10px] tracking-[0.12em] uppercase text-white/25">{s.label}</p>
-              <p className="text-white text-lg font-bold leading-tight">{s.num}</p>
+              <p className="text-[10px] tracking-[0.1em] uppercase text-white/22">{s.label}</p>
+              <p className="text-white/80 text-base font-bold leading-tight">{s.num}</p>
             </div>
           ))}
         </div>
