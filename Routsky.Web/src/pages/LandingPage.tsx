@@ -25,7 +25,7 @@ extend({ UnrealBloomPass });
 // ─────────────────────────────────────────────────────────────────────────────
 const ParticleSwarm = () => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const count = 20000;
+  const count = 4000;
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const target = useMemo(() => new THREE.Vector3(), []);
   const pColor = useMemo(() => new THREE.Color(), []);
@@ -43,12 +43,12 @@ const ParticleSwarm = () => {
   }, []);
 
   const material = useMemo(() => new THREE.MeshBasicMaterial({ color: 0xffffff }), []);
-  // Slightly larger tetrahedra — more visible, denser feel
-  const geometry = useMemo(() => new THREE.TetrahedronGeometry(0.28), []);
+  // Minimal geometry for reduced visual noise
+  const geometry = useMemo(() => new THREE.TetrahedronGeometry(0.15), []);
 
   // Fixed params — no interactive sliders on landing
   const SPREAD = 110;
-  const SPEED  = 0.14;   // slower = more premium
+  const SPEED  = 0.05;   // fluid, slow motion
   const GLOW   = 0.75;
   const DRIFT  = 0.12;
 
@@ -200,8 +200,8 @@ export default function LandingPage() {
             enableRotate={false}
           />
           <Effects disableGamma>
-            {/* Green bloom: lower threshold, higher radius catches the green hue better */}
-            <unrealBloomPass threshold={0.0} strength={1.6} radius={0.65} />
+            {/* Subtle bloom for minimalist look */}
+            <unrealBloomPass threshold={0.2} strength={0.8} radius={0.4} />
           </Effects>
         </Canvas>
       </div>
@@ -223,17 +223,17 @@ export default function LandingPage() {
       />
 
       {/* ── NAV ───────────────────────────────────────────────────────── */}
-      <nav className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-8 py-5">
+      <nav className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-8 py-5 backdrop-blur-xl bg-white/[0.01] border-b border-white/[0.04]">
         {/* Replace inner content with your existing <Logo /> component if you have one */}
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-[#00ff88] flex items-center justify-center shrink-0">
-            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-black">
+          <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-white/80">
               <path d="M21 15c0 4.418-4.03 8-9 8s-9-3.582-9-8M3 8l9-7 9 7M12 1v14" />
             </svg>
           </div>
           <div className="leading-none">
-            <p className="text-white font-semibold tracking-tight text-[15px] leading-none">
-              Rout<span className="text-[#00ff88]">sky</span>
+            <p className="text-white font-medium tracking-[-0.02em] text-[15px] leading-none">
+              Rout<span className="text-white/50">sky</span>
             </p>
             <p className="text-[9px] tracking-[0.16em] text-white/25 uppercase mt-0.5">
               Orchestrating the world
@@ -253,27 +253,27 @@ export default function LandingPage() {
       <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-6 pointer-events-none">
 
         {/* Status pill */}
-        <motion.div {...fadeUp(0.1)} className="inline-flex items-center gap-2 mb-8 pointer-events-auto">
+        <motion.div {...fadeUp(0.1)} className="inline-flex items-center gap-2.5 mb-10 pointer-events-auto px-3.5 py-1.5 rounded-full border border-white/[0.05] bg-white/[0.02] backdrop-blur-md">
           <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00ff88] opacity-75" />
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#00ff88]" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00e5ff] opacity-50" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#00e5ff]/80" />
           </span>
-          <span className="text-[#00ff88] text-[11px] tracking-[0.18em] uppercase font-medium">
-            System Online — 320 Active Nodes
+          <span className="text-white/60 text-[10px] tracking-[0.2em] uppercase font-medium">
+            System Online
           </span>
         </motion.div>
 
         {/* Main headline */}
         <motion.h1
           {...fadeUp(0.2)}
-          className="font-extrabold leading-[1.0] tracking-[-0.035em] text-white mb-6"
+          className="font-medium leading-[1.0] tracking-[-0.05em] text-white mb-8"
           style={{ fontSize: 'clamp(3.2rem, 7.5vw, 6.5rem)' }}
         >
           Orchestrate the
           <br />
           <span
             style={{
-              background: 'linear-gradient(135deg, #00ff88 0%, #00d4aa 50%, #00a8c8 100%)',
+              background: 'linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.4) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
@@ -286,8 +286,8 @@ export default function LandingPage() {
         {/* Subline */}
         <motion.p
           {...fadeUp(0.3)}
-          className="text-white/35 leading-relaxed max-w-[430px] mb-10 font-light"
-          style={{ fontSize: 'clamp(0.88rem, 1.3vw, 1.02rem)' }}
+          className="text-white/40 leading-relaxed max-w-[480px] mb-14 font-light tracking-wide"
+          style={{ fontSize: 'clamp(0.95rem, 1.4vw, 1.1rem)' }}
         >
           Deterministic route generation across 150 countries.
           Visa intelligence, cost analysis, and real-time safety
@@ -297,17 +297,17 @@ export default function LandingPage() {
         {/* CTAs */}
         <motion.div
           {...fadeUp(0.4)}
-          className="flex items-center gap-3 pointer-events-auto"
+          className="flex items-center gap-5 pointer-events-auto"
         >
           <button
             onClick={() => navigate('/register')}
-            className="px-7 py-2.5 bg-[#00ff88] text-black text-sm font-bold rounded-full hover:brightness-110 transition-all duration-200 active:scale-[0.97]"
+            className="px-8 py-3 bg-[#0a0a0a] border border-white/10 text-white/90 text-[13px] tracking-wide font-medium rounded-full shadow-[0_0_15px_rgba(0,229,255,0.05)] hover:bg-[#111111] hover:border-white/20 hover:shadow-[0_0_25px_rgba(0,229,255,0.15)] transition-all duration-300 active:scale-[0.98] backdrop-blur-md"
           >
             Get Started
           </button>
           <button
             onClick={() => navigate('/login')}
-            className="px-7 py-2.5 border border-white/12 text-white/55 text-sm rounded-full hover:border-[#00ff88]/30 hover:text-white/80 transition-all duration-200"
+            className="px-8 py-3 border border-transparent text-white/50 text-[13px] tracking-wide font-medium rounded-full hover:text-white/90 transition-all duration-300"
           >
             Sign In →
           </button>
@@ -317,7 +317,7 @@ export default function LandingPage() {
       {/* ── FOOTER STATS ──────────────────────────────────────────────── */}
       <motion.div
         {...fadeUp(0.6)}
-        className="absolute bottom-0 left-0 right-0 z-20 flex items-end justify-between px-8 pb-6 pointer-events-none"
+        className="absolute bottom-0 left-0 right-0 z-20 flex items-end justify-between px-8 py-6 pointer-events-none backdrop-blur-xl bg-white/[0.01] border-t border-white/[0.04]"
       >
         <p className="text-white/18 text-[10px] tracking-[0.14em] uppercase">
           © 2026 Routsky Inc.
